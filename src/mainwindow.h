@@ -103,6 +103,7 @@ public:
 
         hexView->setPanelType(0, HexTableView::PT_HEX);
         hexView->setPanelType(1, HexTableView::PT_HEX);
+        hexView->setPanelType(2, HexTableView::PT_HEX);
 
         // TODO: tableview too slow make a custom own widget?
         // observation: draw 4 bits at a time is way faster

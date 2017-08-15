@@ -32,6 +32,19 @@ inline i32 b16Log10(i32 num)
 
 HexTableView::HexTableView()
 {
+    char str[3];
+    str[2] = 0;
+    constexpr char base16[] = "0123456789ABCDEF";
+
+    for(i32 i = 0; i < 256; ++i) {
+        str[0] = base16[i >> 4];
+        str[1] = base16[i & 15];
+        hexByteText[i] = QStaticText(str);
+        hexByteText[i].setPerformanceHint(QStaticText::PerformanceHint::AggressiveCaching);
+    }
+
+    hexByteTextSize = QSize(hexByteText[255].size().width(), hexByteText[255].size().height());
+
     for(i32 p = 0; p < PANEL_COUNT; ++p) {
         panelType[p] = -1;
     }
@@ -103,8 +116,8 @@ void HexTableView::_makeDataHexString(i64 start, i32 size)
 
     for(i32 i = 0; i < size; ++i) {
         u8 byte1 = data[start + i];
-        dataHexStr[strLen] = base16[byte1 / 16];
-        dataHexStr[strLen+1] = base16[byte1 % 16];
+        dataHexStr[strLen] = base16[byte1 >> 4];
+        dataHexStr[strLen+1] = base16[byte1 & 15];
         strLen += 2;
     }
 }
@@ -149,19 +162,20 @@ void HexTableView::_paintPanelHex(QRect panelRect, QPainter& qp)
                 QPointF(columnHeaderRect.right(), columnHeaderRect.bottom()));
 
     // column number in hex
+    const i32 chXoff = (columnWidth - hexByteTextSize.width()) / 2;
+    const i32 chYoff = (columnHeaderHeight - hexByteTextSize.height()) / 2;
     qp.setPen(colorHeaderText);
     for(i32 c = 0; c < columnCount; ++c) {
-        hexText.sprintf("%02X", c);
-        qp.drawText(QRect(panelRect.x() + rowHeaderWidth + c * columnWidth, panelRect.y(),
-                          columnWidth, columnHeaderHeight),
-                    Qt::AlignCenter, hexText);
+        qp.drawStaticText(panelRect.x() + rowHeaderWidth + c * columnWidth + chXoff,
+                          panelRect.y() + chYoff,
+                          hexByteText[c]);
     }
 
     // draw data
     // very slow in debug mode
     if(data) {
-        i64 startId = topRowId * columnCount;
-        _makeDataHexString(startId, min(rowMaxDrawnCount * columnCount, dataSize - startId));
+        const i32 xoff = (columnWidth - hexByteTextSize.width()) / 2;
+        const i32 yoff = (rowHeight - hexByteTextSize.height()) / 2;
 
         qp.setPen(colorDataText);
         for(i32 r = 0; r < rowMaxDrawnCount; ++r) {
@@ -170,10 +184,10 @@ void HexTableView::_paintPanelHex(QRect panelRect, QPainter& qp)
                 if(id >= dataSize) {
                     break;
                 }
-                qp.drawText(QRect(panelRect.x() + rowHeaderWidth + c * columnWidth,
-                                  panelRect.y() + columnHeaderHeight + r * rowHeight,
-                                  columnWidth, rowHeight), Qt::AlignCenter,
-                            QString::fromRawData(dataHexStr + (r * columnCount * 2) + c * 2, 2));
+
+                qp.drawStaticText(panelRect.x() + rowHeaderWidth + c * columnWidth + xoff,
+                                  panelRect.y() + columnHeaderHeight + r * rowHeight + yoff,
+                                  hexByteText[data[id]]);
             }
         }
     }
@@ -186,7 +200,7 @@ void HexTableView::_paintPanelAscii(QRect rect, QPainter& qp)
 
 void HexTableView::_updatePanelRects()
 {
-    qDebug("_updatePanelRects()");
+    //qDebug("_updatePanelRects()");
 
     i32 xoff = 0;
     for(i32 p = 0; p < PANEL_COUNT; ++p) {
@@ -200,7 +214,7 @@ void HexTableView::_updatePanelRects()
         }
 
         xoff += panelRect[p].width();
-        qDebug("panel_rect(%d, %d, %d, %d)",
-               panelRect[p].x(), panelRect[p].y(), panelRect[p].width(), panelRect[p].height());
+        /*qDebug("panel_rect(%d, %d, %d, %d)",
+               panelRect[p].x(), panelRect[p].y(), panelRect[p].width(), panelRect[p].height());*/
     }
 }

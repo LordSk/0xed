@@ -2,6 +2,7 @@
 #include "base.h"
 #include <QAbstractScrollArea>
 #include <QComboBox>
+#include <QStaticText>
 
 enum: i32 {
     PANEL_COUNT = 3
@@ -28,6 +29,8 @@ public:
     i64 dataSize = 0;
 
     QChar dataHexStr[2048];
+    QStaticText hexByteText[256];
+    QSize hexByteTextSize;
 
     // PanelType
     enum: i32 {
