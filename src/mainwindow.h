@@ -20,6 +20,32 @@ struct FileData
     i64 size = 0;
 };
 
+struct PanelComboItem
+{
+    const char* name;
+    i32 panelType;
+};
+
+constexpr PanelComboItem panelComboItems[] = {
+    { "Hex", HexTableView::PT_HEX },
+    { "ASCII", HexTableView::PT_ASCII },
+    { "", -1 },
+    { "Int 8", HexTableView::PT_INT8 },
+    { "Int 16", HexTableView::PT_INT16 },
+    { "Int 32", HexTableView::PT_INT32 },
+    { "Int 64", HexTableView::PT_INT64 },
+    { "", -1 },
+    { "UInt 8", HexTableView::PT_UINT8 },
+    { "UInt 16", HexTableView::PT_UINT16 },
+    { "UInt 32", HexTableView::PT_UINT32 },
+    { "UInt 64", HexTableView::PT_UINT64 },
+    { "", -1 },
+    { "Float 32", HexTableView::PT_FLOAT32 },
+    { "Float 64", HexTableView::PT_FLOAT64 }
+};
+
+constexpr i32 panelComboItemsCount = sizeof(panelComboItems) / sizeof(PanelComboItem);
+
 class MainWindow: public QMainWindow
 {
     Q_OBJECT
@@ -28,7 +54,8 @@ public:
     FileData curFile;
     HexTableView* hexView;
     QWidget* centralWidget;
-    QGridLayout* baseLayout;
+    QVBoxLayout* baseLayout;
+    QHBoxLayout* layoutPanelCombos;
 
     QComboBox* cbPanelType[PANEL_COUNT];
     const i32 panelHeaderHeight = 24;
@@ -56,40 +83,41 @@ public:
         fileMenu->addAction(newAct);
 
         centralWidget = new QWidget();
-        baseLayout = new QGridLayout();
+        baseLayout = new QVBoxLayout();
         baseLayout->setMargin(0);
         baseLayout->setSpacing(0);
 
+        layoutPanelCombos = new QHBoxLayout();
+        layoutPanelCombos->setMargin(0);
+        layoutPanelCombos->setSpacing(0);
+
         for(i32 i = 0; i < PANEL_COUNT; ++i) {
             cbPanelType[i] = new QComboBox();
-            cbPanelType[i]->addItem("Hex");
-            cbPanelType[i]->addItem("ASCII");
-
-            cbPanelType[i]->insertSeparator(0xFFFFFF);
-
-            cbPanelType[i]->addItem("Int 8");
-            cbPanelType[i]->addItem("Int 16");
-            cbPanelType[i]->addItem("Int 32");
-            cbPanelType[i]->addItem("Int 64");
-
-            cbPanelType[i]->insertSeparator(0xFFFFFF);
-
-            cbPanelType[i]->addItem("Uint 8");
-            cbPanelType[i]->addItem("Uint 16");
-            cbPanelType[i]->addItem("Uint 32");
-            cbPanelType[i]->addItem("Uint 64");
-
-            cbPanelType[i]->insertSeparator(0xFFFFFF);
-
-            cbPanelType[i]->addItem("Float 32");
-            cbPanelType[i]->addItem("Float 64");
-
             cbPanelType[i]->setMaxVisibleItems(60);
-            baseLayout->addWidget(cbPanelType[i], 0, i);
+            cbPanelType[i]->setFixedWidth(100);
+
+            for(i32 j = 0; j < panelComboItemsCount; ++j) {
+                if(panelComboItems[j].panelType == -1) {
+                    cbPanelType[i]->insertSeparator(0xFFFFFF);
+                }
+                else {
+                    cbPanelType[i]->addItem(panelComboItems[j].name);
+                }
+            }
+
+            connect(cbPanelType[i], (void(QComboBox::*)(int))&QComboBox::currentIndexChanged, [=]() {
+                this->onPanelChanged(i);
+            });
+
+            layoutPanelCombos->addWidget(cbPanelType[i]);
         }
 
+        layoutPanelCombos->addStretch();
+
+        baseLayout->addLayout(layoutPanelCombos);
+
         hexView = new HexTableView();
-        baseLayout->addWidget(hexView, 1, 0, 1, 3);
+        baseLayout->addWidget(hexView);
 
         centralWidget->setLayout(baseLayout);
         setCentralWidget(centralWidget);
@@ -103,7 +131,10 @@ public:
 
         hexView->setPanelType(0, HexTableView::PT_HEX);
         hexView->setPanelType(1, HexTableView::PT_ASCII);
-        hexView->setPanelType(2, HexTableView::PT_ASCII);
+        hexView->setPanelType(2, HexTableView::PT_INT32);
+        cbPanelType[0]->setCurrentIndex(HexTableView::PT_HEX);
+        cbPanelType[1]->setCurrentIndex(HexTableView::PT_ASCII);
+        cbPanelType[2]->setCurrentIndex(HexTableView::PT_INT32 + 1);
     }
 
     void loadFile(const QString& fileName)
@@ -157,6 +188,21 @@ public:
         hexView->setData(0, 0);
     }
 
+    void onPanelChanged(i32 pid)
+    {
+        i32 val = cbPanelType[pid]->currentIndex();
+        //qDebug("onPanelChanged(%d, %d)", pid, val);
+        hexView->setPanelType(pid, val);
+        updatePanelComboWidths();
+    }
+
+    void updatePanelComboWidths()
+    {
+        for(i32 i = 0; i < PANEL_COUNT; ++i) {
+            cbPanelType[i]->setFixedWidth(hexView->_panelRect[i].width() + 1);
+        }
+    }
+
     void closeEvent(QCloseEvent *event) override
     {
         if(curFile.buffer) {
@@ -168,6 +214,8 @@ public:
     void resizeEvent(QResizeEvent* event) override
     {
         QMainWindow::resizeEvent(event);
+
+        updatePanelComboWidths();
     }
 
     void dragEnterEvent(QDragEnterEvent* event)

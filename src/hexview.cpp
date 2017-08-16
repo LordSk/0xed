@@ -167,11 +167,16 @@ void HexTableView::_paintPanelHex(QRect panelRect, QPainter& qp)
 
     // vertical lines
     qp.setPen(colorHeaderLine);
-    for(i32 c = 4; c <= columnCount; c += 4) {
+    for(i32 c = 4; c < columnCount; c += 4) {
         qp.drawLine(QPointF(panelRect.x() + rowHeaderWidth + c * columnWidth,
                             panelRect.y() + columnHeaderHeight),
                     QPointF(panelRect.x() + rowHeaderWidth + c * columnWidth, panelRect.bottom()));
     }
+
+    qp.drawLine(QPointF(panelRect.x() + rowHeaderWidth + columnCount * columnWidth,
+                        panelRect.y()),
+                QPointF(panelRect.x() + rowHeaderWidth + columnCount * columnWidth,
+                        panelRect.bottom()));
 
     // draw data
     if(data) {
@@ -198,7 +203,7 @@ void HexTableView::_paintPanelAscii(QRect panelRect, QPainter& qp)
 {
     _makeAsciiText();
 
-    const QFont& oldFont = qp.font();
+    const QFont oldFont = qp.font();
     qp.setFont(asciiFont);
 
     i32 topRowId = verticalScrollBar()->value();
@@ -206,8 +211,10 @@ void HexTableView::_paintPanelAscii(QRect panelRect, QPainter& qp)
 
     qp.setPen(colorDataText);
     for(i32 r = 0; r < rowMaxDrawnCount && (r + topRowId) < rowCount; ++r) {
-        qp.drawText(QRect(panelRect.x(), panelRect.y() + columnHeaderHeight + r * rowHeight,
-                          panelRect.width(), rowHeight), Qt::AlignLeft | Qt::AlignVCenter,
+        qp.drawText(QRect(panelRect.x() + asciiHorizontalMargin,
+                          panelRect.y() + columnHeaderHeight + r * rowHeight,
+                          panelRect.width(),
+                          rowHeight), Qt::AlignLeft | Qt::AlignBottom,
                     QString::fromLatin1(asciiText + (r * columnCount), columnCount));
     }
 
@@ -217,6 +224,10 @@ void HexTableView::_paintPanelAscii(QRect panelRect, QPainter& qp)
 void HexTableView::_updatePanelRects()
 {
     //qDebug("_updatePanelRects()");
+
+    asciiFont.setPixelSize(12);
+    QFontMetrics fm(asciiFont);
+    asciiRowTextWidth = fm.width(".") * columnCount;
 
     i32 xoff = 0;
     for(i32 p = 0; p < PANEL_COUNT; ++p) {
@@ -228,7 +239,7 @@ void HexTableView::_updatePanelRects()
                 _panelRect[p].setWidth(rowHeaderWidth + columnCount * columnWidth);
                 break;
             case PT_ASCII:
-                _panelRect[p].setWidth(columnCount * columnWidth);
+                _panelRect[p].setWidth(asciiRowTextWidth + asciiHorizontalMargin * 2);
                 break;
         }
 

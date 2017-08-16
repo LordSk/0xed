@@ -33,6 +33,8 @@ public:
 
     char asciiText[2048];
     QFont asciiFont;
+    i32 asciiRowTextWidth;
+    i32 asciiHorizontalMargin = 20;
 
     // PanelType
     enum: i32 {
