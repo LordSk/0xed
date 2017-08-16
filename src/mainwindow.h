@@ -67,22 +67,22 @@ public:
 
             cbPanelType[i]->insertSeparator(0xFFFFFF);
 
-            cbPanelType[i]->addItem("Int8");
-            cbPanelType[i]->addItem("Int16");
-            cbPanelType[i]->addItem("Int32");
-            cbPanelType[i]->addItem("Int64");
+            cbPanelType[i]->addItem("Int 8");
+            cbPanelType[i]->addItem("Int 16");
+            cbPanelType[i]->addItem("Int 32");
+            cbPanelType[i]->addItem("Int 64");
 
             cbPanelType[i]->insertSeparator(0xFFFFFF);
 
-            cbPanelType[i]->addItem("Uint8");
-            cbPanelType[i]->addItem("Uint16");
-            cbPanelType[i]->addItem("Uint32");
-            cbPanelType[i]->addItem("Uint64");
+            cbPanelType[i]->addItem("Uint 8");
+            cbPanelType[i]->addItem("Uint 16");
+            cbPanelType[i]->addItem("Uint 32");
+            cbPanelType[i]->addItem("Uint 64");
 
             cbPanelType[i]->insertSeparator(0xFFFFFF);
 
-            cbPanelType[i]->addItem("Float32");
-            cbPanelType[i]->addItem("Float64");
+            cbPanelType[i]->addItem("Float 32");
+            cbPanelType[i]->addItem("Float 64");
 
             cbPanelType[i]->setMaxVisibleItems(60);
             baseLayout->addWidget(cbPanelType[i], 0, i);
@@ -102,12 +102,8 @@ public:
                  "dvdbnd0.bhd5.extract\\map\\MapStudio\\m18_01_00_00.msb");
 
         hexView->setPanelType(0, HexTableView::PT_HEX);
-        hexView->setPanelType(1, HexTableView::PT_HEX);
-        hexView->setPanelType(2, HexTableView::PT_HEX);
-
-        // TODO: tableview too slow make a custom own widget?
-        // observation: draw 4 bits at a time is way faster
-        //
+        hexView->setPanelType(1, HexTableView::PT_ASCII);
+        hexView->setPanelType(2, HexTableView::PT_ASCII);
     }
 
     void loadFile(const QString& fileName)

@@ -28,9 +28,11 @@ public:
     u8* data = nullptr;
     i64 dataSize = 0;
 
-    QChar dataHexStr[2048];
     QStaticText hexByteText[256];
     QSize hexByteTextSize;
+
+    char asciiText[2048];
+    QFont asciiFont;
 
     // PanelType
     enum: i32 {
@@ -50,8 +52,8 @@ public:
         PT_COUNT_MAX,
     };
 
-    i32 panelType[PANEL_COUNT];
-    QRect panelRect[PANEL_COUNT];
+    i32 _panelType[PANEL_COUNT];
+    QRect _panelRect[PANEL_COUNT];
 
     HexTableView();
 
@@ -61,9 +63,10 @@ public:
     void resizeEvent(QResizeEvent* event) override;
     void paintEvent(QPaintEvent* event) override;
 
-    void _makeDataHexString(i64 start, i32 size);
     void _paintPanelHex(QRect panelRect, QPainter& qp);
-    void _paintPanelAscii(QRect rect, QPainter& qp);
+    void _paintPanelAscii(QRect panelRect, QPainter& qp);
 
     void _updatePanelRects();
+
+    void _makeAsciiText();
 };
