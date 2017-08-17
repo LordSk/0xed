@@ -8,7 +8,7 @@ enum: i32 {
     PANEL_COUNT = 3
 };
 
-class HexTableView: public QAbstractScrollArea
+class DataPanelView: public QAbstractScrollArea
 {
 public:
 
@@ -29,7 +29,9 @@ public:
     i64 dataSize = 0;
 
     QStaticText hexByteText[256];
+    QPixmap pixHexByteText[256];
     QSize hexByteTextSize;
+    QPixmap pixInt8Text[256+128];
 
     char asciiText[2048];
     QFont asciiFont;
@@ -57,7 +59,10 @@ public:
     i32 _panelType[PANEL_COUNT];
     QRect _panelRect[PANEL_COUNT];
 
-    HexTableView();
+    i32 intCellMaxWidth[9];
+    i32 intCellMargin = 5;
+
+    DataPanelView();
 
     void setData(u8* data_, i64 size_);
     void setPanelType(i32 panelId, i32 type);
@@ -65,8 +70,12 @@ public:
     void resizeEvent(QResizeEvent* event) override;
     void paintEvent(QPaintEvent* event) override;
 
+    void _drawHexByte(i32 val, QRect rect, QPainter& qp);
+    void _drawInt8(i32 val, QRect rect, QPainter& qp);
     void _paintPanelHex(QRect panelRect, QPainter& qp);
     void _paintPanelAscii(QRect panelRect, QPainter& qp);
+    void _paintPanelInteger(const QRect panelRect, QPainter& qp, const i32 bytes, bool unsigned_);
+    void _paintPanelInt8(const QRect panelRect, QPainter& qp, bool unsigned_);
 
     void _updatePanelRects();
 

@@ -27,21 +27,21 @@ struct PanelComboItem
 };
 
 constexpr PanelComboItem panelComboItems[] = {
-    { "Hex", HexTableView::PT_HEX },
-    { "ASCII", HexTableView::PT_ASCII },
+    { "Hex", DataPanelView::PT_HEX },
+    { "ASCII", DataPanelView::PT_ASCII },
     { "", -1 },
-    { "Int 8", HexTableView::PT_INT8 },
-    { "Int 16", HexTableView::PT_INT16 },
-    { "Int 32", HexTableView::PT_INT32 },
-    { "Int 64", HexTableView::PT_INT64 },
+    { "Int 8", DataPanelView::PT_INT8 },
+    { "Int 16", DataPanelView::PT_INT16 },
+    { "Int 32", DataPanelView::PT_INT32 },
+    { "Int 64", DataPanelView::PT_INT64 },
     { "", -1 },
-    { "UInt 8", HexTableView::PT_UINT8 },
-    { "UInt 16", HexTableView::PT_UINT16 },
-    { "UInt 32", HexTableView::PT_UINT32 },
-    { "UInt 64", HexTableView::PT_UINT64 },
+    { "UInt 8", DataPanelView::PT_UINT8 },
+    { "UInt 16", DataPanelView::PT_UINT16 },
+    { "UInt 32", DataPanelView::PT_UINT32 },
+    { "UInt 64", DataPanelView::PT_UINT64 },
     { "", -1 },
-    { "Float 32", HexTableView::PT_FLOAT32 },
-    { "Float 64", HexTableView::PT_FLOAT64 }
+    { "Float 32", DataPanelView::PT_FLOAT32 },
+    { "Float 64", DataPanelView::PT_FLOAT64 }
 };
 
 constexpr i32 panelComboItemsCount = sizeof(panelComboItems) / sizeof(PanelComboItem);
@@ -52,7 +52,7 @@ class MainWindow: public QMainWindow
 
 public:
     FileData curFile;
-    HexTableView* hexView;
+    DataPanelView* dataPanelView;
     QWidget* centralWidget;
     QVBoxLayout* baseLayout;
     QHBoxLayout* layoutPanelCombos;
@@ -116,8 +116,8 @@ public:
 
         baseLayout->addLayout(layoutPanelCombos);
 
-        hexView = new HexTableView();
-        baseLayout->addWidget(hexView);
+        dataPanelView = new DataPanelView();
+        baseLayout->addWidget(dataPanelView);
 
         centralWidget->setLayout(baseLayout);
         setCentralWidget(centralWidget);
@@ -129,12 +129,12 @@ public:
         loadFile("C:\\Program Files (x86)\\NAMCO BANDAI Games\\DarkSouls\\"
                  "dvdbnd0.bhd5.extract\\map\\MapStudio\\m18_01_00_00.msb");
 
-        hexView->setPanelType(0, HexTableView::PT_HEX);
-        hexView->setPanelType(1, HexTableView::PT_ASCII);
-        hexView->setPanelType(2, HexTableView::PT_INT32);
-        cbPanelType[0]->setCurrentIndex(HexTableView::PT_HEX);
-        cbPanelType[1]->setCurrentIndex(HexTableView::PT_ASCII);
-        cbPanelType[2]->setCurrentIndex(HexTableView::PT_INT32 + 1);
+        dataPanelView->setPanelType(0, DataPanelView::PT_HEX);
+        dataPanelView->setPanelType(1, DataPanelView::PT_ASCII);
+        dataPanelView->setPanelType(2, DataPanelView::PT_INT32);
+        cbPanelType[0]->setCurrentIndex(DataPanelView::PT_HEX);
+        cbPanelType[1]->setCurrentIndex(DataPanelView::PT_ASCII);
+        cbPanelType[2]->setCurrentIndex(DataPanelView::PT_INT32 + 1);
     }
 
     void loadFile(const QString& fileName)
@@ -178,28 +178,28 @@ public:
 
     void onFileLoaded()
     {
-        hexView->setData(curFile.buffer, curFile.size);
+        dataPanelView->setData(curFile.buffer, curFile.size);
     }
 
     void clearCurrentFile()
     {
         free(curFile.buffer);
         curFile.buffer = nullptr;
-        hexView->setData(0, 0);
+        dataPanelView->setData(0, 0);
     }
 
     void onPanelChanged(i32 pid)
     {
-        i32 val = cbPanelType[pid]->currentIndex();
+        i32 val = panelComboItems[cbPanelType[pid]->currentIndex()].panelType;
         //qDebug("onPanelChanged(%d, %d)", pid, val);
-        hexView->setPanelType(pid, val);
+        dataPanelView->setPanelType(pid, val);
         updatePanelComboWidths();
     }
 
     void updatePanelComboWidths()
     {
         for(i32 i = 0; i < PANEL_COUNT; ++i) {
-            cbPanelType[i]->setFixedWidth(hexView->_panelRect[i].width() + 1);
+            cbPanelType[i]->setFixedWidth(dataPanelView->_panelRect[i].width() + 1);
         }
     }
 
