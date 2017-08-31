@@ -218,7 +218,7 @@ public:
         updatePanelComboWidths();
     }
 
-    void dragEnterEvent(QDragEnterEvent* event)
+    void dragEnterEvent(QDragEnterEvent* event) override
     {
         event->accept(); // needed to accept dropEvent
     }
@@ -233,5 +233,13 @@ public:
             loadFile(path);
             event->accept();
         }
+    }
+
+    void keyPressEvent(QKeyEvent* event) override
+    {
+        if(event->key() == Qt::Key::Key_Escape) {
+            close();
+        }
+        QMainWindow::keyPressEvent(event);
     }
 };

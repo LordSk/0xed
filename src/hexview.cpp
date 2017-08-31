@@ -36,6 +36,14 @@ inline i32 f64Log10(f64 flt)
     return 0;
 }
 
+inline void byteToHexStr(char* hexStr, u8 val)
+{
+    constexpr char base16[] = "0123456789ABCDEF";
+    hexStr[0] = base16[val >> 4];
+    hexStr[1] = base16[val & 15];
+    hexStr[2] = 0;
+}
+
 DataPanelView::DataPanelView()
 {
     // prepare every byte hex combinaison (better performance with static text)
@@ -74,6 +82,13 @@ DataPanelView::DataPanelView()
     floatStr.sprintf("%5.5f", -FLT_MAX);*/
     floatCellMaxWidth[0] = intCellMaxWidth[4];
     floatCellMaxWidth[1] = intCellMaxWidth[8];
+
+    selectionPivot = 10;
+    selectionStart = 10;
+    selectionEnd = 25;
+
+    colorSelectBg = palette().color(QPalette::Highlight);
+    colorSelectText = palette().color(QPalette::HighlightedText);
 }
 
 void DataPanelView::setData(u8* data_, i64 size_)
@@ -169,6 +184,24 @@ void DataPanelView::paintEvent(QPaintEvent* event)
     event->accept();
 }
 
+void DataPanelView::mousePressEvent(QMouseEvent* event)
+{
+    _mousePress(event->button(), event->x(), event->y());
+    QAbstractScrollArea::mousePressEvent(event);
+}
+
+void DataPanelView::mouseReleaseEvent(QMouseEvent* event)
+{
+    _mouseRelease(event->button(), event->x(), event->y());
+    QAbstractScrollArea::mouseReleaseEvent(event);
+}
+
+void DataPanelView::mouseMoveEvent(QMouseEvent* event)
+{
+    _mouseMove(event->x(), event->y());
+    QAbstractScrollArea::mouseMoveEvent(event);
+}
+
 void DataPanelView::_drawHexByte(i32 val, QRect rect, QPainter& qp)
 {
     QPixmap& pix = pixHexByteText[val];
@@ -177,11 +210,8 @@ void DataPanelView::_drawHexByte(i32 val, QRect rect, QPainter& qp)
         pix = QPixmap(rect.size());
         //pix.fill(Qt::white);
         pix.fill(Qt::transparent);
-        constexpr char base16[] = "0123456789ABCDEF";
         char hexStr[3];
-        hexStr[0] = base16[val >> 4];
-        hexStr[1] = base16[val & 15];
-        hexStr[2] = 0;
+        byteToHexStr(hexStr, val);
         QPainter p(&pix);
         p.setPen(Qt::black);
         p.setFont(qp.font());
@@ -220,7 +250,6 @@ void DataPanelView::_paintPanelHex(QRect panelRect, QPainter& qp)
         const i32 xoff = (columnWidth - hexByteTextSize.width()) / 2;
         const i32 yoff = (rowHeight - hexByteTextSize.height()) / 2;
 
-        qp.setPen(colorDataText);
         for(i32 r = 0; r < rowMaxDrawnCount; ++r) {
             for(i32 c = 0; c < columnCount; ++c) {
                 i64 id = (r+topRowId) * columnCount + c;
@@ -231,10 +260,20 @@ void DataPanelView::_paintPanelHex(QRect panelRect, QPainter& qp)
                 /*qp.drawStaticText(panelRect.x() + rowHeaderWidth + c * columnWidth + xoff,
                                   panelRect.y() + columnHeaderHeight + r * rowHeight + yoff,
                                   hexByteText[data[id]]);*/
-                _drawHexByte(data[id],
-                             QRect(panelRect.x() + rowHeaderWidth + c * columnWidth,
-                                   panelRect.y() + columnHeaderHeight + r * rowHeight,
-                                   columnWidth, rowHeight), qp);
+                QRect cellRect(panelRect.x() + rowHeaderWidth + c * columnWidth,
+                               panelRect.y() + columnHeaderHeight + r * rowHeight,
+                               columnWidth, rowHeight);
+
+                if(id >= selectionStart && id < selectionEnd) {
+                    qp.fillRect(cellRect, colorSelectBg);
+                    qp.setPen(colorSelectText);
+                    char hexStr[3];
+                    byteToHexStr(hexStr, *(u8*)(data + id));
+                    qp.drawText(cellRect, Qt::AlignCenter, QString::fromLatin1(hexStr));
+                }
+                else {
+                    _drawHexByte(data[id], cellRect, qp);
+                }
             }
         }
     }
@@ -344,7 +383,6 @@ void DataPanelView::_paintPanelInteger(const QRect panelRect, QPainter& qp, cons
     i32 rowMaxDrawnCount = verticalScrollBar()->pageStep() + 1;
 
     QString intStr;
-    qp.setPen(colorDataText);
     for(i32 r = 0; r < rowMaxDrawnCount && (r + topRowId) < rowCount; ++r) {
         i32 xoff = panelRect.x();
 
@@ -352,6 +390,19 @@ void DataPanelView::_paintPanelInteger(const QRect panelRect, QPainter& qp, cons
             i64 id = (r + topRowId) * columnCount + c;
             if(id >= dataSize) {
                 break;
+            }
+
+            QRect cellRect(xoff,
+                           panelRect.y() + columnHeaderHeight + r * rowHeight,
+                           cellMaxWidth + intCellMargin * 2,
+                           rowHeight);
+
+            if(id+bytes > selectionStart && id < selectionEnd) {
+                qp.setPen(colorSelectText);
+                qp.fillRect(cellRect, colorSelectBg);
+            }
+            else {
+                qp.setPen(colorDataText);
             }
 
             if(unsigned_) {
@@ -369,10 +420,8 @@ void DataPanelView::_paintPanelInteger(const QRect panelRect, QPainter& qp, cons
                 }
             }
 
-            qp.drawText(QRect(xoff,
-                              panelRect.y() + columnHeaderHeight + r * rowHeight,
-                              cellMaxWidth + intCellMargin,
-                              rowHeight), Qt::AlignRight | Qt::AlignVCenter, intStr);
+            cellRect.setWidth(cellRect.width() - intCellMargin);
+            qp.drawText(cellRect, Qt::AlignRight | Qt::AlignVCenter, intStr);
             xoff += cellMaxWidth + intCellMargin * 2;
         }
     }
@@ -518,6 +567,19 @@ void DataPanelView::_paintPanelFloat(const QRect panelRect, QPainter& qp, const 
                 break;
             }
 
+            QRect cellRect(xoff,
+                           panelRect.y() + columnHeaderHeight + r * rowHeight,
+                           cellMaxWidth + intCellMargin * 2,
+                           rowHeight);
+
+            if(id+bytes >= selectionStart && id < selectionEnd) {
+                qp.setPen(colorSelectText);
+                qp.fillRect(cellRect, colorSelectBg);
+            }
+            else {
+                qp.setPen(colorDataText);
+            }
+
             f64 dataFlt = bytes == 4 ? *(f32*)(data + id) : *(f64*)(data + id);
 
             if(isnan(dataFlt)) {
@@ -530,6 +592,7 @@ void DataPanelView::_paintPanelFloat(const QRect panelRect, QPainter& qp, const 
                 fltStr.sprintf("%g", dataFlt);
             }
 
+            cellRect.setWidth(cellRect.width() - intCellMargin);
             qp.drawText(QRect(xoff,
                               panelRect.y() + columnHeaderHeight + r * rowHeight,
                               cellMaxWidth + intCellMargin,
@@ -628,7 +691,104 @@ void DataPanelView::_makeAsciiText()
 
     for(i32 i = 0; i < textSize; ++i) {
         if(asciiText[i] < 0x20) {
-            asciiText[i] = '.';
+            asciiText[i] = ' ';
+        }
+    }
+}
+
+void DataPanelView::_mousePress(i32 button, i32 x, i32 y)
+{
+    if(button & Qt::MouseButton::LeftButton) mousePressed[0] = true;
+
+    for(i32 i = 0; i < PANEL_COUNT; ++i) {
+        if(_panelRect[i].contains(x, y)) {
+            switch(_panelType[i]) {
+                case PT_HEX:
+                    _panelHexMousePress(_panelRect[i], x, y);
+                    break;
+            }
+        }
+    }
+}
+
+void DataPanelView::_mouseRelease(i32 button, i32 x, i32 y)
+{
+    if(button & Qt::MouseButton::LeftButton) mousePressed[0] = false;
+}
+
+void DataPanelView::_mouseMove(i32 x, i32 y)
+{
+    for(i32 i = 0; i < PANEL_COUNT; ++i) {
+        if(_panelRect[i].contains(x, y)) {
+            switch(_panelType[i]) {
+                case PT_HEX:
+                    _panelHexMouseMove(_panelRect[i], x, y);
+                    break;
+            }
+        }
+    }
+}
+
+void DataPanelView::_panelHexMousePress(const QRect panelRect, i32 x, i32 y)
+{
+    x -= panelRect.x();
+    y -= panelRect.y();
+
+    if(x < rowHeaderWidth) {
+        return;
+    }
+
+    if(y < columnHeaderHeight) {
+        return;
+    }
+
+    x -= rowHeaderWidth;
+    y -= columnHeaderHeight;
+
+    i32 topRowId = verticalScrollBar()->value() * columnCount;
+    i32 cellId = y / rowHeight * columnCount + x / columnWidth + topRowId;
+
+    if(mousePressed[0]) {
+        selectionPivot = cellId;
+        selectionStart = cellId;
+        selectionEnd = cellId+1;
+        viewport()->update();
+    }
+}
+
+void DataPanelView::_panelHexMouseMove(const QRect panelRect, i32 x, i32 y)
+{
+    x -= panelRect.x();
+    y -= panelRect.y();
+
+    if(x < rowHeaderWidth) {
+        return;
+    }
+
+    if(y < columnHeaderHeight) {
+        return;
+    }
+
+    x -= rowHeaderWidth;
+    y -= columnHeaderHeight;
+
+    i32 topRowId = verticalScrollBar()->value() * columnCount;
+    i32 cellId = y / rowHeight * columnCount + x / columnWidth + topRowId;
+
+    if(mousePressed[0]) {
+        if(cellId < selectionPivot) {
+            if(cellId != selectionStart) {
+                selectionStart = cellId;
+                selectionEnd = selectionPivot;
+                viewport()->update();
+            }
+        }
+        else {
+            if(cellId+1 != selectionEnd) {
+                selectionStart = selectionPivot;
+                selectionEnd = cellId+1;
+                viewport()->update();
+            }
         }
     }
 }

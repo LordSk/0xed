@@ -18,6 +18,9 @@ public:
     QColor colorHeaderText = QColor(150, 150, 150);
     QColor colorDataText = QColor(0, 0, 0);
 
+    QColor colorSelectBg;
+    QColor colorSelectText;
+
     const i32 columnCount = 16;
     i32 columnWidth = 20;
     i32 columnHeaderHeight = 20;
@@ -63,6 +66,11 @@ public:
     i32 intCellMargin = 5;
     i32 floatCellMaxWidth[2];
 
+    i32 selectionPivot;
+    i32 selectionStart;
+    i32 selectionEnd;
+    i8 mousePressed[2];
+
     DataPanelView();
 
     void setData(u8* data_, i64 size_);
@@ -70,6 +78,9 @@ public:
 
     void resizeEvent(QResizeEvent* event) override;
     void paintEvent(QPaintEvent* event) override;
+    void mousePressEvent(QMouseEvent *) override;
+    void mouseReleaseEvent(QMouseEvent *) override;
+    void mouseMoveEvent(QMouseEvent* event) override;
 
     void _drawHexByte(i32 val, QRect rect, QPainter& qp);
     void _drawInt8(i32 val, QRect rect, QPainter& qp);
@@ -82,4 +93,11 @@ public:
     void _updatePanelRects();
 
     void _makeAsciiText();
+
+    void _mousePress(i32 button, i32 x, i32 y);
+    void _mouseRelease(i32 button, i32 x, i32 y);
+    void _mouseMove(i32 x, i32 y);
+
+    void _panelHexMousePress(const QRect panelRect, i32 x, i32 y);
+    void _panelHexMouseMove(const QRect panelRect, i32 x, i32 y);
 };
