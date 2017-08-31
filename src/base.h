@@ -11,8 +11,15 @@ typedef uint16_t u16;
 typedef uint32_t u32;
 typedef uint64_t u64;
 
-#define qstr_cstr(str) str.toLocal8Bit().constData()
+typedef float f32;
+typedef double f64;
+
+#define qstr_cstr(str) (str.toLocal8Bit().constData())
 
 #ifndef min
     #define min(a, b) ((a) < (b) ? (a) : (b))
+#endif
+
+#ifndef max
+    #define max(a, b) ((a) > (b) ? (a) : (b))
 #endif

@@ -61,6 +61,7 @@ public:
 
     i32 intCellMaxWidth[9];
     i32 intCellMargin = 5;
+    i32 floatCellMaxWidth[2];
 
     DataPanelView();
 
@@ -76,6 +77,7 @@ public:
     void _paintPanelAscii(QRect panelRect, QPainter& qp);
     void _paintPanelInteger(const QRect panelRect, QPainter& qp, const i32 bytes, bool unsigned_);
     void _paintPanelInt8(const QRect panelRect, QPainter& qp, bool unsigned_);
+    void _paintPanelFloat(const QRect panelRect, QPainter& qp, const i32 bytes);
 
     void _updatePanelRects();
 

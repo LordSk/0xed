@@ -1,5 +1,6 @@
 #include "hexview.h"
 #include <assert.h>
+#include <float.h>
 #include <QAbstractTableModel>
 #include <QStyledItemDelegate>
 #include <QPainter>
@@ -9,24 +10,29 @@
 
 inline i32 b16Log10(i32 num)
 {
-    if(num <= 0xFFFFFF) {
-        return 6;
-    }
-    if(num <= 0xFFFFF) {
-        return 5;
-    }
-    if(num <= 0xFFFF) {
-        return 4;
-    }
-    if(num <= 0xFFF) {
-        return 3;
-    }
-    if(num <= 0xFF) {
-        return 2;
-    }
-    if(num <= 0xF) {
-        return 1;
-    }
+    if(num > 0xFFFFF) return 6;
+    if(num > 0xFFFF) return 5;
+    if(num > 0xFFF) return 4;
+    if(num > 0xFF) return 3;
+    if(num > 0xF) return 2;
+    if(num > 0x0) return 1;
+    return 0;
+}
+
+inline i32 f64Log10(f64 flt)
+{
+    flt = fabs(flt);
+    if(flt >= 10000000000.0) return 11;
+    if(flt >= 1000000000.0) return 10;
+    if(flt >= 100000000.0) return 9;
+    if(flt >= 10000000.0) return 8;
+    if(flt >= 1000000.0) return 7;
+    if(flt >= 100000.0) return 6;
+    if(flt >= 10000.0) return 5;
+    if(flt >= 1000.0) return 4;
+    if(flt >= 100.0) return 3;
+    if(flt >= 10.0) return 2;
+    if(flt >= 1.0) return 1;
     return 0;
 }
 
@@ -63,6 +69,11 @@ DataPanelView::DataPanelView()
     intCellMaxWidth[4] = fontMetrics().width(intStr);
     intStr.sprintf("%lld", INT64_MIN);
     intCellMaxWidth[8] = fontMetrics().width(intStr);
+
+    /*QString floatStr;
+    floatStr.sprintf("%5.5f", -FLT_MAX);*/
+    floatCellMaxWidth[0] = intCellMaxWidth[4];
+    floatCellMaxWidth[1] = intCellMaxWidth[8];
 }
 
 void DataPanelView::setData(u8* data_, i64 size_)
@@ -145,6 +156,12 @@ void DataPanelView::paintEvent(QPaintEvent* event)
                 break;
             case PT_UINT64:
                 _paintPanelInteger(_panelRect[p], qp, 8, true);
+                break;
+            case PT_FLOAT32:
+                _paintPanelFloat(_panelRect[p], qp, 4);
+                break;
+            case PT_FLOAT64:
+                _paintPanelFloat(_panelRect[p], qp, 8);
                 break;
         }
     }
@@ -467,6 +484,83 @@ void DataPanelView::_paintPanelInt8(const QRect panelRect, QPainter& qp, bool un
     }
 }
 
+void DataPanelView::_paintPanelFloat(const QRect panelRect, QPainter& qp, const i32 bytes)
+{
+    assert(columnCount % bytes == 0);
+
+    i32 cellMaxWidth = bytes == 4 ? floatCellMaxWidth[0] : floatCellMaxWidth[1];
+    i32 fltColumnCount = columnCount / bytes;
+
+    // column header
+    QRect columnHeaderRect = panelRect;
+    columnHeaderRect.setHeight(columnHeaderHeight);
+    qp.fillRect(columnHeaderRect, QBrush(colorHeaderBg));
+
+    const i32 chYoff = (columnHeaderHeight - hexByteTextSize.height()) / 2;
+    qp.setPen(colorHeaderText);
+    for(i32 c = 0; c < fltColumnCount; ++c) {
+        qp.drawStaticText(panelRect.x() + c * (cellMaxWidth + intCellMargin * 2) + intCellMargin,
+                          panelRect.y() + chYoff,
+                          hexByteText[c * bytes]);
+    }
+
+    i32 topRowId = verticalScrollBar()->value();
+    i32 rowMaxDrawnCount = verticalScrollBar()->pageStep() + 1;
+
+    QString fltStr;
+    qp.setPen(colorDataText);
+    for(i32 r = 0; r < rowMaxDrawnCount && (r + topRowId) < rowCount; ++r) {
+        i32 xoff = panelRect.x();
+
+        for(i32 c = 0; c < columnCount; c += bytes) {
+            i64 id = (r + topRowId) * columnCount + c;
+            if(id >= dataSize) {
+                break;
+            }
+
+            f64 dataFlt = bytes == 4 ? *(f32*)(data + id) : *(f64*)(data + id);
+
+            if(isnan(dataFlt)) {
+                fltStr = "NaN";
+            }
+            else if(dataFlt == 0.0) {
+                fltStr = "0.0";
+            }
+            else {
+                fltStr.sprintf("%g", dataFlt);
+            }
+
+            qp.drawText(QRect(xoff,
+                              panelRect.y() + columnHeaderHeight + r * rowHeight,
+                              cellMaxWidth + intCellMargin,
+                              rowHeight), Qt::AlignRight | Qt::AlignVCenter, fltStr);
+            xoff += cellMaxWidth + intCellMargin * 2;
+        }
+    }
+
+    // vertical lines
+    qp.setPen(colorHeaderLine);
+    for(i32 c = 0; c < fltColumnCount; ++c) {
+        qp.drawLine(QPointF(panelRect.x() + (cellMaxWidth + intCellMargin * 2) * c,
+                            panelRect.y()),
+                    QPointF(panelRect.x() + (cellMaxWidth + intCellMargin * 2) * c,
+                            panelRect.bottom()));
+    }
+
+    qp.drawLine(QPointF(panelRect.right(),
+                        panelRect.y()),
+                QPointF(panelRect.right(),
+                        panelRect.bottom()));
+
+    // horizontal lines
+    qp.setPen(colorHeaderLine);
+    for(i32 r = 0; r < rowMaxDrawnCount && (r + topRowId) <= rowCount; ++r) {
+        qp.drawLine(QPointF(panelRect.x(),
+                            panelRect.y() + columnHeaderHeight + r * rowHeight),
+                    QPointF(panelRect.right(), panelRect.y() + columnHeaderHeight + r * rowHeight));
+    }
+}
+
 void DataPanelView::_updatePanelRects()
 {
     //qDebug("_updatePanelRects()");
@@ -506,6 +600,14 @@ void DataPanelView::_updatePanelRects()
             case PT_UINT64:
                 _panelRect[p].setWidth(intCellMargin * (columnCount / 4) +
                                        intCellMaxWidth[8] * (columnCount / 8));
+                break;
+            case PT_FLOAT32:
+                _panelRect[p].setWidth(intCellMargin * (columnCount / 2) +
+                                       floatCellMaxWidth[0] * (columnCount / 4));
+                break;
+            case PT_FLOAT64:
+                _panelRect[p].setWidth(intCellMargin * (columnCount / 4) +
+                                       floatCellMaxWidth[1] * (columnCount / 8));
                 break;
         }
 
