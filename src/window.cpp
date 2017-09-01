@@ -113,6 +113,11 @@ i32 AppWindow::run()
 
 void AppWindow::cleanUp()
 {
+    if(curFileBuff.data) {
+        free(curFileBuff.data);
+        curFileBuff.data = nullptr;
+    }
+
     nk_sdl_shutdown();
     SDL_GL_DeleteContext(glContext);
     SDL_DestroyWindow(window);
@@ -192,22 +197,52 @@ void AppWindow::doUI()
 
     // hex view
     nk_fill_rect(&nkCtx->current->buffer, nk_rect(0, offY, rowHeaderWidth + columnWidth * columnCount,
-                 columnHeaderHeight), 0, nk_rgb(200, 200, 200));
-    nk_fill_rect(&nkCtx->current->buffer, nk_rect(0, offY, rowHeaderWidth, WINDOW_HEIGHT-offY),
-                 0, nk_rgb(200, 200, 200));
+                 columnHeaderHeight), 0, nk_rgb(240, 240, 240));
+    nk_fill_rect(&nkCtx->current->buffer, nk_rect(0, offY, rowHeaderWidth, hexViewHeight),
+                 0, nk_rgb(240, 240, 240));
 
+    const struct nk_rect dataRect = nk_rect(rowHeaderWidth, offY + columnHeaderHeight,
+                                            columnWidth * columnCount, rowHeight * 100);
+
+    // column header horizontal line
+    nk_stroke_line(&nkCtx->current->buffer, 0, dataRect.y,
+                   dataRect.x + dataRect.w, dataRect.y,
+                   1.0, nk_rgb(200, 200, 200));
+
+    // vertical end line
+    nk_stroke_line(&nkCtx->current->buffer, dataRect.x + dataRect.w,
+                   0, dataRect.x + dataRect.w,
+                   dataRect.h, 1.0, nk_rgb(200, 200, 200));
+
+    // horizontal lines
+    for(i32 r = 1; r < 100; ++r) {
+        nk_stroke_line(&nkCtx->current->buffer, dataRect.x, dataRect.y + r * rowHeight,
+                       dataRect.x + dataRect.w, dataRect.y + r * rowHeight,
+                       1.0, nk_rgb(200, 200, 200));
+    }
+
+    // vertical lines
+    for(i32 c = 0; c < columnCount; c += 4) {
+        nk_stroke_line(&nkCtx->current->buffer, dataRect.x + c * columnWidth,
+                       dataRect.y, dataRect.x + c * columnWidth,
+                       dataRect.y + dataRect.h, 1.0, nk_rgb(200, 200, 200));
+    }
+
+    // line number
     for(i32 r = 0; r < 100; ++r) {
         uiDrawHexByte(nkCtx, r,
            nk_rect(0, offY + columnHeaderHeight + r * rowHeight, rowHeaderWidth, rowHeight),
            nk_rgb(150, 150, 150));
     }
 
+    // column number
     for(i32 c = 0; c < columnCount; ++c) {
         uiDrawHexByte(nkCtx, c,
            nk_rect(c * columnWidth + rowHeaderWidth, offY, columnWidth, columnHeaderHeight),
            nk_rgb(150, 150, 150));
     }
 
+    // data text
     for(i32 r = 0; r < 100; ++r) {
         for(i32 c = 0; c < columnCount; ++c) {
             uiDrawHexByte(nkCtx, curFileBuff.data[r * columnCount + c],
