@@ -1,14 +1,5 @@
 #define SDL_MAIN_HANDLED
-
-#define GL3W_IMPLEMENTATION
-#include "gl3w.h"
-
-#define NK_IMPLEMENTATION
-#include "nuklear.h"
-
-#define NK_SDL_GL3_IMPLEMENTATION
-#include "nuklear_sdl_gl3.h"
-
+#include <stdio.h>
 #include "window.h"
 
 int main()
