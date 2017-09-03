@@ -20,12 +20,20 @@ struct AppWindow
     FileBuffer curFileBuff;
     DataPanels dataPanels;
 
+    i32 winWidth;
+    i32 winHeight;
+    i32 globalMouseX = -1;
+    i32 globalMouseY = -1;
+    u32 globalMouseState = 0;
+    bool focused = true;
+
     bool init();
     i32 run();
     void cleanUp();
 
     void doUI();
 
+    void pushGlobalEvents();
     void handleEvent(const SDL_Event& event);
     void update();
 

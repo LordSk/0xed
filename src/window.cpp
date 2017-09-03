@@ -99,12 +99,23 @@ bool AppWindow::init()
 i32 AppWindow::run()
 {
     while(running) {
+        SDL_GetWindowSize(window, &winWidth, &winHeight);
+        pushGlobalEvents();
+
+        i32 eventCount = 0;
         SDL_Event event;
         nk_input_begin(nkCtx);
-        SDL_WaitEvent(&event);
-        handleEvent(event);
-        nk_sdl_handle_event(&event);
+        while(SDL_PollEvent(&event)) {
+            eventCount++;
+            handleEvent(event);
+            nk_sdl_handle_event(&event);
+        }
         nk_input_end(nkCtx);
+
+        if(eventCount == 0) {
+            SDL_Delay(1);
+            continue;
+        }
 
         update();
 
@@ -202,15 +213,72 @@ void AppWindow::doUI()
     //overview(nkCtx);
 }
 
+void AppWindow::pushGlobalEvents()
+{
+    // TODO: check if top most window
+    if(!focused) {
+        return;
+    }
+
+    i32 winx, winy;
+    SDL_GetWindowPosition(window, &winx, &winy);
+    i32 gmx, gmy;
+    u32 gmstate = SDL_GetGlobalMouseState(&gmx, &gmy);
+
+    if(gmx >= winx && gmx < winx+winWidth && gmy >= winy && gmy < winy+winHeight) {
+        globalMouseX = gmx;
+        globalMouseY = gmy;
+        globalMouseState = gmstate;
+        return;
+    }
+
+    if(gmx != globalMouseX || gmy != globalMouseY) {
+        SDL_Event mouseEvent;
+        mouseEvent.type = SDL_MOUSEMOTION;
+        mouseEvent.motion.x = gmx - winx;
+        mouseEvent.motion.y = gmy - winy;
+        mouseEvent.motion.xrel = gmx - globalMouseX;
+        mouseEvent.motion.yrel = gmy - globalMouseY;
+        SDL_PushEvent(&mouseEvent);
+    }
+    globalMouseX = gmx;
+    globalMouseY = gmy;
+
+    // mouse left up outside window
+    if((gmstate&SDL_BUTTON(SDL_BUTTON_LEFT)) != (globalMouseState&SDL_BUTTON(SDL_BUTTON_LEFT))) {
+        SDL_Event mouseEvent;
+        mouseEvent.type = gmstate&SDL_BUTTON(SDL_BUTTON_LEFT) > 0 ? SDL_MOUSEBUTTONDOWN: SDL_MOUSEBUTTONUP;
+        mouseEvent.button.button = SDL_BUTTON_LEFT;
+        SDL_PushEvent(&mouseEvent);
+    }
+    globalMouseState = gmstate;
+
+
+    //LOG("mx=%d my=%d", gmx, gmy);
+}
+
 void AppWindow::handleEvent(const SDL_Event& event)
 {
     if(event.type == SDL_QUIT) {
         running = false;
+        return;
     }
 
     if(event.type == SDL_KEYDOWN) {
         if(event.key.keysym.sym == SDLK_ESCAPE) {
             running = false;
+            return;
+        }
+    }
+
+    if(event.type == SDL_WINDOWEVENT) {
+        if(event.window.event == SDL_WINDOWEVENT_FOCUS_GAINED) {
+            focused = true;
+            return;
+        }
+        else if(event.window.event == SDL_WINDOWEVENT_FOCUS_LOST) {
+            focused = false;
+            return;
         }
     }
 }
@@ -220,11 +288,7 @@ void AppWindow::update()
     doUI();
 
     glClearColor(1, 1, 1, 1);
-
-    i32 width, height;
-    SDL_GetWindowSize(window, &width, &height);
-    glViewport(0, 0, width, width);
-
+    glViewport(0, 0, winWidth, winHeight);
     glClear(GL_COLOR_BUFFER_BIT);
 
     /* IMPORTANT: `nk_sdl_render` modifies some global OpenGL state

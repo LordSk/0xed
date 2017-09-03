@@ -24,4 +24,3 @@ It should be: NK_TEXT_ALIGN_HCENTER, NK_TEXT_ALIGN_VCENTER, NK_TEXT_ALIGN_CENTER
 You can't specify if you want only one type of scrollbar (vertical / horizontal)
 Window view is cropped even if there is no visible scrollbar if you don't specify NK_WINDOW_NO_SCROLLBAR
 No custom scrollbar support
-No scrollbar buttons for precise scrolling?
