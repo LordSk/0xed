@@ -1,0 +1,27 @@
+Observations developping 0xed with nuklear
+
+* Text is blurry
+Text rendering is not sharp like windows/Qt rendering
+
+* Styling is very confusing:
+Variable naming is not directly understandable
+Many vars are in the window style ?
+Many options are missing
+
+* Layout
+There seem to be a lot of 1 pixel padding everywhere even with every padding set to zero
+Arbitrarily placing widgets is not made easy
+
+* Behavior
+Menu behavior is weird and feeld hacked in. Clicking on a menu label is like clicking on a button and opening a contextual menu,
+but instead the label should stay active and allow with a simple mouse motion to open the other menus.
+
+* API naming
+NK_TEXT_ALIGN_CENTER, NK_TEXT_ALIGN_MIDDLE, NK_TEXT_CENTERED? Which is which?
+It should be: NK_TEXT_ALIGN_HCENTER, NK_TEXT_ALIGN_VCENTER, NK_TEXT_ALIGN_CENTER
+
+* Scrollbars
+You can't specify if you want only one type of scrollbar (vertical / horizontal)
+Window view is cropped even if there is no visible scrollbar if you don't specify NK_WINDOW_NO_SCROLLBAR
+No custom scrollbar support
+No scrollbar buttons for precise scrolling?

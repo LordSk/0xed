@@ -1873,6 +1873,8 @@ enum nk_text_alignment {
 };
 NK_API void nk_text(struct nk_context*, const char*, int, nk_flags);
 NK_API void nk_text_colored(struct nk_context*, const char*, int, nk_flags, struct nk_color);
+// LordSk: added this convenient fonction to draw text independant of layout
+NK_API void nk_text_colored_rect(struct nk_context*, const char*, int, nk_flags, struct nk_rect, struct nk_color);
 NK_API void nk_text_wrap(struct nk_context*, const char*, int);
 NK_API void nk_text_wrap_colored(struct nk_context*, const char*, int, struct nk_color);
 NK_API void nk_label(struct nk_context*, const char*, nk_flags align);
@@ -1969,7 +1971,12 @@ NK_API int nk_slider_int(struct nk_context*, int min, int *val, int max, int ste
  * ============================================================================= */
 NK_API int nk_progress(struct nk_context*, nk_size *cur, nk_size max, int modifyable);
 NK_API nk_size nk_prog(struct nk_context*, nk_size cur, nk_size max, int modifyable);
-
+/* =============================================================================
+ *
+ *                                  SCROLLBAR
+ *
+ * ============================================================================= */
+NK_API float nk_scrollbarv(struct nk_context*, float offset, float step, float target, struct nk_rect rect);
 /* =============================================================================
  *
  *                                  COLOR PICKER
@@ -20335,6 +20342,34 @@ nk_spacing(struct nk_context *ctx, int cols)
  *                          TEXT
  *
  * --------------------------------------------------------------*/
+// LordSk: see declaration
+NK_API void
+nk_text_colored_rect(struct nk_context *ctx, const char *str, int len,
+    nk_flags alignment, struct nk_rect rect, struct nk_color color)
+{
+    struct nk_window *win;
+    const struct nk_style *style;
+
+    struct nk_vec2 item_padding;
+    struct nk_rect bounds;
+    struct nk_text text;
+
+    NK_ASSERT(ctx);
+    NK_ASSERT(ctx->current);
+    NK_ASSERT(ctx->current->layout);
+    if (!ctx || !ctx->current || !ctx->current->layout) return;
+
+    win = ctx->current;
+    style = &ctx->style;
+    item_padding = style->text.padding;
+
+    text.padding.x = item_padding.x;
+    text.padding.y = item_padding.y;
+    text.background = style->window.background;
+    text.text = color;
+    nk_widget_text(&win->buffer, rect, str, len, &text, alignment, style->font);
+}
+
 NK_API void
 nk_text_colored(struct nk_context *ctx, const char *str, int len,
     nk_flags alignment, struct nk_color color)
@@ -23631,4 +23666,35 @@ NK_API void
 nk_menu_end(struct nk_context *ctx)
 {nk_contextual_end(ctx);}
 
+NK_API
+float nk_scrollbarv(struct nk_context* ctx, float offset, float step, float target, struct nk_rect rect)
+{
+    struct nk_input *in;
+    struct nk_window *window;
+    struct nk_panel *layout;
+    struct nk_command_buffer *out;
+    nk_flags state = 0;
+
+    // needs to be inside a nk_begin/nk_end block
+    NK_ASSERT(ctx);
+    NK_ASSERT(ctx->current);
+    NK_ASSERT(ctx->current->layout);
+    if (!ctx || !ctx->current || !ctx->current->layout)
+        return 0;
+
+    window = ctx->current;
+    layout = window->layout;
+    out = &window->buffer;
+    in = (layout->flags & NK_WINDOW_ROM || layout->flags & NK_WINDOW_NO_INPUT) ? 0 :&ctx->input;
+
+    float scroll_inc = step;
+    offset = nk_do_scrollbarv(&state, out, rect, 1,
+        offset, target, step, scroll_inc,
+        &ctx->style.scrollv, &ctx->input, ctx->style.font);
+
+    if(in) {
+        in->mouse.scroll_delta.y = 0;
+    }
+    return offset;
+}
 #endif

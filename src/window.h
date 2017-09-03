@@ -1,6 +1,7 @@
 #pragma once
 #include <SDL2/SDL.h>
 #include "base.h"
+#include "data_panel.h"
 
 struct FileBuffer
 {
@@ -17,6 +18,7 @@ struct AppWindow
     struct nk_context* nkCtx;
 
     FileBuffer curFileBuff;
+    DataPanels dataPanels;
 
     bool init();
     i32 run();

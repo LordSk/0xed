@@ -92,6 +92,10 @@ project "0xed"
 		"src/**.cpp",
 	}
 	
+	excludes {
+		"src/overview.c"
+	}
+	
 	includedirs {
 		SDL2_include,
 	}

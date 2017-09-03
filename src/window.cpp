@@ -32,7 +32,9 @@ bool AppWindow::init()
                               SDL_WINDOWPOS_CENTERED,
                               SDL_WINDOWPOS_CENTERED,
                               WINDOW_WIDTH, WINDOW_HEIGHT,
-                              SDL_WINDOW_OPENGL|SDL_WINDOW_SHOWN|SDL_WINDOW_ALLOW_HIGHDPI);
+                              SDL_WINDOW_OPENGL|SDL_WINDOW_SHOWN|
+                              SDL_WINDOW_ALLOW_HIGHDPI|
+                              SDL_WINDOW_RESIZABLE);
 
     if(!window) {
         LOG("ERROR: can't create SDL2 window (%s)",  SDL_GetError());
@@ -87,6 +89,9 @@ bool AppWindow::init()
               "dvdbnd0.bhd5.extract\\map\\MapStudio\\m18_01_00_00.msb")) {
         return false;
     }
+
+    dataPanels.data = curFileBuff.data;
+    dataPanels.dataSize = curFileBuff.size;
 
     return true;
 }
@@ -152,22 +157,19 @@ void uiDrawHexByte(nk_context* ctx, u8 val, const struct nk_rect& rect, const st
 
 void AppWindow::doUI()
 {
-    constexpr i32 menubarHeight = 22;
+    constexpr i32 menubarRowHeight = 22;
+    const i32 menubarWinHeight = 22 + nkCtx->style.font->height;
     const nk_color colorContextMenuBg = nk_rgb(242, 242, 242);
     const nk_color colorContextMenuBorder = nk_rgb(204, 204, 204);
 
-    constexpr i32 columnCount = 16;
-    constexpr i32 columnWidth = 20;
-    constexpr i32 columnHeaderHeight = 20;
-    constexpr i32 rowCount = 100;
-    constexpr i32 rowHeight = 20;
-    constexpr i32 rowHeaderWidth = 22;
-
-    if(nk_begin(nkCtx, "", nk_rect(0, 0, WINDOW_WIDTH, WINDOW_HEIGHT), NK_WINDOW_BACKGROUND)) {
+    i32 winWidth, winHeight;
+    SDL_GL_GetDrawableSize(window, &winWidth, &winHeight);
 
     // menu bar
+    if(nk_begin(nkCtx, "menu_bar", nk_rect(0, 0, winWidth, menubarRowHeight), NK_WINDOW_NO_SCROLLBAR)) {
+
     nk_menubar_begin(nkCtx);
-    nk_layout_row_begin(nkCtx, NK_STATIC, menubarHeight, 2);
+    nk_layout_row_begin(nkCtx, NK_STATIC, menubarRowHeight, 2);
 
     nk_style_push_color(nkCtx, &nkCtx->style.window.background, colorContextMenuBg);
     nk_style_push_color(nkCtx, &nkCtx->style.window.border_color, colorContextMenuBorder);
@@ -192,69 +194,12 @@ void AppWindow::doUI()
     nk_menubar_end(nkCtx);
     // --- menubar
 
-    i32 offY = menubarHeight;
-    const i32 hexViewHeight = WINDOW_HEIGHT - offY;
-
-    // hex view
-    nk_fill_rect(&nkCtx->current->buffer, nk_rect(0, offY, rowHeaderWidth + columnWidth * columnCount,
-                 columnHeaderHeight), 0, nk_rgb(240, 240, 240));
-    nk_fill_rect(&nkCtx->current->buffer, nk_rect(0, offY, rowHeaderWidth, hexViewHeight),
-                 0, nk_rgb(240, 240, 240));
-
-    const struct nk_rect dataRect = nk_rect(rowHeaderWidth, offY + columnHeaderHeight,
-                                            columnWidth * columnCount, rowHeight * 100);
-
-    // column header horizontal line
-    nk_stroke_line(&nkCtx->current->buffer, 0, dataRect.y,
-                   dataRect.x + dataRect.w, dataRect.y,
-                   1.0, nk_rgb(200, 200, 200));
-
-    // vertical end line
-    nk_stroke_line(&nkCtx->current->buffer, dataRect.x + dataRect.w,
-                   0, dataRect.x + dataRect.w,
-                   dataRect.h, 1.0, nk_rgb(200, 200, 200));
-
-    // horizontal lines
-    for(i32 r = 1; r < 100; ++r) {
-        nk_stroke_line(&nkCtx->current->buffer, dataRect.x, dataRect.y + r * rowHeight,
-                       dataRect.x + dataRect.w, dataRect.y + r * rowHeight,
-                       1.0, nk_rgb(200, 200, 200));
-    }
-
-    // vertical lines
-    for(i32 c = 0; c < columnCount; c += 4) {
-        nk_stroke_line(&nkCtx->current->buffer, dataRect.x + c * columnWidth,
-                       dataRect.y, dataRect.x + c * columnWidth,
-                       dataRect.y + dataRect.h, 1.0, nk_rgb(200, 200, 200));
-    }
-
-    // line number
-    for(i32 r = 0; r < 100; ++r) {
-        uiDrawHexByte(nkCtx, r,
-           nk_rect(0, offY + columnHeaderHeight + r * rowHeight, rowHeaderWidth, rowHeight),
-           nk_rgb(150, 150, 150));
-    }
-
-    // column number
-    for(i32 c = 0; c < columnCount; ++c) {
-        uiDrawHexByte(nkCtx, c,
-           nk_rect(c * columnWidth + rowHeaderWidth, offY, columnWidth, columnHeaderHeight),
-           nk_rgb(150, 150, 150));
-    }
-
-    // data text
-    for(i32 r = 0; r < 100; ++r) {
-        for(i32 c = 0; c < columnCount; ++c) {
-            uiDrawHexByte(nkCtx, curFileBuff.data[r * columnCount + c],
-               nk_rect(c * columnWidth + rowHeaderWidth, r * rowHeight + columnHeaderHeight + offY,
-                       columnWidth, rowHeight),
-               nk_rgb(0, 0, 0));
-        }
-    }
-
     } nk_end(nkCtx);
 
-    overview(nkCtx);
+    dataPanels.uiDataPanels(nkCtx, nk_rect(0, menubarRowHeight, winWidth,
+                                           winHeight - menubarRowHeight));
+
+    //overview(nkCtx);
 }
 
 void AppWindow::handleEvent(const SDL_Event& event)
@@ -275,7 +220,11 @@ void AppWindow::update()
     doUI();
 
     glClearColor(1, 1, 1, 1);
-    glViewport(0, 0, WINDOW_WIDTH, WINDOW_HEIGHT);
+
+    i32 width, height;
+    SDL_GetWindowSize(window, &width, &height);
+    glViewport(0, 0, width, width);
+
     glClear(GL_COLOR_BUFFER_BIT);
 
     /* IMPORTANT: `nk_sdl_render` modifies some global OpenGL state

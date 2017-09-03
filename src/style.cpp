@@ -165,17 +165,17 @@ void setStyleWhite(nk_context* ctx)
     nk_style& sty = ctx->style;
 
     const struct nk_vec2 v2zero = nk_vec2(0, 0);
-    sty.button.normal.data.color = nk_rgba(225, 225, 225, 255);
+    sty.button.normal.data.color = nk_rgb(225, 225, 225);
     sty.button.border = 1;
-    sty.button.border_color = nk_rgba(173, 173, 173, 255);
+    sty.button.border_color = nk_rgb(173, 173, 173);
     sty.button.rounding = 0;
 
-    sty.menu_button.normal.data.color = nk_rgba(255, 255, 255, 255);
-    sty.menu_button.active.data.color = nk_rgba(204, 228, 247, 255);
+    sty.menu_button.normal.data.color = nk_rgb(255, 255, 255);
+    sty.menu_button.active.data.color = nk_rgb(204, 228, 247);
     sty.menu_button.padding = v2zero;
 
-    sty.contextual_button.normal.data.color = nk_rgba(242, 242, 242, 255);
-    sty.contextual_button.active.data.color = nk_rgba(204, 228, 247, 255);
+    sty.contextual_button.normal.data.color = nk_rgb(242, 242, 242);
+    sty.contextual_button.active.data.color = nk_rgb(204, 228, 247);
     sty.contextual_button.padding = v2zero;
 
     sty.window.padding = v2zero;
@@ -189,5 +189,27 @@ void setStyleWhite(nk_context* ctx)
 
     sty.window.menu_padding = nk_vec2(2, 2);
     sty.window.menu_border = 1;
-    sty.window.menu_border_color = nk_rgba(204, 204, 204, 255);
+    sty.window.menu_border_color = nk_rgb(204, 204, 204);
+
+    // scrollbar vertical
+    sty.scrollv.show_buttons = nk_true;
+
+    sty.scrollv.normal = nk_style_item_color(nk_rgb(240, 240, 240));
+    sty.scrollv.hover = sty.scrollv.normal;
+    sty.scrollv.active = sty.scrollv.normal;
+
+    sty.scrollv.cursor_normal = nk_style_item_color(nk_rgb(205, 205, 205));
+    sty.scrollv.cursor_hover = nk_style_item_color(nk_rgb(180, 180, 180));
+    sty.scrollv.cursor_active = nk_style_item_color(nk_rgb(166, 166, 166));
+
+    sty.scrollv.dec_symbol = NK_SYMBOL_TRIANGLE_UP;
+    sty.scrollv.inc_symbol = NK_SYMBOL_TRIANGLE_DOWN;
+    sty.scrollv.dec_button.normal = nk_style_item_color(nk_rgb(240, 240, 240));
+    sty.scrollv.dec_button.hover = nk_style_item_color(nk_rgb(218, 218, 218));
+    sty.scrollv.dec_button.active = nk_style_item_color(nk_rgb(96, 96, 69));
+    sty.scrollv.dec_button.border = 0;
+    sty.scrollv.dec_button.text_normal = nk_rgb(96, 96, 96);
+    sty.scrollv.dec_button.text_hover = nk_rgb(0, 0, 0);
+    sty.scrollv.dec_button.text_active = nk_rgb(255, 255, 255);
+    sty.scrollv.inc_button = sty.scrollv.dec_button;
 }

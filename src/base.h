@@ -33,4 +33,4 @@ __privDefer<F> __defer_func(F f) {
 #define defer(code) auto DEFER_VAR(_defer_) = __defer_func([&](){code;})
 // ----------------------------------------------------
 
-#define LOG(fmt, ...) (printf(fmt"\n", __VA_ARGS__))
+#define LOG(fmt, ...) (printf(fmt"\n", __VA_ARGS__), fflush(stdout))
