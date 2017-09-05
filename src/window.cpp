@@ -69,12 +69,12 @@ bool AppWindow::init()
     nk_sdl_font_stash_begin(&atlas);
 
     struct nk_font_config fontCfg = nk_font_config(14);
-    fontCfg.pixel_snap = 1;
-    fontCfg.oversample_h = 1;
-    fontCfg.oversample_v = 1;
+    fontCfg.pixel_snap = 0;
+    fontCfg.oversample_h = 2;
+    fontCfg.oversample_v = 2;
 
     nk_font* defaultFont = nk_font_atlas_add_from_file(atlas, "C:\\Windows\\Fonts\\tahoma.ttf",
-                                                       13.5, &fontCfg);
+                                                       14, &fontCfg);
     if(!defaultFont) {
         LOG("ERROR: could not load segoeui.ttf");
         return false;
@@ -139,76 +139,87 @@ void AppWindow::cleanUp()
     SDL_DestroyWindow(window);
 }
 
-void uiDrawHexByte(nk_context* ctx, u8 val, const struct nk_rect& rect, const struct nk_color& color)
-{
-    constexpr char base16[] = "0123456789ABCDEF";
-    char hexStr[3];
-    hexStr[0] = base16[val >> 4];
-    hexStr[1] = base16[val & 15];
-    hexStr[2] = 0;
-
-    struct nk_window *win;
-    const struct nk_style *style;
-
-    struct nk_vec2 item_padding;
-    struct nk_text text;
-
-    win = ctx->current;
-    style = &ctx->style;
-
-    item_padding = style->text.padding;
-
-    text.padding.x = item_padding.x;
-    text.padding.y = item_padding.y;
-    text.background = style->window.background;
-    text.text = color;
-    nk_widget_text(&win->buffer, rect, hexStr, 2, &text, NK_TEXT_ALIGN_CENTERED|NK_TEXT_ALIGN_MIDDLE,
-                   style->font);
-}
-
 void AppWindow::doUI()
 {
     constexpr i32 menubarRowHeight = 22;
-    const i32 menubarWinHeight = 22 + nkCtx->style.font->height;
     const nk_color colorContextMenuBg = nk_rgb(242, 242, 242);
     const nk_color colorContextMenuBorder = nk_rgb(204, 204, 204);
+    constexpr i32 statusBarRowHeight = 22;
 
     i32 winWidth, winHeight;
     SDL_GL_GetDrawableSize(window, &winWidth, &winHeight);
+    winWidth += 1;
+    winHeight += 1;
+
+    i32 menubarWinHeight = 0;
+    i32 statusbarWinHeight = 0;
 
     // menu bar
     if(nk_begin(nkCtx, "menu_bar", nk_rect(0, 0, winWidth, menubarRowHeight), NK_WINDOW_NO_SCROLLBAR)) {
+        nk_menubar_begin(nkCtx);
+        nk_layout_row_begin(nkCtx, NK_STATIC, menubarRowHeight, 2);
 
-    nk_menubar_begin(nkCtx);
-    nk_layout_row_begin(nkCtx, NK_STATIC, menubarRowHeight, 2);
+        nk_style_push_color(nkCtx, &nkCtx->style.window.background, colorContextMenuBg);
+        nk_style_push_color(nkCtx, &nkCtx->style.window.border_color, colorContextMenuBorder);
 
-    nk_style_push_color(nkCtx, &nkCtx->style.window.background, colorContextMenuBg);
-    nk_style_push_color(nkCtx, &nkCtx->style.window.border_color, colorContextMenuBorder);
+        nk_layout_row_push(nkCtx, 50);
+        if(nk_menu_begin_label(nkCtx, "File", NK_TEXT_CENTERED, nk_vec2(120, 200))) {
+            nk_layout_row_dynamic(nkCtx, 25, 1);
+            nk_menu_item_label(nkCtx, "  Open", NK_TEXT_LEFT);
+            nk_menu_item_label(nkCtx, "  Exit", NK_TEXT_LEFT);
+            nk_menu_end(nkCtx);
+        }
 
-    nk_layout_row_push(nkCtx, 50);
-    if(nk_menu_begin_label(nkCtx, "File", NK_TEXT_CENTERED, nk_vec2(120, 200))) {
-        nk_layout_row_dynamic(nkCtx, 25, 1);
-        nk_menu_item_label(nkCtx, "  Open", NK_TEXT_LEFT);
-        nk_menu_item_label(nkCtx, "  Exit", NK_TEXT_LEFT);
-        nk_menu_end(nkCtx);
-    }
+        nk_layout_row_push(nkCtx, 50);
+        if(nk_menu_begin_label(nkCtx, "About", NK_TEXT_CENTERED, nk_vec2(120, 200))) {
+            nk_menu_end(nkCtx);
+        }
 
-    nk_layout_row_push(nkCtx, 50);
-    if(nk_menu_begin_label(nkCtx, "About", NK_TEXT_CENTERED, nk_vec2(120, 200))) {
-        nk_menu_end(nkCtx);
-    }
+        nk_style_pop_color(nkCtx); // colorContextMenuBorder
+        nk_style_pop_color(nkCtx); // colorContextMenuBg
 
-    nk_style_pop_color(nkCtx); // colorContextMenuBorder
-    nk_style_pop_color(nkCtx); // colorContextMenuBg
+        nk_layout_row_end(nkCtx);
+        nk_menubar_end(nkCtx);
+        // --- menubar
 
-    nk_layout_row_end(nkCtx);
-    nk_menubar_end(nkCtx);
-    // --- menubar
+        Rect r = nk_window_get_bounds(nkCtx);
+        menubarWinHeight = r.h;
 
     } nk_end(nkCtx);
 
-    dataPanels.uiDataPanels(nkCtx, nk_rect(0, menubarRowHeight, winWidth,
-                                           winHeight - menubarRowHeight));
+    // status bar
+    Rect statusBarRect = nk_rect(0,
+                                 winHeight - statusBarRowHeight,
+                                 winWidth,
+                                 statusBarRowHeight);
+
+    nk_style* style = &nkCtx->style;
+    nk_style_push_style_item(nkCtx, &style->window.fixed_background,
+                             nk_style_item_color(nk_rgb(240, 240, 240)));
+
+    if(nk_begin(nkCtx, "status_bar", statusBarRect, NK_WINDOW_NO_SCROLLBAR)) {
+        nk_layout_row_begin(nkCtx, NK_STATIC, statusBarRowHeight, 2);
+
+        nk_layout_row_push(nkCtx, 50);
+        nk_label(nkCtx, "Ready.", NK_TEXT_ALIGN_LEFT|NK_TEXT_ALIGN_MIDDLE);
+
+        nk_layout_row_end(nkCtx);
+
+        Rect r = nk_window_get_bounds(nkCtx);
+        statusbarWinHeight = r.h;
+
+        // upper border
+        struct nk_command_buffer* canvas = nk_window_get_canvas(nkCtx);
+        nk_stroke_line(canvas, 0, statusBarRect.y+1,
+                       statusBarRect.w, statusBarRect.y+1,
+                       1.0, nk_rgb(215, 215, 215));
+
+    } nk_end(nkCtx);
+
+    nk_style_pop_style_item(nkCtx);
+
+    const i32 middleHeight = winHeight - menubarWinHeight - statusbarWinHeight;
+    dataPanels.uiDataPanels(nkCtx, nk_rect(0, menubarWinHeight, winWidth, middleHeight));
 
     //overview(nkCtx);
 }

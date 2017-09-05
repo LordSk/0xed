@@ -19,7 +19,7 @@ void DataPanels::uiDataPanels(nk_context* ctx, const Rect& viewRect)
                                             viewRect.y + columnHeaderHeight,
                                             columnWidth * columnCount,
                                             viewRect.h - columnHeaderHeight);
-    const i32 visibleRowCount = dataRect.h / rowHeight;
+    const i32 visibleRowCount = dataRect.h / rowHeight + 1;
 
 
     Rect scrollbarRect = nk_rect(viewRect.x + viewRect.w - scrollbarWidth - 1,
