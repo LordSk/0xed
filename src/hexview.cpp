@@ -7,6 +7,8 @@
 #include <QHeaderView>
 #include <QScrollBar>
 #include <QResizeEvent>
+#include <QGraphicsTextItem>
+#include <QTimer>
 
 inline i32 b16Log10(i32 num)
 {
@@ -89,6 +91,8 @@ DataPanelView::DataPanelView()
 
     colorSelectBg = palette().color(QPalette::Highlight);
     colorSelectText = palette().color(QPalette::HighlightedText);
+
+    paintTimer.start();
 }
 
 void DataPanelView::setData(u8* data_, i64 size_)
@@ -133,10 +137,19 @@ void DataPanelView::paintEvent(QPaintEvent* event)
     /*static int counter = 0;
     qDebug("painting...%d", counter++);*/
 
+    if(paintTimer.elapsed() < 30) {
+        QPainter qpView(viewport());
+        qpView.drawPixmap(0, 0, paintCache);
+        event->accept();
+        return;
+    }
+    paintTimer.start();
+
     // TODO: custom rendering? this is VERY slow overall
 
     QWidget& viewp = *viewport();
-    QPainter qp(&viewp);
+    QPainter qp(&paintCache);
+    QPainter qpView(&viewp);
 
     qp.fillRect(viewp.rect(), colorBg);
 
@@ -181,6 +194,7 @@ void DataPanelView::paintEvent(QPaintEvent* event)
         }
     }
 
+    qpView.drawPixmap(0, 0, paintCache);
     event->accept();
 }
 
@@ -627,6 +641,8 @@ void DataPanelView::_paintPanelFloat(const QRect panelRect, QPainter& qp, const 
 void DataPanelView::_updatePanelRects()
 {
     //qDebug("_updatePanelRects()");
+
+    paintCache = QPixmap(viewport()->rect().width(), viewport()->rect().height());
 
     asciiFont.setPixelSize(12);
     QFontMetrics fm(asciiFont);

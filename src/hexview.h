@@ -3,6 +3,8 @@
 #include <QAbstractScrollArea>
 #include <QComboBox>
 #include <QStaticText>
+#include <QGraphicsView>
+#include <QElapsedTimer>
 
 enum: i32 {
     PANEL_COUNT = 3
@@ -70,6 +72,9 @@ public:
     i32 selectionStart;
     i32 selectionEnd;
     i8 mousePressed[2];
+
+    QElapsedTimer paintTimer;
+    QPixmap paintCache;
 
     DataPanelView();
 
