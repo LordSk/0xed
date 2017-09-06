@@ -12,9 +12,9 @@ struct DataPanels
         PT_ASCII
     };
 
-    Rect viewRect;
     Rect panelRect[PANEL_MAX_COUNT];
     i32 panelType[PANEL_MAX_COUNT];
+    i32 panelCount = 3;
 
     u8* data;
     i64 dataSize;
@@ -30,5 +30,7 @@ struct DataPanels
     float scrollOffset = 0;
     float scrollStep = 1.0;
 
-    void uiDataPanels(nk_context* ctx, const Rect& viewRect);
+    void doUi(nk_context* ctx, const Rect& viewRect);
+
+    void doHexPanel(nk_context* ctx, const Rect& panelRect, const i64 dataIdOff);
 };

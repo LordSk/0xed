@@ -178,16 +178,16 @@ void setStyleWhite(nk_context* ctx)
     sty.contextual_button.active.data.color = nk_rgb(204, 228, 247);
     sty.contextual_button.padding = v2zero;
 
-    sty.window.padding = v2zero;
+    sty.window.padding = nk_vec2(1, 1); // so borders can fit
     sty.window.contextual_padding = v2zero;
     sty.window.combo_padding = v2zero;
     sty.window.min_row_height_padding = 0;
     sty.window.popup_padding = v2zero;
     sty.window.group_padding = v2zero;
-    sty.window.spacing = v2zero;
+    sty.window.spacing = nk_vec2(1, 1); // so borders can fit
     sty.window.border = 1;
 
-    sty.window.menu_padding = nk_vec2(2, 2);
+    sty.window.menu_padding = v2zero;
     sty.window.menu_border = 1;
     sty.window.menu_border_color = nk_rgb(204, 204, 204);
 
@@ -212,4 +212,16 @@ void setStyleWhite(nk_context* ctx)
     sty.scrollv.dec_button.text_hover = nk_rgb(0, 0, 0);
     sty.scrollv.dec_button.text_active = nk_rgb(255, 255, 255);
     sty.scrollv.inc_button = sty.scrollv.dec_button;
+
+    sty.combo.content_padding = nk_vec2(10, 0);
+    sty.combo.border = 0.0;
+    sty.combo.normal = nk_style_item_color(nk_rgb(225, 225, 225));
+    sty.combo.hover = nk_style_item_color(nk_rgb(229, 241, 251));
+    sty.combo.active = nk_style_item_color(nk_rgb(204, 228, 247));
+    sty.combo.symbol_normal = nk_rgb(255, 255, 255); // does nothing
+    sty.combo.spacing = v2zero; // does weird stuff
+    sty.combo.button.normal = sty.combo.normal;
+    sty.combo.button.hover = sty.combo.hover;
+    sty.combo.button.active = sty.combo.active;
+    sty.combo.button_padding = nk_vec2(5, 5);
 }

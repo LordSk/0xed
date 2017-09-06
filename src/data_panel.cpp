@@ -11,46 +11,99 @@ static void uiDrawHexByte(nk_context* ctx, u8 val, const struct nk_rect& rect, c
     nk_text_colored_rect(ctx, hexStr, 2, NK_TEXT_CENTERED, rect, color);
 }
 
-void DataPanels::uiDataPanels(nk_context* ctx, const Rect& viewRect)
+void DataPanels::doUi(nk_context* ctx, const Rect& viewRect)
 {
     rowCount = dataSize / columnCount;
 
-    Rect dataRect = nk_rect(rowHeaderWidth,
-                                            viewRect.y + columnHeaderHeight,
-                                            columnWidth * columnCount,
-                                            viewRect.h - columnHeaderHeight);
-    const i32 visibleRowCount = dataRect.h / rowHeight + 1;
+    Rect combosRect =  viewRect;
+    combosRect.h = 30;
+
+    Rect panelsRect =  viewRect;
+
+    const char* panelComboItems[] = {
+        "Hex",
+        "ASCII",
+    };
+
+    if(nk_begin(ctx, "panel_combos", combosRect, NK_WINDOW_NO_SCROLLBAR)) {
+        nk_layout_row_begin(ctx, NK_STATIC, combosRect.h, panelCount);
+
+        for(i32 p = 0; p < panelCount; ++p) {
+            nk_layout_row_push(ctx, 150);
+
+            nk_style_push_color(ctx, &ctx->style.window.border_color, nk_rgb(0, 120, 215));
+
+            if(nk_combo_begin_label(ctx, "Hex", nk_vec2(150,200))) {
+                nk_layout_row_dynamic(ctx, 22, 1);
+
+                nk_button_label(ctx, panelComboItems[0]);
+                nk_button_label(ctx, panelComboItems[1]);
+
+                nk_combo_end(ctx);
+            }
+
+            nk_style_pop_color(ctx); // window.border_color
+        }
+
+        nk_layout_row_end(ctx);
+
+        Rect r = nk_window_get_bounds(ctx);
+        panelsRect.y += r.h;
+        panelsRect.h -= r.h;
+    }
+    nk_end(ctx);
 
 
-    Rect scrollbarRect = nk_rect(viewRect.x + viewRect.w - scrollbarWidth - 1,
-                                 viewRect.y,
+    Rect scrollbarRect = nk_rect(panelsRect.x + panelsRect.w - scrollbarWidth - 1,
+                                 panelsRect.y,
                                  scrollbarWidth,
-                                 viewRect.h);
+                                 panelsRect.h);
 
+    if(nk_begin(ctx, "data_panels", panelsRect, NK_WINDOW_NO_SCROLLBAR)) {
+        // scrollbar
+        scrollOffset = nk_scrollbarv(ctx, scrollOffset, scrollStep, rowCount, scrollbarRect);
+        const i64 dataIdOff = scrollOffset * columnCount;
 
-    if(nk_begin(ctx, "data_panels", viewRect, NK_WINDOW_NO_SCROLLBAR)) {
+        Rect hexPanelRect = nk_rect(panelsRect.x,
+                                    panelsRect.y,
+                                    columnWidth * columnCount + rowHeaderWidth + 1,
+                                    panelsRect.h);
+        doHexPanel(ctx, hexPanelRect, dataIdOff);
 
-    // scrollbar
-    scrollOffset = nk_scrollbarv(ctx, scrollOffset, scrollStep, rowCount, scrollbarRect);
-    const i64 dataIdOff = scrollOffset * columnCount;
+        hexPanelRect.x += hexPanelRect.w;
+        doHexPanel(ctx, hexPanelRect, dataIdOff);
+        hexPanelRect.x += hexPanelRect.w;
+        doHexPanel(ctx, hexPanelRect, dataIdOff);
+        hexPanelRect.x += hexPanelRect.w;
+        doHexPanel(ctx, hexPanelRect, dataIdOff);
+    }
+    nk_end(ctx);
+}
 
+void DataPanels::doHexPanel(nk_context* ctx, const Rect& panelRect, const i64 dataIdOff)
+{
+    Rect dataRect = nk_rect(panelRect.x + rowHeaderWidth,
+                            panelRect.y + columnHeaderHeight,
+                            columnWidth * columnCount,
+                            panelRect.h - columnHeaderHeight);
+
+    const i32 visibleRowCount = panelRect.h / rowHeight + 1;
     struct nk_command_buffer* canvas = nk_window_get_canvas(ctx);
 
-    nk_fill_rect(canvas, nk_rect(viewRect.x, viewRect.y,
-                 rowHeaderWidth + columnWidth * columnCount,
-                 columnHeaderHeight), 0, nk_rgb(240, 240, 240));
-    nk_fill_rect(canvas, nk_rect(viewRect.x, viewRect.y, rowHeaderWidth, viewRect.h),
+    nk_fill_rect(canvas, nk_rect(panelRect.x, panelRect.y,
+                 panelRect.w, columnHeaderHeight), 0, nk_rgb(240, 240, 240));
+    nk_fill_rect(canvas, nk_rect(panelRect.x, panelRect.y, rowHeaderWidth, panelRect.h),
                  0, nk_rgb(240, 240, 240));
 
     // column header horizontal line
-    nk_stroke_line(canvas, 0, dataRect.y,
-                   dataRect.x + dataRect.w, dataRect.y,
+    nk_stroke_line(canvas, panelRect.x, dataRect.y,
+                   panelRect.x + panelRect.w, dataRect.y,
                    1.0, nk_rgb(200, 200, 200));
 
     // vertical end line
-    nk_stroke_line(canvas, dataRect.x + dataRect.w,
-                   viewRect.y, dataRect.x + dataRect.w,
-                   viewRect.y + viewRect.h, 1.0, nk_rgb(200, 200, 200));
+    nk_stroke_line(canvas, panelRect.x + panelRect.w - 1,
+                   panelRect.y, panelRect.x + panelRect.w - 1,
+                   panelRect.y + panelRect.h, 1.0, nk_rgb(200, 200, 200));
 
     // horizontal lines
     for(i32 r = 1; r < visibleRowCount; ++r) {
@@ -69,14 +122,16 @@ void DataPanels::uiDataPanels(nk_context* ctx, const Rect& viewRect)
     // line number
     for(i32 r = 0; r < visibleRowCount; ++r) {
         uiDrawHexByte(ctx, r + (i32)scrollOffset,
-           nk_rect(0, viewRect.y + columnHeaderHeight + r * rowHeight, rowHeaderWidth, rowHeight),
+           nk_rect(panelRect.x, panelRect.y + columnHeaderHeight + r * rowHeight,
+                   rowHeaderWidth, rowHeight),
            nk_rgb(150, 150, 150));
     }
 
     // column number
     for(i32 c = 0; c < columnCount; ++c) {
         uiDrawHexByte(ctx, c,
-           nk_rect(c * columnWidth + rowHeaderWidth, viewRect.y, columnWidth, columnHeaderHeight),
+           nk_rect(panelRect.x + c * columnWidth + rowHeaderWidth,
+                   panelRect.y, columnWidth, columnHeaderHeight),
            nk_rgb(150, 150, 150));
     }
 
@@ -84,11 +139,10 @@ void DataPanels::uiDataPanels(nk_context* ctx, const Rect& viewRect)
     for(i32 r = 0; r < visibleRowCount; ++r) {
         for(i32 c = 0; c < columnCount; ++c) {
             uiDrawHexByte(ctx, data[dataIdOff + r * columnCount + c],
-               nk_rect(c * columnWidth + rowHeaderWidth, r * rowHeight + columnHeaderHeight + viewRect.y,
+               nk_rect(dataRect.x + c * columnWidth,
+                       dataRect.y + r * rowHeight,
                        columnWidth, rowHeight),
                nk_rgb(0, 0, 0));
         }
     }
-
-    } nk_end(ctx);
 }

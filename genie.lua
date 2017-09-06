@@ -74,7 +74,7 @@ solution "0xed solution"
 		"NK_INCLUDE_DEFAULT_ALLOCATOR",
 		"NK_INCLUDE_VERTEX_BUFFER_OUTPUT",
 		"NK_INCLUDE_FONT_BAKING",
-		"NK_INCLUDE_DEFAULT_FONT"
+		--"NK_INCLUDE_DEFAULT_FONT"
 	}
 	
 	-- disable exception related warnings

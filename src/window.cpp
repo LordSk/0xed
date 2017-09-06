@@ -219,7 +219,7 @@ void AppWindow::doUI()
     nk_style_pop_style_item(nkCtx);
 
     const i32 middleHeight = winHeight - menubarWinHeight - statusbarWinHeight;
-    dataPanels.uiDataPanels(nkCtx, nk_rect(0, menubarWinHeight, winWidth, middleHeight));
+    dataPanels.doUi(nkCtx, nk_rect(0, menubarWinHeight, winWidth, middleHeight));
 
     //overview(nkCtx);
 }
