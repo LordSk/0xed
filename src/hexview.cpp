@@ -96,7 +96,7 @@ void DataPanelView::setData(u8* data_, i64 size_)
     data = data_;
     dataSize = size_;
     rowCount = dataSize / columnCount + 1;
-    rowHeaderWidth = b16Log10(rowCount) * 4 + 12;
+    rowHeaderWidth = b16Log10(rowCount) * 6 + 12;
     QSize vs = viewport()->size();
     i32 newStep = (vs.height() - columnHeaderHeight) / rowHeight;
     verticalScrollBar()->setPageStep(newStep);
