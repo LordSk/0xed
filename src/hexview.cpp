@@ -137,7 +137,7 @@ void DataPanelView::paintEvent(QPaintEvent* event)
     /*static int counter = 0;
     qDebug("painting...%d", counter++);*/
 
-    if(paintTimer.elapsed() < 30) {
+    if(paintTimer.elapsed() < 16) {
         QPainter qpView(viewport());
         qpView.drawPixmap(0, 0, paintCache);
         event->accept();
@@ -261,6 +261,7 @@ void DataPanelView::_paintPanelHex(QRect panelRect, QPainter& qp)
 
     // draw data
     if(data) {
+        qp.setPen(colorSelectText);
         const i32 xoff = (columnWidth - hexByteTextSize.width()) / 2;
         const i32 yoff = (rowHeight - hexByteTextSize.height()) / 2;
 
@@ -280,7 +281,6 @@ void DataPanelView::_paintPanelHex(QRect panelRect, QPainter& qp)
 
                 if(id >= selectionStart && id < selectionEnd) {
                     qp.fillRect(cellRect, colorSelectBg);
-                    qp.setPen(colorSelectText);
                     char hexStr[3];
                     byteToHexStr(hexStr, *(u8*)(data + id));
                     qp.drawText(cellRect, Qt::AlignCenter, QString::fromLatin1(hexStr));
@@ -361,13 +361,47 @@ void DataPanelView::_paintPanelAscii(QRect panelRect, QPainter& qp)
     i32 topRowId = verticalScrollBar()->value();
     i32 rowMaxDrawnCount = verticalScrollBar()->pageStep() + 1;
 
-    qp.setPen(colorDataText);
+    i32 selectLineStart = selectionStart / columnCount;
+    i32 selectLineEnd = selectionEnd / columnCount;
+    const f32 asciiCharWidth = asciiRowTextWidth / columnCount;
+
     for(i32 r = 0; r < rowMaxDrawnCount && (r + topRowId) < rowCount; ++r) {
-        qp.drawText(QRect(panelRect.x() + asciiHorizontalMargin,
-                          panelRect.y() + columnHeaderHeight + r * rowHeight,
-                          panelRect.width(),
-                          rowHeight), Qt::AlignLeft | Qt::AlignBottom,
+        QRect rowRect(panelRect.x() + asciiHorizontalMargin,
+                      panelRect.y() + columnHeaderHeight + r * rowHeight,
+                      panelRect.width(),
+                      rowHeight);
+
+        qp.setPen(colorDataText);
+        qp.drawText(rowRect, Qt::AlignLeft | Qt::AlignBottom,
                     QString::fromLatin1(asciiText + (r * columnCount), columnCount));
+
+        // draw selected text
+        i32 rid = r + topRowId;
+        if(rid >= selectLineStart && rid <= selectLineEnd) {
+            i32 localLineStart = 0;
+            i32 localLineEnd = columnCount;
+
+            if(rid == selectLineStart) {
+                localLineStart = selectionStart % columnCount;
+            }
+
+            if(rid == selectLineEnd) {
+                localLineEnd = selectionEnd % columnCount;
+            }
+
+            i32 maxSelectedCharLine = min(localLineEnd - localLineStart, columnCount - localLineStart);
+
+            QRect bgRect(panelRect.x() + asciiCharWidth * localLineStart + asciiHorizontalMargin,
+                          panelRect.y() + columnHeaderHeight + r * rowHeight,
+                          maxSelectedCharLine * asciiCharWidth + 2,
+                          rowHeight);
+            qp.fillRect(bgRect, colorSelectBg);
+
+            qp.setPen(colorSelectText);
+            qp.drawText(bgRect, Qt::AlignLeft | Qt::AlignBottom,
+                        QString::fromLatin1(asciiText + (r * columnCount) + localLineStart,
+                                           maxSelectedCharLine));
+        }
     }
 
     qp.setFont(oldFont);
@@ -646,7 +680,7 @@ void DataPanelView::_updatePanelRects()
 
     asciiFont.setPixelSize(12);
     QFontMetrics fm(asciiFont);
-    asciiRowTextWidth = fm.width(".") * columnCount;
+    asciiRowTextWidth = fm.width("A") * columnCount;
 
     i32 xoff = 0;
     for(i32 p = 0; p < PANEL_COUNT; ++p) {
@@ -707,7 +741,7 @@ void DataPanelView::_makeAsciiText()
 
     for(i32 i = 0; i < textSize; ++i) {
         if(asciiText[i] < 0x20) {
-            asciiText[i] = ' ';
+            asciiText[i] = '.';
         }
     }
 }
@@ -795,7 +829,7 @@ void DataPanelView::_panelHexMouseMove(const QRect panelRect, i32 x, i32 y)
         if(cellId < selectionPivot) {
             if(cellId != selectionStart) {
                 selectionStart = cellId;
-                selectionEnd = selectionPivot;
+                selectionEnd = selectionPivot+1;
                 viewport()->update();
             }
         }
