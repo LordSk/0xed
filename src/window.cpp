@@ -55,6 +55,9 @@ bool AppWindow::init()
     imguiSetup = imguiInit(WINDOW_WIDTH, WINDOW_HEIGHT);
     assert(imguiSetup);
 
+    fontTimes = imguiLoadFont("C:\\Windows\\Fonts\\tahoma.ttf", 15);
+    ImGui::GetIO().FontDefault = fontTimes;
+
     if(!loadFile("C:\\Program Files (x86)\\NAMCO BANDAI Games\\DarkSouls\\"
               "dvdbnd0.bhd5.extract\\map\\MapStudio\\m18_01_00_00.msb")) {
         return false;
@@ -107,18 +110,24 @@ void AppWindow::cleanUp()
     SDL_DestroyWindow(window);
 }
 
+static void setStyleLight()
+{
+    ImGui::StyleColorsLight();
+    ImGuiStyle& style = ImGui::GetStyle();
+    style.WindowBorderSize = 1.0f;
+    style.FrameBorderSize = 1.0f;
+    style.PopupBorderSize = 1.0f;
+}
+
 void AppWindow::doUI()
 {
+    setStyleLight();
+
     ImGui::ShowDemoWindow();
 
-    ImGui::Begin("Style");
-    ImGui::ShowStyleSelector("style");
-    ImGui::End();
-
-#if 0
     constexpr i32 menubarRowHeight = 22;
-    const nk_color colorContextMenuBg = nk_rgb(242, 242, 242);
-    const nk_color colorContextMenuBorder = nk_rgb(204, 204, 204);
+    const ImColor colorContextMenuBg = ImColor(242, 242, 242);
+    const ImColor colorContextMenuBorder = ImColor(204, 204, 204);
     constexpr i32 statusBarRowHeight = 22;
 
     i32 winWidth, winHeight;
@@ -130,7 +139,27 @@ void AppWindow::doUI()
     i32 statusbarWinHeight = 0;
 
     // menu bar
-    if(nk_begin(nkCtx, "menu_bar", nk_rect(0, 0, winWidth, menubarRowHeight), NK_WINDOW_NO_SCROLLBAR)) {
+    if(ImGui::BeginMainMenuBar()) {
+        if(ImGui::BeginMenu("File")) {
+            if(ImGui::MenuItem("Open", "CTRL+O")) {
+
+            }
+            if(ImGui::MenuItem("Exit", "CTRL+X")) {
+
+            }
+            ImGui::EndMenu();
+        }
+        if(ImGui::BeginMenu("About")) {
+            if(ImGui::MenuItem("About 0xed", "")) {
+
+            }
+            ImGui::EndMenu();
+        }
+        ImGui::EndMainMenuBar();
+    }
+
+#if 0
+    if(ImGui::(nkCtx, "menu_bar", nk_rect(0, 0, winWidth, menubarRowHeight), NK_WINDOW_NO_SCROLLBAR)) {
         nk_menubar_begin(nkCtx);
         nk_layout_row_begin(nkCtx, NK_STATIC, menubarRowHeight, 2);
 
@@ -195,8 +224,6 @@ void AppWindow::doUI()
 
     const i32 middleHeight = winHeight - menubarWinHeight - statusbarWinHeight;
     dataPanels.doUi(nkCtx, nk_rect(0, menubarWinHeight, winWidth, middleHeight));
-
-    //overview(nkCtx);
 #endif
 }
 
@@ -278,7 +305,7 @@ void AppWindow::update()
 
     doUI();
 
-    glClearColor(0, 0, 0, 1);
+    glClearColor(1, 1, 1, 1);
     glViewport(0, 0, winWidth, winHeight);
     glClear(GL_COLOR_BUFFER_BIT);
 

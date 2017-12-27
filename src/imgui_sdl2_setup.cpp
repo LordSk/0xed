@@ -133,6 +133,47 @@ static void renderUI(ImDrawData* pDrawData)
     glViewport(last_viewport[0], last_viewport[1], (GLsizei)last_viewport[2], (GLsizei)last_viewport[3]);
 }
 
+ImFont* imguiLoadFont(const char* path, i32 sizePx)
+{
+    ImFontConfig config;
+    config.OversampleH = 4;
+    config.OversampleV = 4;
+
+    ImGuiIO& io = ImGui::GetIO();
+    ImFont* font = io.Fonts->AddFontFromFileTTF(path, sizePx, &config);
+    assert(font);
+
+    u8* pFontPixels;
+    i32 fontTexWidth, fontTexHeight;
+    io.Fonts->GetTexDataAsRGBA32(&pFontPixels, &fontTexWidth, &fontTexHeight);
+
+    GLuint oldTex = (GLuint)(intptr_t)io.Fonts->TexID;
+    glDeleteTextures(1, &oldTex);
+
+    GLuint texture;
+    glGenTextures(1, &texture);
+    glBindTexture(GL_TEXTURE_2D, texture);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glTexImage2D(
+        GL_TEXTURE_2D,
+        0,
+        GL_RGBA,
+        fontTexWidth,
+        fontTexHeight,
+        0,
+        GL_RGBA,
+        GL_UNSIGNED_BYTE,
+        pFontPixels
+    );
+    glBindTexture(GL_TEXTURE_2D, 0);
+
+    io.Fonts->SetTexID((void*)(intptr_t)texture);
+    return font;
+}
+
 ImGuiGLSetup* imguiInit(u32 width, u32 height)
 {
     ImGuiGLSetup* ims = (ImGuiGLSetup*)malloc(sizeof(ImGuiGLSetup));

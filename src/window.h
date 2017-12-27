@@ -28,6 +28,8 @@ struct AppWindow
     u32 globalMouseState = 0;
     bool focused = true;
 
+    ImFont* fontTimes;
+
     bool init();
     i32 run();
     void cleanUp();
