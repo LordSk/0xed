@@ -1,6 +1,7 @@
 #pragma once
 #include <SDL2/SDL.h>
 #include "base.h"
+#include "imgui_sdl2_setup.h"
 #include "data_panel.h"
 
 struct FileBuffer
@@ -15,7 +16,7 @@ struct AppWindow
     SDL_GLContext glContext;
     bool running = true;
 
-    struct nk_context* nkCtx;
+    ImGuiGLSetup* imguiSetup;
 
     FileBuffer curFileBuff;
     DataPanels dataPanels;
@@ -39,7 +40,3 @@ struct AppWindow
 
     bool loadFile(const char* path);
 };
-
-enum theme {THEME_BLACK, THEME_WHITE, THEME_RED, THEME_BLUE, THEME_DARK};
-void setStyle(struct nk_context* ctx, enum theme theme);
-void setStyleWhite(nk_context* ctx);

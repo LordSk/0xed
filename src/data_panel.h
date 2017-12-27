@@ -1,8 +1,12 @@
 #pragma once
 #include "base.h"
-#include "nuklear.h"
+#include "imgui.h"
 
-typedef struct nk_rect Rect;
+struct Rect
+{
+    f32 x, y, w, h;
+};
+
 #define PANEL_MAX_COUNT 5
 
 struct DataPanels
@@ -30,7 +34,7 @@ struct DataPanels
     float scrollOffset = 0;
     float scrollStep = 1.0;
 
-    void doUi(nk_context* ctx, const Rect& viewRect);
+    void doUi(const Rect& viewRect);
 
-    void doHexPanel(nk_context* ctx, const Rect& panelRect, const i64 dataIdOff);
+    void doHexPanel(const Rect& panelRect, const i64 dataIdOff);
 };

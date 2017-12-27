@@ -5,19 +5,9 @@
 #define GL3W_IMPLEMENTATION
 #include "gl3w.h"
 
-#define NK_IMPLEMENTATION
-#include "nuklear.h"
-
-#define NK_SDL_GL3_IMPLEMENTATION
-#include "nuklear_sdl_gl3.h"
-#define MAX_VERTEX_MEMORY 512 * 1024
-#define MAX_ELEMENT_MEMORY 128 * 1024
-
 #define WINDOW_TITLE "0xed [v0.0002]"
 #define WINDOW_WIDTH 1600
 #define WINDOW_HEIGHT 900
-
-#include "overview.c"
 
 bool AppWindow::init()
 {
@@ -62,28 +52,8 @@ bool AppWindow::init()
     glClearColor(0.15f, 0.15f, 0.15f, 1.f);
     glViewport(0, 0, WINDOW_WIDTH, WINDOW_HEIGHT);
 
-    nkCtx = nk_sdl_init(window);
-    assert(nkCtx);
-
-    nk_font_atlas* atlas;
-    nk_sdl_font_stash_begin(&atlas);
-
-    struct nk_font_config fontCfg = nk_font_config(14);
-    fontCfg.pixel_snap = 0;
-    fontCfg.oversample_h = 2;
-    fontCfg.oversample_v = 2;
-
-    nk_font* defaultFont = nk_font_atlas_add_from_file(atlas, "C:\\Windows\\Fonts\\tahoma.ttf",
-                                                       14, &fontCfg);
-    if(!defaultFont) {
-        LOG("ERROR: could not load segoeui.ttf");
-        return false;
-    }
-
-    nk_sdl_font_stash_end();
-    nk_style_set_font(nkCtx, &defaultFont->handle);
-
-    setStyleWhite(nkCtx);
+    imguiSetup = imguiInit(WINDOW_WIDTH, WINDOW_HEIGHT);
+    assert(imguiSetup);
 
     if(!loadFile("C:\\Program Files (x86)\\NAMCO BANDAI Games\\DarkSouls\\"
               "dvdbnd0.bhd5.extract\\map\\MapStudio\\m18_01_00_00.msb")) {
@@ -104,18 +74,16 @@ i32 AppWindow::run()
 
         i32 eventCount = 0;
         SDL_Event event;
-        nk_input_begin(nkCtx);
         while(SDL_PollEvent(&event)) {
             eventCount++;
             handleEvent(event);
-            nk_sdl_handle_event(&event);
+            imguiHandleInput(imguiSetup, event);
         }
-        nk_input_end(nkCtx);
 
-        if(eventCount == 0) {
+        /*if(eventCount == 0) {
             SDL_Delay(1);
             continue;
-        }
+        }*/
 
         update();
 
@@ -134,13 +102,20 @@ void AppWindow::cleanUp()
         curFileBuff.data = nullptr;
     }
 
-    nk_sdl_shutdown();
+    imguiDeinit(imguiSetup);
     SDL_GL_DeleteContext(glContext);
     SDL_DestroyWindow(window);
 }
 
 void AppWindow::doUI()
 {
+    ImGui::ShowDemoWindow();
+
+    ImGui::Begin("Style");
+    ImGui::ShowStyleSelector("style");
+    ImGui::End();
+
+#if 0
     constexpr i32 menubarRowHeight = 22;
     const nk_color colorContextMenuBg = nk_rgb(242, 242, 242);
     const nk_color colorContextMenuBorder = nk_rgb(204, 204, 204);
@@ -222,6 +197,7 @@ void AppWindow::doUI()
     dataPanels.doUi(nkCtx, nk_rect(0, menubarWinHeight, winWidth, middleHeight));
 
     //overview(nkCtx);
+#endif
 }
 
 void AppWindow::pushGlobalEvents()
@@ -296,18 +272,17 @@ void AppWindow::handleEvent(const SDL_Event& event)
 
 void AppWindow::update()
 {
+    ImGui::GetIO().DisplaySize = ImVec2(winWidth, winHeight);
+
+    imguiUpdate(imguiSetup, 0);
+
     doUI();
 
-    glClearColor(1, 1, 1, 1);
+    glClearColor(0, 0, 0, 1);
     glViewport(0, 0, winWidth, winHeight);
     glClear(GL_COLOR_BUFFER_BIT);
 
-    /* IMPORTANT: `nk_sdl_render` modifies some global OpenGL state
-     * with blending, scissor, face culling, depth test and viewport and
-     * defaults everything back into a default state.
-     * Make sure to either a.) save and restore or b.) reset your own state after
-     * rendering the UI. */
-    nk_sdl_render(NK_ANTI_ALIASING_OFF, MAX_VERTEX_MEMORY, MAX_ELEMENT_MEMORY);
+    ImGui::Render();
 }
 
 bool AppWindow::loadFile(const char* path)

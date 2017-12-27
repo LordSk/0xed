@@ -1,7 +1,8 @@
 #include "data_panel.h"
 
-static void uiDrawHexByte(nk_context* ctx, u8 val, const struct nk_rect& rect, const struct nk_color& color)
+static void uiDrawHexByte(u8 val, const struct nk_rect& rect, const struct nk_color& color)
 {
+#if 0
     constexpr char base16[] = "0123456789ABCDEF";
     char hexStr[3];
     hexStr[0] = base16[val >> 4];
@@ -9,10 +10,12 @@ static void uiDrawHexByte(nk_context* ctx, u8 val, const struct nk_rect& rect, c
     hexStr[2] = 0;
 
     nk_text_colored_rect(ctx, hexStr, 2, NK_TEXT_CENTERED, rect, color);
+#endif
 }
 
-void DataPanels::doUi(nk_context* ctx, const Rect& viewRect)
+void DataPanels::doUi(const Rect& viewRect)
 {
+#if 0
     rowCount = dataSize / columnCount;
 
     Rect combosRect =  viewRect;
@@ -68,20 +71,22 @@ void DataPanels::doUi(nk_context* ctx, const Rect& viewRect)
                                     panelsRect.y,
                                     columnWidth * columnCount + rowHeaderWidth + 1,
                                     panelsRect.h);
-        doHexPanel(ctx, hexPanelRect, dataIdOff);
+        doHexPanel(hexPanelRect, dataIdOff);
 
         hexPanelRect.x += hexPanelRect.w;
-        doHexPanel(ctx, hexPanelRect, dataIdOff);
+        doHexPanel(hexPanelRect, dataIdOff);
         hexPanelRect.x += hexPanelRect.w;
-        doHexPanel(ctx, hexPanelRect, dataIdOff);
+        doHexPanel(hexPanelRect, dataIdOff);
         hexPanelRect.x += hexPanelRect.w;
-        doHexPanel(ctx, hexPanelRect, dataIdOff);
+        doHexPanel(hexPanelRect, dataIdOff);
     }
     nk_end(ctx);
+#endif
 }
 
-void DataPanels::doHexPanel(nk_context* ctx, const Rect& panelRect, const i64 dataIdOff)
+void DataPanels::doHexPanel(const Rect& panelRect, const i64 dataIdOff)
 {
+#if 0
     Rect dataRect = nk_rect(panelRect.x + rowHeaderWidth,
                             panelRect.y + columnHeaderHeight,
                             columnWidth * columnCount,
@@ -145,4 +150,5 @@ void DataPanels::doHexPanel(nk_context* ctx, const Rect& panelRect, const i64 da
                nk_rgb(0, 0, 0));
         }
     }
+#endif
 }

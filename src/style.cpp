@@ -1,8 +1,9 @@
 #include "window.h"
-#include "nuklear.h"
+#include "imgui.h"
 
 void setStyle(struct nk_context *ctx, enum theme theme)
 {
+#if 0
     struct nk_color table[NK_COLOR_COUNT];
     if (theme == THEME_WHITE) {
         table[NK_COLOR_TEXT] = nk_rgba(70, 70, 70, 255);
@@ -224,4 +225,5 @@ void setStyleWhite(nk_context* ctx)
     sty.combo.button.hover = sty.combo.hover;
     sty.combo.button.active = sty.combo.active;
     sty.combo.button_padding = nk_vec2(5, 5);
+#endif
 }
