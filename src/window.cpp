@@ -52,14 +52,14 @@ bool AppWindow::init()
     glClearColor(0.15f, 0.15f, 0.15f, 1.f);
     glViewport(0, 0, WINDOW_WIDTH, WINDOW_HEIGHT);
 
-    imguiSetup = imguiInit(WINDOW_WIDTH, WINDOW_HEIGHT);
+    imguiSetup = imguiInit(WINDOW_WIDTH, WINDOW_HEIGHT, "0xed_imgui");
     assert(imguiSetup);
 
     fontTimes = imguiLoadFont("C:\\Windows\\Fonts\\tahoma.ttf", 15);
     ImGui::GetIO().FontDefault = fontTimes;
 
     if(!loadFile("C:\\Program Files (x86)\\NAMCO BANDAI Games\\DarkSouls\\"
-              "dvdbnd0.bhd5.extract\\map\\MapStudio\\m18_01_00_00.msb")) {
+                 "dvdbnd0.bhd5.extract\\map\\MapStudio\\m18_01_00_00.msb")) {
         return false;
     }
 
@@ -238,6 +238,10 @@ void AppWindow::pushGlobalEvents()
     SDL_GetWindowPosition(window, &winx, &winy);
     i32 gmx, gmy;
     u32 gmstate = SDL_GetGlobalMouseState(&gmx, &gmy);
+
+    defer(
+        imguiSetMouseState(imguiSetup, globalMouseX - winx, globalMouseY - winy, globalMouseState);
+    );
 
     if(gmx >= winx && gmx < winx+winWidth && gmy >= winy && gmy < winy+winHeight) {
         globalMouseX = gmx;

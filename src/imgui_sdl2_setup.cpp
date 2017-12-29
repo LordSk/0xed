@@ -18,6 +18,10 @@ struct ImGuiGLSetup
     GLuint shaderVao = 0;
     f32 viewMatrix[16];
     clock_t lastFrameTime;
+
+    i32 globalMouseX; // relative to window position
+    i32 globalMouseY;
+    u32 globalMouseState;
 };
 
 GLuint glMakeShader(GLenum type, const char* pFileBuff, i32 fileSize)
@@ -174,7 +178,7 @@ ImFont* imguiLoadFont(const char* path, i32 sizePx)
     return font;
 }
 
-ImGuiGLSetup* imguiInit(u32 width, u32 height)
+ImGuiGLSetup* imguiInit(u32 width, u32 height, const char* iniPath)
 {
     ImGuiGLSetup* ims = (ImGuiGLSetup*)malloc(sizeof(ImGuiGLSetup));
 
@@ -363,11 +367,9 @@ void imguiUpdate(ImGuiGLSetup* ims, f64 delta)
     clock_t now = TIME_MILLI();
     io.DeltaTime = (now - ims->lastFrameTime) / 1000.f;
     ims->lastFrameTime = now;
-    i32 mx, my;
-    u32 mstate = SDL_GetMouseState(&mx, &my);
-    io.MousePos = ImVec2((f32)mx, (f32)my);
-    io.MouseDown[0] = mstate & SDL_BUTTON(SDL_BUTTON_LEFT);
-    io.MouseDown[1] = mstate & SDL_BUTTON(SDL_BUTTON_RIGHT);
+    io.MousePos = ImVec2((f32)ims->globalMouseX, (f32)ims->globalMouseY);
+    io.MouseDown[0] = ims->globalMouseState & SDL_BUTTON(SDL_BUTTON_LEFT);
+    io.MouseDown[1] = ims->globalMouseState & SDL_BUTTON(SDL_BUTTON_RIGHT);
     ImGui::NewFrame();
 }
 
@@ -438,4 +440,11 @@ void imguiHandleInput(ImGuiGLSetup* ims, const SDL_Event& event)
         io.AddInputCharactersUTF8(event.text.text);
         return;
     }
+}
+
+void imguiSetMouseState(ImGuiGLSetup* ims, i32 mx, i32 my, u32 state)
+{
+    ims->globalMouseX = mx;
+    ims->globalMouseY = my;
+    ims->globalMouseState = state;
 }
