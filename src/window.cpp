@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <assert.h>
 #include "window.h"
+#include "imgui.h"
 
 #define GL3W_IMPLEMENTATION
 #include "gl3w.h"
@@ -58,8 +59,16 @@ bool AppWindow::init()
     fontTimes = imguiLoadFont("C:\\Windows\\Fonts\\tahoma.ttf", 15);
     ImGui::GetIO().FontDefault = fontTimes;
 
-    if(!loadFile("C:\\Program Files (x86)\\NAMCO BANDAI Games\\DarkSouls\\"
+    /*if(!loadFile("C:\\Program Files (x86)\\NAMCO BANDAI Games\\DarkSouls\\"
                  "dvdbnd0.bhd5.extract\\map\\MapStudio\\m18_01_00_00.msb")) {
+        return false;
+    }*/
+
+    /*if(!loadFile("C:/Prog/Projects/0xed/build/genmu.mp3")) {
+        return false;
+    }*/
+
+    if(!loadFile("C:/Prog/Projects/0xed/build/0xed.qbs")) {
         return false;
     }
 
@@ -123,8 +132,6 @@ void AppWindow::doUI()
 {
     setStyleLight();
 
-    ImGui::ShowDemoWindow();
-
     constexpr i32 menubarRowHeight = 22;
     const ImColor colorContextMenuBg = ImColor(242, 242, 242);
     const ImColor colorContextMenuBorder = ImColor(204, 204, 204);
@@ -132,11 +139,16 @@ void AppWindow::doUI()
 
     i32 winWidth, winHeight;
     SDL_GL_GetDrawableSize(window, &winWidth, &winHeight);
-    winWidth += 1;
-    winHeight += 1;
 
     i32 menubarWinHeight = 0;
     i32 statusbarWinHeight = 0;
+
+    ImGuiIO& io = ImGui::GetIO();
+    io.FontDefault->FontSize;
+    auto& style = ImGui::GetStyle();
+    style.FramePadding.y;
+
+    const i32 menuBarHeight = io.FontDefault->FontSize + style.FramePadding.y * 2.0;
 
     // menu bar
     if(ImGui::BeginMainMenuBar()) {
@@ -158,73 +170,28 @@ void AppWindow::doUI()
         ImGui::EndMainMenuBar();
     }
 
-#if 0
-    if(ImGui::(nkCtx, "menu_bar", nk_rect(0, 0, winWidth, menubarRowHeight), NK_WINDOW_NO_SCROLLBAR)) {
-        nk_menubar_begin(nkCtx);
-        nk_layout_row_begin(nkCtx, NK_STATIC, menubarRowHeight, 2);
+    // TODO: status bar?
+#if 1
+    // MAIN FRAME BEGIN
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0.0f);
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
+    const ImVec2 mainFrameSize(winWidth, winHeight - menuBarHeight);
+    ImGui::SetNextWindowSize(mainFrameSize);
+    ImGui::SetNextWindowPos(ImVec2(0, menuBarHeight));
+    ImGui::SetNextWindowSizeConstraints(mainFrameSize, mainFrameSize);
+    ImGui::Begin("Mainframe", nullptr,
+                 ImGuiWindowFlags_NoMove|ImGuiWindowFlags_NoResize|
+                 ImGuiWindowFlags_NoTitleBar|ImGuiWindowFlags_NoBringToFrontOnFocus);
 
-        nk_style_push_color(nkCtx, &nkCtx->style.window.background, colorContextMenuBg);
-        nk_style_push_color(nkCtx, &nkCtx->style.window.border_color, colorContextMenuBorder);
+    ImVec2 wsize = ImGui::GetWindowSize();
+    dataPanels.doUi(Rect{0, 0, wsize.x, wsize.y});
 
-        nk_layout_row_push(nkCtx, 50);
-        if(nk_menu_begin_label(nkCtx, "File", NK_TEXT_CENTERED, nk_vec2(120, 200))) {
-            nk_layout_row_dynamic(nkCtx, 25, 1);
-            nk_menu_item_label(nkCtx, "  Open", NK_TEXT_LEFT);
-            nk_menu_item_label(nkCtx, "  Exit", NK_TEXT_LEFT);
-            nk_menu_end(nkCtx);
-        }
-
-        nk_layout_row_push(nkCtx, 50);
-        if(nk_menu_begin_label(nkCtx, "About", NK_TEXT_CENTERED, nk_vec2(120, 200))) {
-            nk_menu_end(nkCtx);
-        }
-
-        nk_style_pop_color(nkCtx); // colorContextMenuBorder
-        nk_style_pop_color(nkCtx); // colorContextMenuBg
-
-        nk_layout_row_end(nkCtx);
-        nk_menubar_end(nkCtx);
-        // --- menubar
-
-        Rect r = nk_window_get_bounds(nkCtx);
-        menubarWinHeight = r.h;
-
-    } nk_end(nkCtx);
-
-    // status bar
-    Rect statusBarRect = nk_rect(0,
-                                 winHeight - statusBarRowHeight,
-                                 winWidth,
-                                 statusBarRowHeight);
-
-    nk_style* style = &nkCtx->style;
-    nk_style_push_style_item(nkCtx, &style->window.fixed_background,
-                             nk_style_item_color(nk_rgb(240, 240, 240)));
-
-    if(nk_begin(nkCtx, "status_bar", statusBarRect, NK_WINDOW_NO_SCROLLBAR)) {
-        nk_layout_row_begin(nkCtx, NK_STATIC, statusBarRowHeight, 2);
-
-        nk_layout_row_push(nkCtx, 50);
-        nk_label(nkCtx, "Ready.", NK_TEXT_ALIGN_LEFT|NK_TEXT_ALIGN_MIDDLE);
-
-        nk_layout_row_end(nkCtx);
-
-        Rect r = nk_window_get_bounds(nkCtx);
-        statusbarWinHeight = r.h;
-
-        // upper border
-        struct nk_command_buffer* canvas = nk_window_get_canvas(nkCtx);
-        nk_stroke_line(canvas, 0, statusBarRect.y+1,
-                       statusBarRect.w, statusBarRect.y+1,
-                       1.0, nk_rgb(215, 215, 215));
-
-    } nk_end(nkCtx);
-
-    nk_style_pop_style_item(nkCtx);
-
-    const i32 middleHeight = winHeight - menubarWinHeight - statusbarWinHeight;
-    dataPanels.doUi(nkCtx, nk_rect(0, menubarWinHeight, winWidth, middleHeight));
+    // MAIN FRAME END
+    ImGui::End();
+    ImGui::PopStyleVar(2);
 #endif
+
+    ImGui::ShowDemoWindow();
 }
 
 void AppWindow::pushGlobalEvents()

@@ -1,21 +1,107 @@
 #include "data_panel.h"
+#include "imgui.h"
+#include "imgui_internal.h"
 
-static void uiDrawHexByte(u8 val, const struct nk_rect& rect, const struct nk_color& color)
+static void uiDrawHexByte(u8 val)
 {
-#if 0
     constexpr char base16[] = "0123456789ABCDEF";
     char hexStr[3];
     hexStr[0] = base16[val >> 4];
     hexStr[1] = base16[val & 15];
     hexStr[2] = 0;
 
-    nk_text_colored_rect(ctx, hexStr, 2, NK_TEXT_CENTERED, rect, color);
-#endif
+    ImGui::Text(hexStr);
+}
+
+DataPanels::DataPanels()
+{
+    memset(panelType, 0, sizeof(panelType));
+}
+
+static void DoScrollbar(const Rect& rect, i64* outScrollVal, i64 scrollPageSize, i64 scrollTotalSize)
+{
+    ImGuiContext& g = *GImGui;
+    ImGuiWindow* window = g.CurrentWindow;
+
+    Rect locRect = rect;
+    locRect.x += window->Pos.x;
+    locRect.y += window->Pos.y;
+
+    const ImGuiStyle& style = g.Style;
+    const ImGuiID id = window->GetID("#SCROLLY");
+    i64& scrollVal = *outScrollVal;
+
+    // Render background
+    ImRect bb = ImRect(locRect.x, locRect.y, locRect.x + locRect.w, locRect.y + locRect.h);
+
+    int window_rounding_corners;
+    window_rounding_corners = ImDrawCornerFlags_TopRight|ImDrawCornerFlags_BotRight;
+    window->DrawList->AddRectFilled(bb.Min, bb.Max, ImGui::GetColorU32(ImGuiCol_ScrollbarBg),
+                                    window->WindowRounding, 0);
+
+    f32 height = locRect.h * ((f64)scrollPageSize / scrollTotalSize);
+    //LOG("height=%.5f pageSize=%llu contentSize=%llu", height, pageSize, contentSize);
+    f32 yOffset = locRect.h * ((f64)scrollVal / scrollTotalSize);
+    bb = ImRect(locRect.x, locRect.y + yOffset, locRect.x + locRect.w, locRect.y + yOffset + height);
+    bb.Min.x += 2.0f;
+    bb.Max.x -= 2.0f;
+
+    bool held = false;
+    bool hovered = false;
+    const bool previously_held = (g.ActiveId == id);
+    ImGui::ButtonBehavior(bb, id, &hovered, &held);
+
+    static f32 mouseGrabDeltaY = 0;
+
+    if(held) {
+        if(!previously_held) {
+            f32 my = g.IO.MousePos.y;
+            my -= bb.Min.y;
+            mouseGrabDeltaY = my;
+        }
+
+        f32 my = g.IO.MousePos.y;
+        my -= locRect.y;
+        my -= mouseGrabDeltaY;
+        scrollVal = (my/locRect.h) * (f64)scrollTotalSize;
+
+        // clamp
+        if(scrollVal < 0) {
+            scrollVal = 0;
+        }
+        else if(scrollVal > (scrollTotalSize - scrollPageSize)) {
+            scrollVal = scrollTotalSize - scrollPageSize;
+        }
+    }
+    else {
+        // TODO: find a better place for this?
+        ImGuiWindow* hovered = g.HoveredWindow;
+        while(hovered && hovered != window) {
+            hovered = hovered->ParentWindow;
+        }
+        if(hovered && g.IO.MouseWheel != 0.0f) {
+            scrollVal -= g.IO.MouseWheel;
+
+            // clamp
+            if(scrollVal < 0) {
+                scrollVal = 0;
+            }
+            else if(scrollVal > (scrollTotalSize - scrollPageSize)) {
+                scrollVal = scrollTotalSize - scrollPageSize;
+            }
+        }
+    }
+
+    const ImU32 grab_col = ImGui::GetColorU32(held ? ImGuiCol_ScrollbarGrabActive : hovered ?
+                                              ImGuiCol_ScrollbarGrabHovered : ImGuiCol_ScrollbarGrab);
+
+    window->DrawList->AddRectFilled(bb.Min, bb.Max, grab_col, style.ScrollbarRounding);
 }
 
 void DataPanels::doUi(const Rect& viewRect)
 {
-#if 0
+    const ImGuiStyle& style = ImGui::GetStyle();
+
     rowCount = dataSize / columnCount;
 
     Rect combosRect =  viewRect;
@@ -28,64 +114,79 @@ void DataPanels::doUi(const Rect& viewRect)
         "ASCII",
     };
 
-    if(nk_begin(ctx, "panel_combos", combosRect, NK_WINDOW_NO_SCROLLBAR)) {
-        nk_layout_row_begin(ctx, NK_STATIC, combosRect.h, panelCount);
+    /*if(ImGui::BeginCombo()) {
 
-        for(i32 p = 0; p < panelCount; ++p) {
-            nk_layout_row_push(ctx, 150);
+        ImGui::EndCombo();
+    }*/
 
-            nk_style_push_color(ctx, &ctx->style.window.border_color, nk_rgb(0, 120, 215));
+    static i64 scrollCurrent = 0;
+    DoScrollbar(Rect{viewRect.w - style.ScrollbarSize, 0, style.ScrollbarSize, viewRect.h},
+                &scrollCurrent,
+                (viewRect.h/rowHeight), // page size (in lines)
+                dataSize/columnCount + 2); // total lines + 2 (for last line visibility)
 
-            if(nk_combo_begin_label(ctx, "Hex", nk_vec2(150,200))) {
-                nk_layout_row_dynamic(ctx, 22, 1);
+    panelsRect.w -= style.ScrollbarSize;
 
-                nk_button_label(ctx, panelComboItems[0]);
-                nk_button_label(ctx, panelComboItems[1]);
+    const f32 panelWidth = panelsRect.w / panelCount;
+    ImGui::PushItemWidth(panelWidth);
+    ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(0, 0));
 
-                nk_combo_end(ctx);
-            }
+    for(i32 p = 0; p < panelCount; ++p) {
+        ImGui::PushID(&panelType[p]);
+        ImGui::Combo("##PanelType", &panelType[p], panelComboItems, IM_ARRAYSIZE(panelComboItems));
+        ImGui::PopID();
 
-            nk_style_pop_color(ctx); // window.border_color
-        }
-
-        nk_layout_row_end(ctx);
-
-        Rect r = nk_window_get_bounds(ctx);
-        panelsRect.y += r.h;
-        panelsRect.h -= r.h;
+        if(p+1 < panelCount) ImGui::SameLine();
     }
-    nk_end(ctx);
 
+    ImGui::PopStyleVar(1);
+    ImGui::PopItemWidth();
 
-    Rect scrollbarRect = nk_rect(panelsRect.x + panelsRect.w - scrollbarWidth - 1,
-                                 panelsRect.y,
-                                 scrollbarWidth,
-                                 panelsRect.h);
+    ImGui::PushItemWidth(panelWidth);
+    ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(0, 0));
 
-    if(nk_begin(ctx, "data_panels", panelsRect, NK_WINDOW_NO_SCROLLBAR)) {
-        // scrollbar
-        scrollOffset = nk_scrollbarv(ctx, scrollOffset, scrollStep, rowCount, scrollbarRect);
-        const i64 dataIdOff = scrollOffset * columnCount;
+    for(i32 p = 0; p < panelCount; ++p) {
+        ImGui::PushID(&panelRect[p]);
+        ImGui::BeginChild("##ChildPanel", ImVec2(panelWidth, -1), true,
+                          ImGuiWindowFlags_NoScrollbar|ImGuiWindowFlags_NoScrollWithMouse|
+                          ImGuiWindowFlags_NoBringToFrontOnFocus);
 
-        Rect hexPanelRect = nk_rect(panelsRect.x,
-                                    panelsRect.y,
-                                    columnWidth * columnCount + rowHeaderWidth + 1,
-                                    panelsRect.h);
-        doHexPanel(hexPanelRect, dataIdOff);
+        doHexPanel(Rect{0, 0, panelWidth, ImGui::GetWindowHeight()}, scrollCurrent);
 
-        hexPanelRect.x += hexPanelRect.w;
-        doHexPanel(hexPanelRect, dataIdOff);
-        hexPanelRect.x += hexPanelRect.w;
-        doHexPanel(hexPanelRect, dataIdOff);
-        hexPanelRect.x += hexPanelRect.w;
-        doHexPanel(hexPanelRect, dataIdOff);
+        ImGui::EndChild();
+        ImGui::PopID();
+
+        if(p+1 < panelCount) ImGui::SameLine();
     }
-    nk_end(ctx);
-#endif
+
+    ImGui::PopStyleVar(1);
+    ImGui::PopItemWidth();
 }
 
-void DataPanels::doHexPanel(const Rect& panelRect, const i64 dataIdOff)
+void DataPanels::doHexPanel(const Rect& panelRect, const i32 startLine)
 {
+    const i32 lineCount = panelRect.h / rowHeight + 1;
+    const i32 itemCount = min(dataSize - (i64)startLine * columnCount, lineCount * columnCount);
+
+    ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(0, 0));
+
+    const i64 dataIdOff = (i64)startLine * columnCount;
+    for(i64 i = 0; i < itemCount; ++i) {
+        u8 val = data[i + dataIdOff];
+
+        // https://johnnylee-sde.github.io/Fast-unsigned-integer-to-hex-string/
+        u32 hex = (val >> 4) << 8 | (val & 15);
+        u32 mask = ((hex + 0x0606) >> 4) & 0x0101;
+        hex |= 0x3030;
+        hex += 0x07 * mask;
+
+        ImGui::Button((const char*)&hex, ImVec2(columnWidth, rowHeight));
+
+        if((i+1) & (columnCount-1)) ImGui::SameLine();
+    }
+
+    ImGui::PopStyleVar(1);
+
 #if 0
     Rect dataRect = nk_rect(panelRect.x + rowHeaderWidth,
                             panelRect.y + columnHeaderHeight,

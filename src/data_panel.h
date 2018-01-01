@@ -1,7 +1,7 @@
 #pragma once
 #include "base.h"
-#include "imgui.h"
 
+// TODO: replace this with ImRect
 struct Rect
 {
     f32 x, y, w, h;
@@ -12,7 +12,7 @@ struct Rect
 struct DataPanels
 {
     enum {
-        PT_HEX,
+        PT_HEX = 0,
         PT_ASCII
     };
 
@@ -24,9 +24,9 @@ struct DataPanels
     i64 dataSize;
 
     const i32 columnCount = 16;
-    const i32 columnWidth = 20;
+    const i32 columnWidth = 22;
     const i32 columnHeaderHeight = 20;
-    const i32 rowHeight = 20;
+    const i32 rowHeight = 22;
     const i32 rowHeaderWidth = 22;
     i32 rowCount = 100;
 
@@ -34,7 +34,8 @@ struct DataPanels
     float scrollOffset = 0;
     float scrollStep = 1.0;
 
+    DataPanels();
     void doUi(const Rect& viewRect);
 
-    void doHexPanel(const Rect& panelRect, const i64 dataIdOff);
+    void doHexPanel(const Rect& panelRect, const i32 startLine);
 };

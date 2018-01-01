@@ -34,3 +34,10 @@ __privDefer<F> __defer_func(F f) {
 // ----------------------------------------------------
 
 #define LOG(fmt, ...) (printf(fmt"\n", __VA_ARGS__), fflush(stdout))
+
+#ifndef min
+    #define min(a, b) ((a) < (b) ? (a) : (b))
+#endif
+#ifndef max
+    #define max(a, b) ((a) > (b) ? (a) : (b))
+#endif

@@ -13,6 +13,7 @@ int main()
     AppWindow app;
     if(!app.init()) {
         LOG("ERROR: could not init application.");
+        return 1;
     }
     i32 r = app.run();
 
