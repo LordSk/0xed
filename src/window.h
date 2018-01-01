@@ -29,6 +29,7 @@ struct AppWindow
     bool focused = true;
 
     ImFont* fontTimes;
+    ImFont* fontMono;
 
     bool init();
     i32 run();

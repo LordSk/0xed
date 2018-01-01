@@ -147,11 +147,18 @@ void DataPanels::doUi(const Rect& viewRect)
 
     for(i32 p = 0; p < panelCount; ++p) {
         ImGui::PushID(&panelRect[p]);
-        ImGui::BeginChild("##ChildPanel", ImVec2(panelWidth, -1), true,
-                          ImGuiWindowFlags_NoScrollbar|ImGuiWindowFlags_NoScrollWithMouse|
-                          ImGuiWindowFlags_NoBringToFrontOnFocus);
+        ImGui::BeginChild("##ChildPanel", ImVec2(panelWidth, -1), false,
+                          ImGuiWindowFlags_NoScrollbar|ImGuiWindowFlags_NoScrollWithMouse);
 
-        doHexPanel(Rect{0, 0, panelWidth, ImGui::GetWindowHeight()}, scrollCurrent);
+        switch(panelType[p]) {
+            case PT_HEX:
+                doHexPanel(Rect{0, 0, panelWidth, ImGui::GetWindowHeight()}, scrollCurrent);
+                break;
+            case PT_ASCII:
+                doAsciiPanel(Rect{0, 0, panelWidth, ImGui::GetWindowHeight()}, scrollCurrent);
+                break;
+        }
+
 
         ImGui::EndChild();
         ImGui::PopID();
@@ -252,4 +259,48 @@ void DataPanels::doHexPanel(const Rect& panelRect, const i32 startLine)
         }
     }
 #endif
+}
+
+void DataPanels::doAsciiPanel(const Rect& panelRect, const i32 startLine)
+{
+    ImGuiContext& g = *GImGui;
+    ImGuiWindow* window = g.CurrentWindow;
+    const ImVec2 winPos = window->DC.CursorPos;
+    const ImGuiStyle& style = ImGui::GetStyle();
+
+    const i32 lineCount = panelRect.h / rowHeight + 1;
+    const i32 itemCount = min(dataSize - (i64)startLine * columnCount, lineCount * columnCount);
+    const f32 charWidth = 14;
+
+    ImGui::RenderFrame(winPos,
+                       ImVec2(winPos.x + columnCount * charWidth, winPos.y + lineCount * rowHeight),
+                       ImGui::GetColorU32(ImGuiCol_FrameBg), false);
+
+    ImGui::PushFont(fontMono);
+
+
+    const i64 dataIdOff = (i64)startLine * columnCount;
+    for(i64 i = 0; i < itemCount; ++i) {
+        char c = (char)data[i + dataIdOff];
+        if(c < 0x20) {
+            // TODO: grey out instead of space
+            c = ' ';
+        }
+
+        i32 line = i / columnCount;
+        i32 column = i & (columnCount - 1);
+        ImRect bb(winPos.x + column * charWidth, winPos.y + line * rowHeight,
+                  winPos.x + column * charWidth + charWidth,
+                  winPos.y + line * rowHeight + rowHeight);
+
+        ImGui::RenderTextClipped(bb.Min,
+                                 bb.Max,
+                                 &c, (const char*)&c + 1, NULL,
+                                 ImVec2(0.5, 0.5), &bb);
+
+
+        if((i+1) & (columnCount-1)) ImGui::SameLine();
+    }
+
+    ImGui::PopFont();
 }

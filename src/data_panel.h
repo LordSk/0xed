@@ -30,12 +30,13 @@ struct DataPanels
     const i32 rowHeaderWidth = 22;
     i32 rowCount = 100;
 
-    const i32 scrollbarWidth = 15;
-    float scrollOffset = 0;
-    float scrollStep = 1.0;
+    const i32 scrollbarWidth = 20;
+
+    struct ImFont* fontMono;
 
     DataPanels();
     void doUi(const Rect& viewRect);
 
     void doHexPanel(const Rect& panelRect, const i32 startLine);
+    void doAsciiPanel(const Rect& panelRect, const i32 startLine);
 };

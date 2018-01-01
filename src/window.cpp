@@ -56,8 +56,10 @@ bool AppWindow::init()
     imguiSetup = imguiInit(WINDOW_WIDTH, WINDOW_HEIGHT, "0xed_imgui");
     assert(imguiSetup);
 
-    fontTimes = imguiLoadFont("C:\\Windows\\Fonts\\tahoma.ttf", 15);
+    fontTimes = imguiLoadFont("C:\\Windows\\Fonts\\tahoma.ttf", 15); // TODO: load multiple fonts at once
+    fontMono = imguiLoadFont("C:\\Windows\\Fonts\\consola.ttf", 15);
     ImGui::GetIO().FontDefault = fontTimes;
+
 
     /*if(!loadFile("C:\\Program Files (x86)\\NAMCO BANDAI Games\\DarkSouls\\"
                  "dvdbnd0.bhd5.extract\\map\\MapStudio\\m18_01_00_00.msb")) {
@@ -74,6 +76,7 @@ bool AppWindow::init()
 
     dataPanels.data = curFileBuff.data;
     dataPanels.dataSize = curFileBuff.size;
+    dataPanels.fontMono = fontMono;
 
     return true;
 }
