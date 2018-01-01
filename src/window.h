@@ -21,6 +21,8 @@ struct AppWindow
     FileBuffer curFileBuff;
     DataPanels dataPanels;
 
+    i32 winX;
+    i32 winY;
     i32 winWidth;
     i32 winHeight;
     i32 globalMouseX = -1;

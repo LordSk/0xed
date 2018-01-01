@@ -83,7 +83,11 @@ bool AppWindow::init()
 
 i32 AppWindow::run()
 {
+    u32 eventTick = SDL_GetTicks();
+
     while(running) {
+        u32 frameStart = SDL_GetTicks();
+
         SDL_GetWindowSize(window, &winWidth, &winHeight);
         pushGlobalEvents();
 
@@ -95,14 +99,34 @@ i32 AppWindow::run()
             imguiHandleInput(imguiSetup, event);
         }
 
-        /*if(eventCount == 0) {
-            SDL_Delay(1);
+        // window is not focused, sleep
+        if(!focused) {
+            SDL_Delay(15);
             continue;
-        }*/
+        }
 
-        update();
+        // if the window is focused but we're idle, sleep
+        if(eventCount > 0) {
+            eventTick = SDL_GetTicks();
+        }
+        else {
+            u32 now = SDL_GetTicks();
+            if(now - eventTick > 500) {
+                SDL_Delay(100);
+                continue;
+            }
+        }
 
-        SDL_GL_SwapWindow(window);
+        if(focused) {
+            update();
+            SDL_GL_SwapWindow(window);
+
+            // limit framerate
+            u32 frameTime = SDL_GetTicks() - frameStart;
+            if(frameTime < 15) {
+                SDL_Delay(15 - frameTime);
+            }
+        }
     }
 
     cleanUp();
