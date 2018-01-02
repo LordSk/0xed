@@ -61,18 +61,18 @@ bool AppWindow::init()
     ImGui::GetIO().FontDefault = fontTimes;
 
 
-    /*if(!loadFile("C:\\Program Files (x86)\\NAMCO BANDAI Games\\DarkSouls\\"
+    if(!loadFile("C:\\Program Files (x86)\\NAMCO BANDAI Games\\DarkSouls\\"
                  "dvdbnd0.bhd5.extract\\map\\MapStudio\\m18_01_00_00.msb")) {
         return false;
-    }*/
+    }
 
     /*if(!loadFile("C:/Prog/Projects/0xed/build/genmu.mp3")) {
         return false;
     }*/
 
-    if(!loadFile("C:/Prog/Projects/0xed/build/0xed.qbs")) {
+    /*if(!loadFile("C:/Prog/Projects/0xed/build/0xed.qbs")) {
         return false;
-    }
+    }*/
 
     dataPanels.data = curFileBuff.data;
     dataPanels.dataSize = curFileBuff.size;

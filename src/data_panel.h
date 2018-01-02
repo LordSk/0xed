@@ -13,7 +13,16 @@ struct DataPanels
 {
     enum {
         PT_HEX = 0,
-        PT_ASCII
+        PT_ASCII,
+
+        PT_INT8,
+        PT_UINT8,
+        PT_INT16,
+        PT_UINT16,
+        PT_INT32,
+        PT_UINT32,
+        PT_INT64,
+        PT_UINT64,
     };
 
     Rect panelRect[PANEL_MAX_COUNT];
@@ -39,4 +48,5 @@ struct DataPanels
 
     void doHexPanel(const Rect& panelRect, const i32 startLine);
     void doAsciiPanel(const Rect& panelRect, const i32 startLine);
+    void doIntegerPanel(const Rect& panelRect, const i32 startLine, i32 bitSize, bool isSigned);
 };

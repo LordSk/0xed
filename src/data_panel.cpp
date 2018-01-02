@@ -20,6 +20,10 @@ DataPanels::DataPanels()
 
 static void DoScrollbar(const Rect& rect, i64* outScrollVal, i64 scrollPageSize, i64 scrollTotalSize)
 {
+    if(scrollPageSize >= scrollTotalSize) {
+        return;
+    }
+
     ImGuiContext& g = *GImGui;
     ImGuiWindow* window = g.CurrentWindow;
 
@@ -40,8 +44,16 @@ static void DoScrollbar(const Rect& rect, i64* outScrollVal, i64 scrollPageSize,
                                     window->WindowRounding, 0);
 
     f32 height = locRect.h * ((f64)scrollPageSize / scrollTotalSize);
+    f32 scrollSurfaceSizeY = locRect.h;
+
+    constexpr f32 minGrabHeight = 24.f;
+    if(height < minGrabHeight) {
+        scrollSurfaceSizeY -= minGrabHeight - height;
+        height = minGrabHeight;
+    }
+
     //LOG("height=%.5f pageSize=%llu contentSize=%llu", height, pageSize, contentSize);
-    f32 yOffset = locRect.h * ((f64)scrollVal / scrollTotalSize);
+    f32 yOffset = scrollSurfaceSizeY * ((f64)scrollVal / scrollTotalSize);
     bb = ImRect(locRect.x, locRect.y + yOffset, locRect.x + locRect.w, locRect.y + yOffset + height);
     bb.Min.x += 2.0f;
     bb.Max.x -= 2.0f;
@@ -63,7 +75,7 @@ static void DoScrollbar(const Rect& rect, i64* outScrollVal, i64 scrollPageSize,
         f32 my = g.IO.MousePos.y;
         my -= locRect.y;
         my -= mouseGrabDeltaY;
-        scrollVal = (my/locRect.h) * (f64)scrollTotalSize;
+        scrollVal = (my/scrollSurfaceSizeY) * (f64)scrollTotalSize;
 
         // clamp
         if(scrollVal < 0) {
@@ -112,6 +124,14 @@ void DataPanels::doUi(const Rect& viewRect)
     const char* panelComboItems[] = {
         "Hex",
         "ASCII",
+        "Int8",
+        "Uint8",
+        "Int16",
+        "Uint16",
+        "Int32",
+        "Uint32",
+        "Int64",
+        "Uint64",
     };
 
     /*if(ImGui::BeginCombo()) {
@@ -119,8 +139,9 @@ void DataPanels::doUi(const Rect& viewRect)
         ImGui::EndCombo();
     }*/
 
+    // TODO: do not hard code y-offset (22), calculate it
     static i64 scrollCurrent = 0;
-    DoScrollbar(Rect{viewRect.w - style.ScrollbarSize, 0, style.ScrollbarSize, viewRect.h},
+    DoScrollbar(Rect{viewRect.w - style.ScrollbarSize, 22, style.ScrollbarSize, viewRect.h - 22},
                 &scrollCurrent,
                 (viewRect.h/rowHeight), // page size (in lines)
                 dataSize/columnCount + 2); // total lines + 2 (for last line visibility)
@@ -156,6 +177,30 @@ void DataPanels::doUi(const Rect& viewRect)
                 break;
             case PT_ASCII:
                 doAsciiPanel(Rect{0, 0, panelWidth, ImGui::GetWindowHeight()}, scrollCurrent);
+                break;
+            case PT_INT8:
+                doIntegerPanel(Rect{0, 0, panelWidth, ImGui::GetWindowHeight()}, scrollCurrent, 8, true);
+                break;
+            case PT_UINT8:
+                doIntegerPanel(Rect{0, 0, panelWidth, ImGui::GetWindowHeight()}, scrollCurrent, 8, false);
+                break;
+            case PT_INT16:
+                doIntegerPanel(Rect{0, 0, panelWidth, ImGui::GetWindowHeight()}, scrollCurrent, 16, true);
+                break;
+            case PT_UINT16:
+                doIntegerPanel(Rect{0, 0, panelWidth, ImGui::GetWindowHeight()}, scrollCurrent, 16, false);
+                break;
+            case PT_INT32:
+                doIntegerPanel(Rect{0, 0, panelWidth, ImGui::GetWindowHeight()}, scrollCurrent, 32, true);
+                break;
+            case PT_UINT32:
+                doIntegerPanel(Rect{0, 0, panelWidth, ImGui::GetWindowHeight()}, scrollCurrent, 32, false);
+                break;
+            case PT_INT64:
+                doIntegerPanel(Rect{0, 0, panelWidth, ImGui::GetWindowHeight()}, scrollCurrent, 64, true);
+                break;
+            case PT_UINT64:
+                doIntegerPanel(Rect{0, 0, panelWidth, ImGui::GetWindowHeight()}, scrollCurrent, 64, false);
                 break;
         }
 
@@ -303,4 +348,68 @@ void DataPanels::doAsciiPanel(const Rect& panelRect, const i32 startLine)
     }
 
     ImGui::PopFont();
+}
+
+void DataPanels::doIntegerPanel(const Rect& panelRect, const i32 startLine, i32 bitSize, bool isSigned)
+{
+    ImGuiContext& g = *GImGui;
+    ImGuiWindow* window = g.CurrentWindow;
+    const ImVec2 winPos = window->DC.CursorPos;
+    const ImGuiStyle& style = ImGui::GetStyle();
+
+    const i32 lineCount = panelRect.h / rowHeight + 1;
+    const i32 itemCount = min(dataSize - (i64)startLine * columnCount, lineCount * columnCount);
+    const i32 byteSize = bitSize >> 3; // div 8
+    const i32 intColumnWidth = 30;
+
+
+    // TODO: round off item count based of byteSize
+    const i64 dataIdOff = (i64)startLine * columnCount;
+    for(i64 i = 0; i < itemCount; i += byteSize) {
+        char integerStr[32];
+
+        if(isSigned) {
+            switch(bitSize) {
+                case 8:
+                    sprintf(integerStr, "%d", *(i8*)&data[i + dataIdOff]);
+                    break;
+                case 16:
+                    sprintf(integerStr, "%d", *(i16*)&data[i + dataIdOff]);
+                    break;
+                case 32:
+                    sprintf(integerStr, "%d", *(i32*)&data[i + dataIdOff]);
+                    break;
+                case 64:
+                    sprintf(integerStr, "%lld", *(i64*)&data[i + dataIdOff]);
+                    break;
+                default:
+                    assert(0);
+                    break;
+            }
+        }
+        else {
+            switch(bitSize) {
+                case 8:
+                    sprintf(integerStr, "%u", *(u8*)&data[i + dataIdOff]);
+                    break;
+                case 16:
+                    sprintf(integerStr, "%u", *(u16*)&data[i + dataIdOff]);
+                    break;
+                case 32:
+                    sprintf(integerStr, "%u", *(u32*)&data[i + dataIdOff]);
+                    break;
+                case 64:
+                    sprintf(integerStr, "%llu", *(u64*)&data[i + dataIdOff]);
+                    break;
+                default:
+                    assert(0);
+                    break;
+            }
+        }
+
+
+        ImGui::Button(integerStr, ImVec2(intColumnWidth * byteSize, rowHeight));
+
+        if((i+byteSize) & (columnCount-1)) ImGui::SameLine();
+    }
 }
