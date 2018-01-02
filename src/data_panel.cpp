@@ -1,24 +1,12 @@
 #include "data_panel.h"
+
+#define IMGUI_DEFINE_MATH_OPERATORS
 #include "imgui.h"
 #include "imgui_internal.h"
 
-static void uiDrawHexByte(u8 val)
-{
-    constexpr char base16[] = "0123456789ABCDEF";
-    char hexStr[3];
-    hexStr[0] = base16[val >> 4];
-    hexStr[1] = base16[val & 15];
-    hexStr[2] = 0;
+namespace ImGui {
 
-    ImGui::Text(hexStr);
-}
-
-DataPanels::DataPanels()
-{
-    memset(panelType, 0, sizeof(panelType));
-}
-
-static void DoScrollbar(const Rect& rect, i64* outScrollVal, i64 scrollPageSize, i64 scrollTotalSize)
+static void DoScrollbarVertical(i64* outScrollVal, i64 scrollPageSize, i64 scrollTotalSize)
 {
     if(scrollPageSize >= scrollTotalSize) {
         return;
@@ -26,25 +14,26 @@ static void DoScrollbar(const Rect& rect, i64* outScrollVal, i64 scrollPageSize,
 
     ImGuiContext& g = *GImGui;
     ImGuiWindow* window = g.CurrentWindow;
-
-    Rect locRect = rect;
-    locRect.x += window->Pos.x;
-    locRect.y += window->Pos.y;
-
     const ImGuiStyle& style = g.Style;
     const ImGuiID id = window->GetID("#SCROLLY");
     i64& scrollVal = *outScrollVal;
 
+    ImRect winRect = window->Rect();
+    winRect.Expand(ImVec2(0, -2.f)); // padding
+    window->Size.x -= style.ScrollbarSize; // this feels weird
+
     // Render background
-    ImRect bb = ImRect(locRect.x, locRect.y, locRect.x + locRect.w, locRect.y + locRect.h);
+    ImRect bb = winRect;
+    bb.Min.x = bb.Max.x - style.ScrollbarSize;
+    ImRect bbBg = bb;
 
     int window_rounding_corners;
     window_rounding_corners = ImDrawCornerFlags_TopRight|ImDrawCornerFlags_BotRight;
     window->DrawList->AddRectFilled(bb.Min, bb.Max, ImGui::GetColorU32(ImGuiCol_ScrollbarBg),
                                     window->WindowRounding, 0);
 
-    f32 height = locRect.h * ((f64)scrollPageSize / scrollTotalSize);
-    f32 scrollSurfaceSizeY = locRect.h;
+    f32 height = winRect.GetHeight() * ((f64)scrollPageSize / scrollTotalSize);
+    f32 scrollSurfaceSizeY = winRect.GetHeight();
 
     constexpr f32 minGrabHeight = 24.f;
     if(height < minGrabHeight) {
@@ -54,10 +43,7 @@ static void DoScrollbar(const Rect& rect, i64* outScrollVal, i64 scrollPageSize,
 
     //LOG("height=%.5f pageSize=%llu contentSize=%llu", height, pageSize, contentSize);
     f32 yOffset = scrollSurfaceSizeY * ((f64)scrollVal / scrollTotalSize);
-    bb = ImRect(locRect.x, locRect.y + yOffset, locRect.x + locRect.w, locRect.y + yOffset + height);
-    bb.Min.x += 2.0f;
-    bb.Max.x -= 2.0f;
-
+    bb = ImRect(bbBg.Min.x + 2.0f, bbBg.Min.y + yOffset, bbBg.Max.x - 2.0f, bbBg.Min.y + yOffset + height);
     bool held = false;
     bool hovered = false;
     const bool previously_held = (g.ActiveId == id);
@@ -73,7 +59,7 @@ static void DoScrollbar(const Rect& rect, i64* outScrollVal, i64 scrollPageSize,
         }
 
         f32 my = g.IO.MousePos.y;
-        my -= locRect.y;
+        my -= bbBg.Min.y;
         my -= mouseGrabDeltaY;
         scrollVal = (my/scrollSurfaceSizeY) * (f64)scrollTotalSize;
 
@@ -110,6 +96,43 @@ static void DoScrollbar(const Rect& rect, i64* outScrollVal, i64 scrollPageSize,
     window->DrawList->AddRectFilled(bb.Min, bb.Max, grab_col, style.ScrollbarRounding);
 }
 
+static void TextBox(const char* label, const ImVec2& boxSize, const ImVec4 bgColor = ImVec4(1,1,1,1),
+                    const ImVec4 textColor = ImVec4(0,0,0,1))
+{
+    ImGuiWindow* window = GetCurrentWindow();
+    if(window->SkipItems)
+        return;
+
+    ImGuiContext& g = *GImGui;
+    const ImGuiStyle& style = g.Style;
+    const ImGuiID id = window->GetID(label);
+    const ImVec2 label_size = CalcTextSize(label, NULL, true);
+
+    ImVec2 pos = window->DC.CursorPos;
+    ImVec2 size = CalcItemSize(boxSize, label_size.x, label_size.y);
+
+    const ImRect bb(pos, pos + size);
+    ItemSize(bb, 0);
+    if (!ItemAdd(bb, id))
+        return;
+
+    // Render
+    const ImU32 col = ColorConvertFloat4ToU32(bgColor);
+    RenderFrame(bb.Min, bb.Max, col, false, 0);
+
+    PushStyleColor(ImGuiCol_Text, textColor);
+    RenderTextClipped(bb.Min, bb.Max, label, NULL,
+                      &label_size, style.ButtonTextAlign, &bb);
+    PopStyleColor();
+}
+
+}
+
+DataPanels::DataPanels()
+{
+    memset(panelType, 0, sizeof(panelType));
+}
+
 void DataPanels::doUi(const Rect& viewRect)
 {
     const ImGuiStyle& style = ImGui::GetStyle();
@@ -139,16 +162,12 @@ void DataPanels::doUi(const Rect& viewRect)
         ImGui::EndCombo();
     }*/
 
-    // TODO: do not hard code y-offset (22), calculate it
     static i64 scrollCurrent = 0;
-    DoScrollbar(Rect{viewRect.w - style.ScrollbarSize, 22, style.ScrollbarSize, viewRect.h - 22},
-                &scrollCurrent,
-                (viewRect.h/rowHeight), // page size (in lines)
-                dataSize/columnCount + 2); // total lines + 2 (for last line visibility)
+    ImGui::DoScrollbarVertical(&scrollCurrent,
+                               (viewRect.h/rowHeight), // page size (in lines)
+                               dataSize/columnCount + 2); // total lines + 2 (for last line visibility)
 
-    panelsRect.w -= style.ScrollbarSize;
-
-    const f32 panelWidth = panelsRect.w / panelCount;
+    const f32 panelWidth = ImGui::GetWindowWidth() / panelCount;
     ImGui::PushItemWidth(panelWidth);
     ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(0, 0));
 
@@ -232,7 +251,11 @@ void DataPanels::doHexPanel(const Rect& panelRect, const i32 startLine)
         hex |= 0x3030;
         hex += 0x07 * mask;
 
-        ImGui::Button((const char*)&hex, ImVec2(columnWidth, rowHeight));
+        f32 bgColor = val/255.f * 0.5 + 0.5;
+        f32 textColor = 0.0f;
+        ImGui::TextBox((const char*)&hex, ImVec2(columnWidth, rowHeight),
+                       ImVec4(bgColor, bgColor, bgColor, 1),
+                       ImVec4(textColor, textColor, textColor, 1));
 
         if((i+1) & (columnCount-1)) ImGui::SameLine();
     }
@@ -360,7 +383,7 @@ void DataPanels::doIntegerPanel(const Rect& panelRect, const i32 startLine, i32 
     const i32 lineCount = panelRect.h / rowHeight + 1;
     const i32 itemCount = min(dataSize - (i64)startLine * columnCount, lineCount * columnCount);
     const i32 byteSize = bitSize >> 3; // div 8
-    const i32 intColumnWidth = 30;
+    const i32 intColumnWidth = 34;
 
 
     // TODO: round off item count based of byteSize
@@ -368,6 +391,7 @@ void DataPanels::doIntegerPanel(const Rect& panelRect, const i32 startLine, i32 
     for(i64 i = 0; i < itemCount; i += byteSize) {
         char integerStr[32];
 
+        // TODO: this is VERY innefficient, find a better way to do this
         if(isSigned) {
             switch(bitSize) {
                 case 8:
@@ -408,7 +432,7 @@ void DataPanels::doIntegerPanel(const Rect& panelRect, const i32 startLine, i32 
         }
 
 
-        ImGui::Button(integerStr, ImVec2(intColumnWidth * byteSize, rowHeight));
+        ImGui::TextBox(integerStr, ImVec2(intColumnWidth * byteSize, rowHeight));
 
         if((i+byteSize) & (columnCount-1)) ImGui::SameLine();
     }
