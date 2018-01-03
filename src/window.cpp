@@ -210,8 +210,7 @@ void AppWindow::doUI()
                  ImGuiWindowFlags_NoMove|ImGuiWindowFlags_NoResize|
                  ImGuiWindowFlags_NoTitleBar|ImGuiWindowFlags_NoBringToFrontOnFocus);
 
-    ImVec2 wsize = ImGui::GetWindowSize();
-    dataPanels.doUi(Rect{0, 0, wsize.x, wsize.y});
+    dataPanels.doUi(ImGui::GetCurrentWindow()->Rect());
 
     // MAIN FRAME END
     ImGui::End();

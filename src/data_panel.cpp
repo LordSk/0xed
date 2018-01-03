@@ -1,9 +1,5 @@
 #include "data_panel.h"
 
-#define IMGUI_DEFINE_MATH_OPERATORS
-#include "imgui.h"
-#include "imgui_internal.h"
-
 namespace ImGui {
 
 static void DoScrollbarVertical(i64* outScrollVal, i64 scrollPageSize, i64 scrollTotalSize)
@@ -20,7 +16,7 @@ static void DoScrollbarVertical(i64* outScrollVal, i64 scrollPageSize, i64 scrol
 
     ImRect winRect = window->Rect();
     winRect.Expand(ImVec2(0, -2.f)); // padding
-    window->Size.x -= style.ScrollbarSize; // this feels weird
+    window->ContentsRegionRect.Max.x -= style.ScrollbarSize;
 
     // Render background
     ImRect bb = winRect;
@@ -128,21 +124,30 @@ static void TextBox(const char* label, const ImVec2& boxSize, const ImVec4 bgCol
 
 }
 
+// https://johnnylee-sde.github.io/Fast-unsigned-integer-to-hex-string/
+inline u32 toHexStr(u8 val)
+{
+    u32 hex = (val & 15) << 8 | (val >> 4);
+    u32 mask = ((hex + 0x0606) >> 4) & 0x0101;
+    hex |= 0x3030;
+    hex += 0x07 * mask;
+    return hex;
+}
+
 DataPanels::DataPanels()
 {
     memset(panelType, 0, sizeof(panelType));
 }
 
-void DataPanels::doUi(const Rect& viewRect)
+void DataPanels::doUi(const ImRect& viewRect)
 {
     const ImGuiStyle& style = ImGui::GetStyle();
 
     rowCount = dataSize / columnCount;
 
-    Rect combosRect =  viewRect;
+    /*ImRect combosRect =  viewRect;
     combosRect.h = 30;
-
-    Rect panelsRect =  viewRect;
+    ImRect panelsRect =  viewRect;*/
 
     const char* panelComboItems[] = {
         "Hex",
@@ -164,62 +169,64 @@ void DataPanels::doUi(const Rect& viewRect)
 
     static i64 scrollCurrent = 0;
     ImGui::DoScrollbarVertical(&scrollCurrent,
-                               (viewRect.h/rowHeight), // page size (in lines)
+                               (viewRect.GetHeight()/rowHeight), // page size (in lines)
                                dataSize/columnCount + 2); // total lines + 2 (for last line visibility)
 
-    const f32 panelWidth = ImGui::GetWindowWidth() / panelCount;
-    ImGui::PushItemWidth(panelWidth);
     ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(0, 0));
 
-    for(i32 p = 0; p < panelCount; ++p) {
-        ImGui::PushID(&panelType[p]);
-        ImGui::Combo("##PanelType", &panelType[p], panelComboItems, IM_ARRAYSIZE(panelComboItems));
-        ImGui::PopID();
+    // row header
+    ImGui::BeginChild("##ROWHEADER", ImVec2(rowHeaderWidth, -1), false,
+                      ImGuiWindowFlags_NoScrollbar|ImGuiWindowFlags_NoScrollWithMouse);
+    ImGui::EndChild();
+    ImGui::SameLine();
 
-        if(p+1 < panelCount) ImGui::SameLine();
-    }
-
-    ImGui::PopStyleVar(1);
-    ImGui::PopItemWidth();
-
-    ImGui::PushItemWidth(panelWidth);
-    ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(0, 0));
+    // panels
+    const f32 panelWidth = ImGui::GetContentRegionAvailWidth() / panelCount;
 
     for(i32 p = 0; p < panelCount; ++p) {
         ImGui::PushID(&panelRect[p]);
         ImGui::BeginChild("##ChildPanel", ImVec2(panelWidth, -1), false,
                           ImGuiWindowFlags_NoScrollbar|ImGuiWindowFlags_NoScrollWithMouse);
 
+        ImGui::PushItemWidth(panelWidth);
+        ImGui::PushID(&panelType[p]);
+        ImGui::Combo("##PanelType", &panelType[p], panelComboItems, IM_ARRAYSIZE(panelComboItems),
+                     IM_ARRAYSIZE(panelComboItems));
+        ImGui::PopID();
+        ImGui::PopItemWidth();
+
+        ImRect panelRect_ = ImGui::GetCurrentWindow()->Rect();
+
         switch(panelType[p]) {
             case PT_HEX:
-                doHexPanel(Rect{0, 0, panelWidth, ImGui::GetWindowHeight()}, scrollCurrent);
+                doHexPanel(panelRect_, scrollCurrent);
                 break;
             case PT_ASCII:
-                doAsciiPanel(Rect{0, 0, panelWidth, ImGui::GetWindowHeight()}, scrollCurrent);
+                doAsciiPanel(panelRect_, scrollCurrent);
                 break;
             case PT_INT8:
-                doIntegerPanel(Rect{0, 0, panelWidth, ImGui::GetWindowHeight()}, scrollCurrent, 8, true);
+                doIntegerPanel(panelRect_, scrollCurrent, 8, true);
                 break;
             case PT_UINT8:
-                doIntegerPanel(Rect{0, 0, panelWidth, ImGui::GetWindowHeight()}, scrollCurrent, 8, false);
+                doIntegerPanel(panelRect_, scrollCurrent, 8, false);
                 break;
             case PT_INT16:
-                doIntegerPanel(Rect{0, 0, panelWidth, ImGui::GetWindowHeight()}, scrollCurrent, 16, true);
+                doIntegerPanel(panelRect_, scrollCurrent, 16, true);
                 break;
             case PT_UINT16:
-                doIntegerPanel(Rect{0, 0, panelWidth, ImGui::GetWindowHeight()}, scrollCurrent, 16, false);
+                doIntegerPanel(panelRect_, scrollCurrent, 16, false);
                 break;
             case PT_INT32:
-                doIntegerPanel(Rect{0, 0, panelWidth, ImGui::GetWindowHeight()}, scrollCurrent, 32, true);
+                doIntegerPanel(panelRect_, scrollCurrent, 32, true);
                 break;
             case PT_UINT32:
-                doIntegerPanel(Rect{0, 0, panelWidth, ImGui::GetWindowHeight()}, scrollCurrent, 32, false);
+                doIntegerPanel(panelRect_, scrollCurrent, 32, false);
                 break;
             case PT_INT64:
-                doIntegerPanel(Rect{0, 0, panelWidth, ImGui::GetWindowHeight()}, scrollCurrent, 64, true);
+                doIntegerPanel(panelRect_, scrollCurrent, 64, true);
                 break;
             case PT_UINT64:
-                doIntegerPanel(Rect{0, 0, panelWidth, ImGui::GetWindowHeight()}, scrollCurrent, 64, false);
+                doIntegerPanel(panelRect_, scrollCurrent, 64, false);
                 break;
         }
 
@@ -231,36 +238,76 @@ void DataPanels::doUi(const Rect& viewRect)
     }
 
     ImGui::PopStyleVar(1);
-    ImGui::PopItemWidth();
+    //ImGui::PopItemWidth();
 }
 
-void DataPanels::doHexPanel(const Rect& panelRect, const i32 startLine)
+void DataPanels::doHexPanel(const ImRect& panelRect, const i32 startLine)
 {
-    const i32 lineCount = panelRect.h / rowHeight + 1;
+    const i32 lineCount = panelRect.GetHeight() / rowHeight + 1;
     const i32 itemCount = min(dataSize - (i64)startLine * columnCount, lineCount * columnCount);
 
-    ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(0, 0));
+    ImGuiWindow* window = ImGui::GetCurrentWindow();
+    if(window->SkipItems)
+        return;
 
+    ImVec2 winPos = window->DC.CursorPos;
+    const ImGuiID id = window->GetID("#HEXPANEL");
+    ImGui::ItemSize(panelRect, 0);
+    if(!ImGui::ItemAdd(panelRect, id))
+        return;
+
+    const ImVec2 cellSize(columnWidth, rowHeight);
+
+    // column header
+    ImRect colHeadBb(winPos, winPos + ImVec2(0, columnHeaderHeight + rowHeight * lineCount));
+    const ImU32 headerColor = ImGui::ColorConvertFloat4ToU32(ImVec4(0.9, 0.9, 0.9, 1));
+    ImGui::RenderFrame(colHeadBb.Min, colHeadBb.Max, headerColor, false, 0);
+
+    for(i64 i = 0; i < columnCount; ++i) {
+        u32 hex = toHexStr(i);
+        const char* label = (const char*)&hex;
+        const ImVec2 label_size = ImGui::CalcTextSize(label, label+2);
+        const ImVec2 size = ImGui::CalcItemSize(cellSize, label_size.x, label_size.y);
+
+        ImVec2 cellPos(i * cellSize.x, columnHeaderHeight - cellSize.y);
+        cellPos += winPos;
+        const ImRect bb(cellPos, cellPos + size);
+
+        ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.5, 0.5, 0.5, 1));
+        ImGui::RenderTextClipped(bb.Min, bb.Max, label, label+2,
+                          &label_size, ImVec2(0.5, 0.5), &bb);
+        ImGui::PopStyleColor();
+    }
+
+    winPos.y += columnHeaderHeight;
+
+    // hex table
     const i64 dataIdOff = (i64)startLine * columnCount;
     for(i64 i = 0; i < itemCount; ++i) {
         u8 val = data[i + dataIdOff];
+        u32 hex = toHexStr(val);
 
-        // https://johnnylee-sde.github.io/Fast-unsigned-integer-to-hex-string/
-        u32 hex = (val >> 4) << 8 | (val & 15);
-        u32 mask = ((hex + 0x0606) >> 4) & 0x0101;
-        hex |= 0x3030;
-        hex += 0x07 * mask;
+        f32 bgColor = val/255.f * 0.7 + 0.3;
+        constexpr f32 textColor = 0.0f;
 
-        f32 bgColor = val/255.f * 0.5 + 0.5;
-        f32 textColor = 0.0f;
-        ImGui::TextBox((const char*)&hex, ImVec2(columnWidth, rowHeight),
-                       ImVec4(bgColor, bgColor, bgColor, 1),
-                       ImVec4(textColor, textColor, textColor, 1));
+        const char* label = (const char*)&hex;
+        const ImVec2 label_size = ImGui::CalcTextSize(label, label+2);
+        const ImVec2 size = ImGui::CalcItemSize(cellSize, label_size.x, label_size.y);
 
-        if((i+1) & (columnCount-1)) ImGui::SameLine();
+        i32 column = i & (columnCount - 1);
+        i32 line = i / columnCount;
+        ImVec2 cellPos(column * cellSize.x, line * cellSize.y);
+        cellPos += winPos;
+        const ImRect bb(cellPos, cellPos + size);
+
+        const ImU32 frameColor = ImGui::ColorConvertFloat4ToU32(ImVec4(bgColor, bgColor, bgColor, 1));
+        ImGui::RenderFrame(bb.Min, bb.Max, frameColor, false, 0);
+
+        ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(textColor, textColor, textColor, 1));
+        ImGui::RenderTextClipped(bb.Min, bb.Max, label, label+2,
+                          &label_size, ImVec2(0.5, 0.5), &bb);
+        ImGui::PopStyleColor();
     }
-
-    ImGui::PopStyleVar(1);
 
 #if 0
     Rect dataRect = nk_rect(panelRect.x + rowHeaderWidth,
@@ -329,14 +376,14 @@ void DataPanels::doHexPanel(const Rect& panelRect, const i32 startLine)
 #endif
 }
 
-void DataPanels::doAsciiPanel(const Rect& panelRect, const i32 startLine)
+void DataPanels::doAsciiPanel(const ImRect& panelRect, const i32 startLine)
 {
     ImGuiContext& g = *GImGui;
     ImGuiWindow* window = g.CurrentWindow;
     const ImVec2 winPos = window->DC.CursorPos;
     const ImGuiStyle& style = ImGui::GetStyle();
 
-    const i32 lineCount = panelRect.h / rowHeight + 1;
+    const i32 lineCount = panelRect.GetHeight() / rowHeight + 1;
     const i32 itemCount = min(dataSize - (i64)startLine * columnCount, lineCount * columnCount);
     const f32 charWidth = 14;
 
@@ -373,14 +420,14 @@ void DataPanels::doAsciiPanel(const Rect& panelRect, const i32 startLine)
     ImGui::PopFont();
 }
 
-void DataPanels::doIntegerPanel(const Rect& panelRect, const i32 startLine, i32 bitSize, bool isSigned)
+void DataPanels::doIntegerPanel(const ImRect& panelRect, const i32 startLine, i32 bitSize, bool isSigned)
 {
     ImGuiContext& g = *GImGui;
     ImGuiWindow* window = g.CurrentWindow;
     const ImVec2 winPos = window->DC.CursorPos;
     const ImGuiStyle& style = ImGui::GetStyle();
 
-    const i32 lineCount = panelRect.h / rowHeight + 1;
+    const i32 lineCount = panelRect.GetHeight() / rowHeight + 1;
     const i32 itemCount = min(dataSize - (i64)startLine * columnCount, lineCount * columnCount);
     const i32 byteSize = bitSize >> 3; // div 8
     const i32 intColumnWidth = 34;

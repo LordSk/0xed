@@ -1,11 +1,9 @@
 #pragma once
 #include "base.h"
 
-// TODO: replace this with ImRect
-struct Rect
-{
-    f32 x, y, w, h;
-};
+#define IMGUI_DEFINE_MATH_OPERATORS
+#include "imgui.h"
+#include "imgui_internal.h"
 
 #define PANEL_MAX_COUNT 5
 
@@ -25,14 +23,14 @@ struct DataPanels
         PT_UINT64,
     };
 
-    Rect panelRect[PANEL_MAX_COUNT];
+    ImRect panelRect[PANEL_MAX_COUNT];
     i32 panelType[PANEL_MAX_COUNT];
     i32 panelCount = 3;
 
     u8* data;
     i64 dataSize;
 
-    const i32 columnCount = 16;
+    const i32 columnCount = 16; // NOTE: has to be power of 2
     const i32 columnWidth = 22;
     const i32 columnHeaderHeight = 20;
     const i32 rowHeight = 22;
@@ -44,9 +42,9 @@ struct DataPanels
     struct ImFont* fontMono;
 
     DataPanels();
-    void doUi(const Rect& viewRect);
+    void doUi(const ImRect& viewRect);
 
-    void doHexPanel(const Rect& panelRect, const i32 startLine);
-    void doAsciiPanel(const Rect& panelRect, const i32 startLine);
-    void doIntegerPanel(const Rect& panelRect, const i32 startLine, i32 bitSize, bool isSigned);
+    void doHexPanel(const ImRect& panelRect, const i32 startLine);
+    void doAsciiPanel(const ImRect& panelRect, const i32 startLine);
+    void doIntegerPanel(const ImRect& panelRect, const i32 startLine, i32 bitSize, bool isSigned);
 };
