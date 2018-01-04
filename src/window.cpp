@@ -276,10 +276,12 @@ void AppWindow::handleEvent(const SDL_Event& event)
     }
 
     if(event.type == SDL_KEYDOWN) {
+#ifdef CONF_DEBUG
         if(event.key.keysym.sym == SDLK_ESCAPE) {
             running = false;
             return;
         }
+#endif
     }
 
     if(event.type == SDL_WINDOWEVENT) {

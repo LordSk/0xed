@@ -23,7 +23,7 @@ struct DataPanels
         PT_UINT64,
     };
 
-    ImRect panelRect[PANEL_MAX_COUNT];
+    f32 panelRectWidth[PANEL_MAX_COUNT];
     i32 panelType[PANEL_MAX_COUNT];
     i32 panelCount = 3;
 
@@ -37,14 +37,15 @@ struct DataPanels
     const i32 rowHeaderWidth = 22;
     i32 rowCount = 100;
 
-    const i32 scrollbarWidth = 20;
+    const i32 asciiCharWidth = 14;
+    const i32 intColumnWidth = 34;
 
     struct ImFont* fontMono;
 
     DataPanels();
     void doUi(const ImRect& viewRect);
 
-    void doHexPanel(const ImRect& panelRect, const i32 startLine);
-    void doAsciiPanel(const ImRect& panelRect, const i32 startLine);
-    void doIntegerPanel(const ImRect& panelRect, const i32 startLine, i32 bitSize, bool isSigned);
+    void doHexPanel(const ImRect& panelRectWidth, const i32 startLine);
+    void doAsciiPanel(const ImRect& panelRectWidth, const i32 startLine);
+    void doIntegerPanel(const ImRect& panelRectWidth, const i32 startLine, i32 bitSize, bool isSigned);
 };
