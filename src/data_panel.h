@@ -7,6 +7,15 @@
 
 #define PANEL_MAX_COUNT 5
 
+struct SelectionState
+{
+    i64 hoverStart = -1;
+    i64 hoverEnd = -1;
+    i64 selectStart = -1;
+    i64 selectEnd = -1;
+    i32 lockedPanelId = -1;
+};
+
 struct DataPanels
 {
     enum {
@@ -29,18 +38,27 @@ struct DataPanels
 
     u8* data;
     i64 dataSize;
+    i64 scrollCurrent = 0;
 
     const i32 columnCount = 16; // NOTE: has to be power of 2
     const i32 columnWidth = 22;
-    const i32 columnHeaderHeight = 20;
     const i32 rowHeight = 22;
-    const i32 rowHeaderWidth = 22;
+    const i32 columnHeaderHeight = 24;
+    const i32 rowHeaderWidth = 32;
     i32 rowCount = 100;
 
     const i32 asciiCharWidth = 14;
     const i32 intColumnWidth = 34;
 
+    const ImU32 hoverFrameColor = 0xffff9c4c;
+
     struct ImFont* fontMono;
+
+    // TODO: do hover logic all in the same place?
+    SelectionState selectionState;
+    inline void sel_hoverLogic(const ImRect& rect, i32 columnWidth_, i32 rowHeight_,
+                               i32 startLine, i32 hoverLen);
+    inline bool sel_inHoverRange(i64 dataOffset);
 
     DataPanels();
     void doUi(const ImRect& viewRect);
