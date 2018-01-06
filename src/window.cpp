@@ -198,7 +198,6 @@ void AppWindow::doUI()
     }
 
     // TODO: status bar?
-#if 1
     // MAIN FRAME BEGIN
     ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0.0f);
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
@@ -208,14 +207,14 @@ void AppWindow::doUI()
     ImGui::SetNextWindowSizeConstraints(mainFrameSize, mainFrameSize);
     ImGui::Begin("Mainframe", nullptr,
                  ImGuiWindowFlags_NoMove|ImGuiWindowFlags_NoResize|
-                 ImGuiWindowFlags_NoTitleBar|ImGuiWindowFlags_NoBringToFrontOnFocus);
+                 ImGuiWindowFlags_NoTitleBar|ImGuiWindowFlags_NoBringToFrontOnFocus/*|
+                 ImGuiWindowFlags_NoScrollbar|ImGuiWindowFlags_NoScrollWithMouse*/);
 
     dataPanels.doUi(ImGui::GetCurrentWindow()->Rect());
 
     // MAIN FRAME END
     ImGui::End();
     ImGui::PopStyleVar(2);
-#endif
 
     ImGui::ShowDemoWindow();
 }

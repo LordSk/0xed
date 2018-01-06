@@ -56,9 +56,11 @@ struct DataPanels
 
     // TODO: do hover logic all in the same place?
     SelectionState selectionState;
-    inline void sel_hoverLogic(const ImRect& rect, i32 columnWidth_, i32 rowHeight_,
+    inline void sel_hoverLogic(ImVec2 relMousePos, const ImRect& rect, i32 columnWidth_, i32 rowHeight_,
                                i32 startLine, i32 hoverLen);
     inline bool sel_inHoverRange(i64 dataOffset);
+
+    i32 inspectorWidth = 400;
 
     DataPanels();
     void doUi(const ImRect& viewRect);
