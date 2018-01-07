@@ -142,26 +142,79 @@ inline u32 toHexStr(u8 val)
 }
 
 // TODO: might not be such a good idea to generalize this function...
-void DataPanels::sel_hoverLogic(const i32 panelId, ImRect rect,
-                                i32 columnWidth_, i32 rowHeight_, i32 startLine,
-                                i32 hoverLen)
+void DataPanels::processMouseInput(const ImRect& winRect)
+{
+    // Mouse hovering
+    selectionState.hoverStart = -1;
+    f32 panelOffX = 0;
+    for(i32 p = 0; p < panelCount; ++p) {
+        const f32 panelWidth = panelRectWidth[p];
+        ImRect panelRect = winRect;
+        panelRect.Min.x += panelOffX + rowHeaderWidth;
+        panelRect.Max.x = panelRect.Min.x + panelWidth;
+        panelRect.Min.y += ImGui::GetComboHeight() + columnHeaderHeight;
+        panelOffX += panelWidth;
+
+        ImVec2 mousePos = ImGui::GetIO().MousePos;
+
+        // TODO: should be able to know every panel rect, all the time
+        if(selectionState.lockedPanelId >= 0) {
+            const auto& rect = selectionState.lockedPanelRect;
+            mousePos.x = clamp(mousePos.x, rect.Min.x, rect.Max.x-1);
+            mousePos.y = clamp(mousePos.y, rect.Min.y, rect.Max.y-1);
+        }
+
+        switch(panelType[p]) {
+            case PT_HEX:
+                selectionProcessMouseInput(p, mousePos, panelRect, columnWidth,
+                                           rowHeight, scrollCurrent, 1);
+                break;
+            case PT_ASCII:
+                selectionProcessMouseInput(p, mousePos, panelRect, asciiCharWidth,
+                                           rowHeight, scrollCurrent, 1);
+                break;
+            case PT_INT8:
+            case PT_UINT8:
+                selectionProcessMouseInput(p, mousePos, panelRect, intColumnWidth * 1,
+                                           rowHeight, scrollCurrent, 1);
+                break;
+            case PT_INT16:
+            case PT_UINT16:
+                selectionProcessMouseInput(p, mousePos, panelRect, intColumnWidth * 2,
+                                           rowHeight, scrollCurrent, 2);
+                break;
+            case PT_INT32:
+            case PT_UINT32:
+                selectionProcessMouseInput(p, mousePos, panelRect, intColumnWidth * 4,
+                                           rowHeight, scrollCurrent, 4);
+                break;
+            case PT_INT64:
+            case PT_UINT64:
+                selectionProcessMouseInput(p, mousePos, panelRect, intColumnWidth * 8,
+                                           rowHeight, scrollCurrent, 8);
+                break;
+        }
+    }
+}
+
+void DataPanels::selectionProcessMouseInput(const i32 panelId, ImVec2 mousePos, ImRect rect, const i32 columnWidth_,
+                                            const i32 rowHeight_, const i32 startLine, const i32 hoverLen)
 {
     const auto& io = ImGui::GetIO();
-    ImVec2 mousePos = io.MousePos;
     ImVec2 relMousePos = mousePos - rect.Min;
 
-    // hover
-    if(rect.Contains(mousePos)) {
-        const i32 hoverColumn = relMousePos.x / columnWidth_;
-        const i32 hoverLine = relMousePos.y / rowHeight_;
-        selectionState.hoverStart = (startLine + hoverLine) * columnCount + hoverColumn * hoverLen;
-        selectionState.hoverEnd = selectionState.hoverStart + hoverLen;
+    if(!rect.Contains(mousePos)) {
+        return;
     }
 
+    // hover
+    i32 hoverColumn = relMousePos.x / columnWidth_;
+    i32 hoverLine = relMousePos.y / rowHeight_;
+    selectionState.hoverStart = (startLine + hoverLine) * columnCount + hoverColumn * hoverLen;
+    selectionState.hoverEnd = selectionState.hoverStart + hoverLen;
+
     // selection
-    if(rect.Contains(mousePos) && io.MouseClicked[0]) {
-        const i32 hoverColumn = relMousePos.x / columnWidth_;
-        const i32 hoverLine = relMousePos.y / rowHeight_;
+    if(io.MouseClicked[0]) {
         selectionState.selectStart = (startLine + hoverLine) * columnCount + hoverColumn * hoverLen;
         selectionState.selectEnd = selectionState.selectStart + hoverLen-1;
         selectionState.lockedPanelId = panelId;
@@ -169,20 +222,12 @@ void DataPanels::sel_hoverLogic(const i32 panelId, ImRect rect,
         return;
     }
 
-    // TODO: should be able to know every panel rect, all the time
-    if(selectionState.lockedPanelId >= 0 && selectionState.lockedPanelId != panelId) {
-        rect = selectionState.lockedPanelRect;
-        mousePos.x = clamp(mousePos.x, rect.Min.x, rect.Max.x-1);
-        mousePos.y = clamp(mousePos.y, rect.Min.y, rect.Max.y-1);
-        relMousePos = mousePos - rect.Min;
+    if(!io.MouseDown[0]) {
+        selectionState.lockedPanelId = -1;
     }
 
-    if(!rect.Contains(mousePos)) {
-        return;
-    }
-
-    const i32 hoverColumn = relMousePos.x / columnWidth_;
-    const i32 hoverLine = relMousePos.y / rowHeight_;
+    hoverColumn = relMousePos.x / columnWidth_;
+    hoverLine = relMousePos.y / rowHeight_;
 
     if(io.MouseDown[0] && selectionState.selectStart >= 0) {
         i64 startCell = selectionState.selectStart & ~(hoverLen-1);
@@ -199,13 +244,13 @@ void DataPanels::sel_hoverLogic(const i32 panelId, ImRect rect,
     }
 }
 
-bool DataPanels::sel_inHoverRange(i64 dataOffset)
+bool DataPanels::selectionInHoverRange(i64 dataOffset)
 {
     if(selectionState.hoverStart < 0) return false;
     return dataOffset >= selectionState.hoverStart && dataOffset < selectionState.hoverEnd;
 }
 
-bool DataPanels::sel_inSelectionRange(i64 dataOffset)
+bool DataPanels::selectionInSelectionRange(i64 dataOffset)
 {
     if(selectionState.selectStart < 0) return false;
     i64 selMin = min(selectionState.selectStart, selectionState.selectEnd);
@@ -271,42 +316,7 @@ void DataPanels::doUi(const ImRect& viewRect)
                                    (viewRect.GetHeight() - columnHeaderHeight)/rowHeight, // page size (in lines)
                                    dataSize/columnCount + 2); // total lines (for last line visibility)
 
-        // Mouse hovering
-        selectionState.hoverStart = -1;
-        f32 panelOffX = 0;
-        for(i32 p = 0; p < panelCount; ++p) {
-            const f32 panelWidth = panelRectWidth[p];
-            ImRect panelRect = winRect;
-            panelRect.Min.x += panelOffX + rowHeaderWidth;
-            panelRect.Max.x = panelRect.Min.x + panelWidth;
-            panelRect.Min.y += ImGui::GetComboHeight() + columnHeaderHeight;
-            panelOffX += panelWidth;
-
-            switch(panelType[p]) {
-                case PT_HEX:
-                    sel_hoverLogic(p, panelRect, columnWidth, rowHeight, scrollCurrent, 1);
-                    break;
-                case PT_ASCII:
-                    sel_hoverLogic(p, panelRect, asciiCharWidth, rowHeight, scrollCurrent, 1);
-                    break;
-                case PT_INT8:
-                case PT_UINT8:
-                    sel_hoverLogic(p, panelRect, intColumnWidth * 1, rowHeight, scrollCurrent, 1);
-                    break;
-                case PT_INT16:
-                case PT_UINT16:
-                    sel_hoverLogic(p, panelRect, intColumnWidth * 2, rowHeight, scrollCurrent, 2);
-                    break;
-                case PT_INT32:
-                case PT_UINT32:
-                    sel_hoverLogic(p, panelRect, intColumnWidth * 4, rowHeight, scrollCurrent, 4);
-                    break;
-                case PT_INT64:
-                case PT_UINT64:
-                    sel_hoverLogic(p, panelRect, intColumnWidth * 8, rowHeight, scrollCurrent, 8);
-                    break;
-            }
-        }
+        processMouseInput(winRect);
 
         ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(1, 0));
 
@@ -504,11 +514,11 @@ void DataPanels::doHexPanel(const ImRect& panelRect, const i32 startLine)
         cellPos += winPos;
         const ImRect bb(cellPos, cellPos + size);
 
-        if(sel_inSelectionRange(dataOffset)) {
+        if(selectionInSelectionRange(dataOffset)) {
             ImGui::RenderFrame(bb.Min, bb.Max, selectedFrameColor, false, 0);
             ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1, 1, 1, 1));
         }
-        else if(sel_inHoverRange(dataOffset)) {
+        else if(selectionInHoverRange(dataOffset)) {
             ImGui::RenderFrame(bb.Min, bb.Max, hoverFrameColor, false, 0);
             ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(textColor, textColor, textColor, 1));
         }
@@ -553,12 +563,22 @@ void DataPanels::doAsciiPanel(const ImRect& panelRect, const i32 startLine)
                   winPos.y + line * rowHeight + rowHeight);
 
 
-        const bool isHovered = sel_inHoverRange(dataOff);
+        const bool isHovered = selectionInHoverRange(dataOff);
+        const bool isSelected = selectionInSelectionRange(dataOff);
+        ImU32 textColor = ImGui::GetColorU32(ImGuiCol_Text);
+        if(isSelected) {
+            textColor = selectedTextColor;
+        }
+
+        ImGui::PushStyleColor(ImGuiCol_Text, textColor);
 
         if((u8)c < 0x20) {
             f32 greyOne = (f32)c / 0x19 * 0.2 + 0.8;
             ImU32 frameColor = ImGui::ColorConvertFloat4ToU32(ImVec4(greyOne, greyOne, greyOne, 1));
-            if(isHovered) {
+            if(isSelected) {
+                frameColor = selectedFrameColor;
+            }
+            else if(isHovered) {
                 frameColor = hoverFrameColor;
             }
 
@@ -568,7 +588,10 @@ void DataPanels::doAsciiPanel(const ImRect& panelRect, const i32 startLine)
         }
         else {
             ImU32 frameColor = ImGui::GetColorU32(ImGuiCol_FrameBg);
-            if(isHovered) {
+            if(isSelected) {
+                frameColor = selectedFrameColor;
+            }
+            else if(isHovered) {
                 frameColor = hoverFrameColor;
             }
 
@@ -581,6 +604,8 @@ void DataPanels::doAsciiPanel(const ImRect& panelRect, const i32 startLine)
                                      &c, (const char*)&c + 1, NULL,
                                      ImVec2(0.5, 0.5), &bb);
         }
+
+        ImGui::PopStyleColor();
 
 
         if((i+1) & (columnCount-1)) ImGui::SameLine();
@@ -686,18 +711,29 @@ void DataPanels::doIntegerPanel(const ImRect& panelRect, const i32 startLine, i3
         ImRect bb(winPos + cellPos, winPos + cellPos + size);
 
         ImU32 frameColor = ImGui::GetColorU32(ImGuiCol_FrameBg);
+        ImU32 textColor = ImGui::GetColorU32(ImGuiCol_Text);
+
         // TODO: find a better way to do this (overlapping ranges)
         bool hovered = false;
+        bool selected = false;
         for(i32 h = 0; h < byteSize; ++h) {
-            hovered |= sel_inHoverRange(dataOff+h);
+            hovered |= selectionInHoverRange(dataOff+h);
+            selected |= selectionInSelectionRange(dataOff+h);
         }
 
-        if(hovered) {
+        if(selected) {
+            frameColor = selectedFrameColor;
+            textColor = selectedTextColor;
+        }
+        else if(hovered) {
             frameColor = hoverFrameColor;
         }
+
         ImGui::RenderFrame(bb.Min, bb.Max, frameColor, false, 0);
 
-        ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0, 0, 0, 1));
+        bb.Translate(ImVec2(-4, 0));
+
+        ImGui::PushStyleColor(ImGuiCol_Text, textColor);
         ImGui::RenderTextClipped(bb.Min, bb.Max, integerStr, NULL,
                                  &labelSize, ImVec2(1, 0.5), &bb);
         ImGui::PopStyleColor();

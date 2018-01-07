@@ -53,16 +53,18 @@ struct DataPanels
 
     const ImU32 hoverFrameColor = 0xffff9c4c;
     const ImU32 selectedFrameColor = 0xffff7200;
+    const ImU32 selectedTextColor = 0xffffffff;
 
     struct ImFont* fontMono;
 
     // TODO: do hover logic all in the same place?
     SelectionState selectionState;
-    inline void sel_hoverLogic(const i32 panelId, ImRect rect,
-                               i32 columnWidth_, i32 rowHeight_,
-                               i32 startLine, i32 hoverLen);
-    inline bool sel_inHoverRange(i64 dataOffset);
-    inline bool sel_inSelectionRange(i64 dataOffset);
+    void processMouseInput(const ImRect& winRect);
+    inline void selectionProcessMouseInput(const i32 panelId, ImVec2 mousePos, ImRect rect,
+                               const i32 columnWidth_, const i32 rowHeight_,
+                               const i32 startLine, const i32 hoverLen);
+    inline bool selectionInHoverRange(i64 dataOffset);
+    inline bool selectionInSelectionRange(i64 dataOffset);
 
     i32 inspectorWidth = 400;
 
