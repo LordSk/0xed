@@ -44,7 +44,7 @@ static void DoScrollbarVertical(i64* outScrollVal, i64 scrollPageSize, i64 scrol
     bool held = false;
     bool hovered = false;
     const bool previously_held = (g.ActiveId == id);
-    ImGui::ButtonBehavior(bb, id, &hovered, &held);
+    ButtonBehavior(bb, id, &hovered, &held);
 
     static f32 mouseGrabDeltaY = 0;
 
@@ -129,6 +129,63 @@ static f32 GetComboHeight()
     return label_size.y + ImGui::GetStyle().FramePadding.y * 2.0f;
 }
 
+static void Tabs(const char* label, const char** names, const i32 count, i32* selected)
+{
+    ImGuiContext& g = *GImGui;
+    const ImGuiStyle& style = GetStyle();
+    ImGuiWindow* window = GetCurrentWindow();
+    if(window->SkipItems)
+        return;
+
+    const ImGuiID id = window->GetID(label);
+    ImRect rect = window->Rect();
+    f32 buttonHeight = CalcTextSize(names[0], NULL, true).y + style.FramePadding.y * 2.0f;
+
+    rect.Max.y = rect.Min.y + buttonHeight;
+    ItemSize(rect, 0);
+    if(!ItemAdd(rect, id)) {
+        return;
+    }
+
+    RenderFrame(rect.Min, rect.Max, 0xffaaaaaa, false);
+
+    f32 offX = 0;
+    for(i32 i = 0; i < count; ++i) {
+        const ImVec2 nameSize = CalcTextSize(names[i], NULL, true);
+        ImRect bb = rect;
+        bb.Min.x += offX;
+        bb.Max.x = bb.Min.x + nameSize.x + style.FramePadding.x * 2.0f;
+        offX += bb.GetWidth();
+
+        const ImGuiID butId = id + i;
+        bool held = false;
+        bool hovered = false;
+        const bool previouslyHeld = (g.ActiveId == butId);
+        ButtonBehavior(bb, butId, &hovered, &held);
+
+        if(held) {
+            *selected = i;
+        }
+
+        ImU32 buttonColor = 0xffcccccc;
+        ImU32 textColor = 0xff505050;
+        if(*selected == i) {
+            buttonColor = 0xffffffff;
+            textColor = 0xff000000;
+        }
+        else if(hovered) {
+            buttonColor = 0xffffc5a3;
+            textColor = 0xff000000;
+        }
+        RenderFrame(bb.Min, bb.Max, buttonColor, false);
+
+        PushStyleColor(ImGuiCol_Text, textColor);
+        RenderTextClipped(bb.Min, bb.Max, names[i], NULL,
+                          &nameSize, ImVec2(0.5, 0.5), &bb);
+        PopStyleColor();
+    }
+}
+
 }
 
 // https://johnnylee-sde.github.io/Fast-unsigned-integer-to-hex-string/
@@ -202,7 +259,6 @@ void DataPanels::selectionProcessMouseInput(const i32 panelId, ImVec2 mousePos, 
 {
     const auto& io = ImGui::GetIO();
     ImVec2 relMousePos = mousePos - rect.Min;
-
     if(!rect.Contains(mousePos)) {
         return;
     }
@@ -434,14 +490,28 @@ void DataPanels::doUi(const ImRect& viewRect)
 
     ImGui::BeginChild("Mainframe_right", ImVec2(inspectorWidth, -1), false);
 
-        ImGui::Text("Inspector:");
-        ImGui::Text("Inspector:");
-        ImGui::Text("Inspector:");
-        ImGui::Text("Inspector:");
-        ImGui::Text("Inspector:");
-        ImGui::Text("Inspector:");
-        ImGui::Text("Inspector:");
-        ImGui::Text("Inspector:");
+        const char* tabs[] = {
+            "Inspector",
+            "Script",
+            "Output"
+        };
+
+        static i32 selectedTab = 0;
+        ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(15, 5));
+        ImGui::Tabs("Inspector_tabs", tabs, IM_ARRAYSIZE(tabs), &selectedTab);
+        ImGui::PopStyleVar(1);
+
+        switch(selectedTab) {
+            case 0:
+                ImGui::Text("tab0 selected");
+                break;
+            case 1:
+                ImGui::Text("tab1 selected");
+                break;
+            case 2:
+                ImGui::Text("tab2 selected");
+                break;
+        }
 
 
     ImGui::EndChild();

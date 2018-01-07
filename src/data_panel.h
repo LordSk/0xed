@@ -35,7 +35,7 @@ struct DataPanels
 
     f32 panelRectWidth[PANEL_MAX_COUNT];
     i32 panelType[PANEL_MAX_COUNT];
-    i32 panelCount = 3;
+    i32 panelCount = 2;
 
     u8* data;
     i64 dataSize;
