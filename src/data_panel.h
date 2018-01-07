@@ -14,6 +14,7 @@ struct SelectionState
     i64 selectStart = -1;
     i64 selectEnd = -1;
     i32 lockedPanelId = -1;
+    ImRect lockedPanelRect;
 };
 
 struct DataPanels
@@ -51,14 +52,17 @@ struct DataPanels
     const i32 intColumnWidth = 34;
 
     const ImU32 hoverFrameColor = 0xffff9c4c;
+    const ImU32 selectedFrameColor = 0xffff7200;
 
     struct ImFont* fontMono;
 
     // TODO: do hover logic all in the same place?
     SelectionState selectionState;
-    inline void sel_hoverLogic(ImVec2 relMousePos, const ImRect& rect, i32 columnWidth_, i32 rowHeight_,
+    inline void sel_hoverLogic(const i32 panelId, ImRect rect,
+                               i32 columnWidth_, i32 rowHeight_,
                                i32 startLine, i32 hoverLen);
     inline bool sel_inHoverRange(i64 dataOffset);
+    inline bool sel_inSelectionRange(i64 dataOffset);
 
     i32 inspectorWidth = 400;
 

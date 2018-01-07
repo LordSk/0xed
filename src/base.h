@@ -41,3 +41,11 @@ __privDefer<F> __defer_func(F f) {
 #ifndef max
     #define max(a, b) ((a) > (b) ? (a) : (b))
 #endif
+
+template<typename T>
+T clamp(T val, T valmin, T valmax)
+{
+    if(val < valmin) return valmin;
+    if(val > valmax) return valmax;
+    return val;
+}
