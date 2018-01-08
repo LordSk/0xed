@@ -93,36 +93,6 @@ static void DoScrollbarVertical(i64* outScrollVal, i64 scrollPageSize, i64 scrol
     window->DrawList->AddRectFilled(bb.Min, bb.Max, grab_col, style.ScrollbarRounding);
 }
 
-static void TextBox(const char* label, const ImVec2& boxSize, const ImVec4 bgColor = ImVec4(1,1,1,1),
-                    const ImVec4 textColor = ImVec4(0,0,0,1))
-{
-    ImGuiWindow* window = GetCurrentWindow();
-    if(window->SkipItems)
-        return;
-
-    ImGuiContext& g = *GImGui;
-    const ImGuiStyle& style = g.Style;
-    const ImGuiID id = window->GetID(label);
-    const ImVec2 label_size = CalcTextSize(label, NULL, true);
-
-    ImVec2 pos = window->DC.CursorPos;
-    ImVec2 size = CalcItemSize(boxSize, label_size.x, label_size.y);
-
-    const ImRect bb(pos, pos + size);
-    ItemSize(bb, 0);
-    if (!ItemAdd(bb, id))
-        return;
-
-    // Render
-    const ImU32 col = ColorConvertFloat4ToU32(bgColor);
-    RenderFrame(bb.Min, bb.Max, col, false, 0);
-
-    PushStyleColor(ImGuiCol_Text, textColor);
-    RenderTextClipped(bb.Min, bb.Max, label, NULL,
-                      &label_size, ImVec2(1, 0.5), &bb);
-    PopStyleColor();
-}
-
 static f32 GetComboHeight()
 {
     const ImVec2 label_size = CalcTextSize("SomeText", NULL, true);
@@ -134,14 +104,13 @@ static void Tabs(const char* label, const char** names, const i32 count, i32* se
     ImGuiContext& g = *GImGui;
     const ImGuiStyle& style = GetStyle();
     ImGuiWindow* window = GetCurrentWindow();
-    if(window->SkipItems)
-        return;
-
     const ImGuiID id = window->GetID(label);
-    ImRect rect = window->Rect();
-    f32 buttonHeight = CalcTextSize(names[0], NULL, true).y + style.FramePadding.y * 2.0f;
 
-    rect.Max.y = rect.Min.y + buttonHeight;
+    f32 buttonHeight = CalcTextSize(names[0], NULL, true).y + style.FramePadding.y * 2.0f;
+    ImVec2 size = CalcItemSize(ImVec2(-1, buttonHeight), 100, buttonHeight);
+    ImVec2 pos = window->DC.CursorPos;
+    const ImRect rect(pos, pos + size);
+
     ItemSize(rect, 0);
     if(!ItemAdd(rect, id)) {
         return;
@@ -186,6 +155,55 @@ static void Tabs(const char* label, const char** names, const i32 count, i32* se
     }
 }
 
+static void BeginChildResizableV(const char* label, f32* width)
+{
+    constexpr f32 resizeGrabWidth = 6;
+    BeginChild("#resize_grab_v", ImVec2(resizeGrabWidth, -1), false);
+
+    const i32 thisFrameWidth = *width;
+
+    ImGuiWindow* window = GetCurrentWindow();
+    ImVec2 size = CalcItemSize(ImVec2(10, -1), 10, window->Rect().GetHeight());
+    ImVec2 pos = window->DC.CursorPos;
+    const ImRect bb(pos, pos + size);
+
+    const ImGuiID id = window->GetID(width);
+
+    ItemSize(bb, 0);
+    if(!ItemAdd(bb, id)) {
+        return;
+    }
+
+    bool held = false;
+    bool hovered = false;
+    ButtonBehavior(bb, id, &hovered, &held);
+
+    ImU32 buttonColor = 0xffcccccc;
+    ImU32 textColor = 0xff505050;
+    if(held) {
+        buttonColor = 0xffff7200;
+        textColor = 0xff000000;
+        ImVec2 mousePos = GetIO().MousePos;
+        mousePos.x -= bb.Min.x + resizeGrabWidth * 0.5; // vertical center of button
+        *width -= mousePos.x;
+    }
+    else if(hovered) {
+        buttonColor = 0xffffc5a3;
+        textColor = 0xff000000;
+    }
+    RenderFrame(bb.Min, bb.Max, buttonColor, false);
+
+    EndChild();
+    SameLine();
+
+    BeginChild(label, ImVec2(thisFrameWidth - resizeGrabWidth, -1), false);
+}
+
+inline void EndChildResizableV()
+{
+    EndChild();
+}
+
 }
 
 // https://johnnylee-sde.github.io/Fast-unsigned-integer-to-hex-string/
@@ -201,8 +219,13 @@ inline u32 toHexStr(u8 val)
 // TODO: might not be such a good idea to generalize this function...
 void DataPanels::processMouseInput(const ImRect& winRect)
 {
-    // Mouse hovering
+    ImGuiIO& io = ImGui::GetIO();
     selectionState.hoverStart = -1;
+    if(io.MouseClicked[1]) {
+        selectionState.selectStart = -1;
+        selectionState.selectEnd = -1;
+    }
+
     f32 panelOffX = 0;
     for(i32 p = 0; p < panelCount; ++p) {
         const f32 panelWidth = panelRectWidth[p];
@@ -212,7 +235,7 @@ void DataPanels::processMouseInput(const ImRect& winRect)
         panelRect.Min.y += ImGui::GetComboHeight() + columnHeaderHeight;
         panelOffX += panelWidth;
 
-        ImVec2 mousePos = ImGui::GetIO().MousePos;
+        ImVec2 mousePos = io.MousePos;
 
         // TODO: should be able to know every panel rect, all the time
         if(selectionState.lockedPanelId >= 0) {
@@ -432,43 +455,36 @@ void DataPanels::doUi(const ImRect& viewRect)
             ImGui::PopID();
             ImGui::PopItemWidth();
 
-            ImRect panelRect = winRect;
-            panelRect.Max.x = panelRect.Min.x + panelWidth;
-
-            /*LOG("panelRect={min: %d,%d; max: %d,%d}",
-                (i32)panelRect.Min.x, (i32)panelRect.Min.y,
-                (i32)panelRect.Max.x, (i32)panelRect.Max.y);*/
-
             switch(panelType[p]) {
                 case PT_HEX:
-                    doHexPanel(panelRect, scrollCurrent);
+                    doHexPanel("#hex_panel", scrollCurrent);
                     break;
                 case PT_ASCII:
-                    doAsciiPanel(panelRect, scrollCurrent);
+                    doAsciiPanel("#ascii_panel", scrollCurrent);
                     break;
                 case PT_INT8:
-                    doIntegerPanel(panelRect, scrollCurrent, 8, true);
+                    doIntegerPanel("#int8_panel", scrollCurrent, 8, true);
                     break;
                 case PT_UINT8:
-                    doIntegerPanel(panelRect, scrollCurrent, 8, false);
+                    doIntegerPanel("#uint8_panel", scrollCurrent, 8, false);
                     break;
                 case PT_INT16:
-                    doIntegerPanel(panelRect, scrollCurrent, 16, true);
+                    doIntegerPanel("#int16_panel", scrollCurrent, 16, true);
                     break;
                 case PT_UINT16:
-                    doIntegerPanel(panelRect, scrollCurrent, 16, false);
+                    doIntegerPanel("#uint16_panel", scrollCurrent, 16, false);
                     break;
                 case PT_INT32:
-                    doIntegerPanel(panelRect, scrollCurrent, 32, true);
+                    doIntegerPanel("#int32_panel", scrollCurrent, 32, true);
                     break;
                 case PT_UINT32:
-                    doIntegerPanel(panelRect, scrollCurrent, 32, false);
+                    doIntegerPanel("#uint32_panel", scrollCurrent, 32, false);
                     break;
                 case PT_INT64:
-                    doIntegerPanel(panelRect, scrollCurrent, 64, true);
+                    doIntegerPanel("#int64_panel", scrollCurrent, 64, true);
                     break;
                 case PT_UINT64:
-                    doIntegerPanel(panelRect, scrollCurrent, 64, false);
+                    doIntegerPanel("#uint64_panel", scrollCurrent, 64, false);
                     break;
             }
 
@@ -488,7 +504,7 @@ void DataPanels::doUi(const ImRect& viewRect)
     ImGui::EndChild();
     ImGui::SameLine();
 
-    ImGui::BeginChild("Mainframe_right", ImVec2(inspectorWidth, -1), false);
+    ImGui::BeginChildResizableV("Mainframe_right", &inspectorWidth);
 
         const char* tabs[] = {
             "Inspector",
@@ -514,25 +530,26 @@ void DataPanels::doUi(const ImRect& viewRect)
         }
 
 
-    ImGui::EndChild();
+    ImGui::EndChildResizableV();
 
     ImGui::PopStyleVar(1);
 }
 
-void DataPanels::doHexPanel(const ImRect& panelRect, const i32 startLine)
+void DataPanels::doHexPanel(const char* label, const i32 startLine)
 {
-    const i32 lineCount = (panelRect.GetHeight() - columnHeaderHeight) / rowHeight;
-    const i32 itemCount = min(dataSize - (i64)startLine * columnCount, lineCount * columnCount);
-
     ImGuiWindow* window = ImGui::GetCurrentWindow();
     if(window->SkipItems)
         return;
+    ImRect panelRect = window->Rect();
+
+    const i32 lineCount = (panelRect.GetHeight() - columnHeaderHeight) / rowHeight;
+    const i32 itemCount = min(dataSize - (i64)startLine * columnCount, lineCount * columnCount);
 
     ImVec2 winPos = window->DC.CursorPos;
-    /*const ImGuiID id = window->GetID("#HEXPANEL");
+    const ImGuiID id = window->GetID(label);
     ImGui::ItemSize(panelRect, 0);
     if(!ImGui::ItemAdd(panelRect, id))
-        return;*/
+        return;
 
     const ImVec2 cellSize(columnWidth, rowHeight);
 
@@ -604,12 +621,19 @@ void DataPanels::doHexPanel(const ImRect& panelRect, const i32 startLine)
     }
 }
 
-void DataPanels::doAsciiPanel(const ImRect& panelRect, const i32 startLine)
+void DataPanels::doAsciiPanel(const char* label, const i32 startLine)
 {
-    ImGuiContext& g = *GImGui;
-    ImGuiWindow* window = g.CurrentWindow;
+    ImGuiWindow* window = ImGui::GetCurrentWindow();
+    if(window->SkipItems)
+        return;
+
+    ImRect panelRect = window->Rect();
     ImVec2 winPos = window->DC.CursorPos;
     const ImGuiStyle& style = ImGui::GetStyle();
+    const ImGuiID id = window->GetID(label);
+    ImGui::ItemSize(panelRect, 0);
+    if(!ImGui::ItemAdd(panelRect, id))
+        return;
 
     // column header
     ImRect colHeadBb(winPos, winPos + ImVec2(panelRect.GetWidth(), columnHeaderHeight));
@@ -684,11 +708,14 @@ void DataPanels::doAsciiPanel(const ImRect& panelRect, const i32 startLine)
     ImGui::PopFont();
 }
 
-void DataPanels::doIntegerPanel(const ImRect& panelRect, const i32 startLine, i32 bitSize, bool isSigned)
+void DataPanels::doIntegerPanel(const char* label, const i32 startLine, i32 bitSize, bool isSigned)
 {
-    const i32 byteSize = bitSize >> 3; // div 8
-
     ImGuiWindow* window = ImGui::GetCurrentWindow();
+    if(window->SkipItems)
+        return;
+    ImRect panelRect = window->Rect();
+
+    const i32 byteSize = bitSize >> 3; // div 8
     ImVec2 winPos = window->DC.CursorPos;
     const ImGuiStyle& style = ImGui::GetStyle();
 

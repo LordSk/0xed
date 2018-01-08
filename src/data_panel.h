@@ -66,12 +66,12 @@ struct DataPanels
     inline bool selectionInHoverRange(i64 dataOffset);
     inline bool selectionInSelectionRange(i64 dataOffset);
 
-    i32 inspectorWidth = 400;
+    f32 inspectorWidth = 400;
 
     DataPanels();
     void doUi(const ImRect& viewRect);
 
-    void doHexPanel(const ImRect& panelRectWidth, const i32 startLine);
-    void doAsciiPanel(const ImRect& panelRectWidth, const i32 startLine);
-    void doIntegerPanel(const ImRect& panelRectWidth, const i32 startLine, i32 bitSize, bool isSigned);
+    void doHexPanel(const char* label, const i32 startLine);
+    void doAsciiPanel(const char* label, const i32 startLine);
+    void doIntegerPanel(const char* label, const i32 startLine, i32 bitSize, bool isSigned);
 };
