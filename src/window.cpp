@@ -74,8 +74,8 @@ bool AppWindow::init()
         return false;
     }*/
 
-    dataPanels.data = curFileBuff.data;
-    dataPanels.dataSize = curFileBuff.size;
+    dataPanels.fileBuffer = curFileBuff.data;
+    dataPanels.fileBufferSize = curFileBuff.size;
     dataPanels.fontMono = fontMono;
 
     return true;

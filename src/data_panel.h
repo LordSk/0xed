@@ -37,8 +37,8 @@ struct DataPanels
     i32 panelType[PANEL_MAX_COUNT];
     i32 panelCount = 3;
 
-    u8* data;
-    i64 dataSize;
+    u8* fileBuffer;
+    i64 fileBufferSize;
     i64 scrollCurrent = 0;
 
     const i32 columnCount = 16; // NOTE: has to be power of 2
@@ -74,4 +74,6 @@ struct DataPanels
     void doHexPanel(const char* label, const i32 startLine);
     void doAsciiPanel(const char* label, const i32 startLine);
     void doIntegerPanel(const char* label, const i32 startLine, i32 bitSize, bool isSigned);
+
+    void doInspector();
 };

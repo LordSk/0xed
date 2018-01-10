@@ -1,5 +1,6 @@
 #include "data_panel.h"
 #include <stdlib.h>
+#include <float.h>
 
 namespace ImGui {
 
@@ -446,7 +447,7 @@ void DataPanels::doUi(const ImRect& viewRect)
 #if 1
         ImGui::DoScrollbarVertical(&scrollCurrent,
                                    (viewRect.GetHeight() - columnHeaderHeight)/rowHeight, // page size (in lines)
-                                   dataSize/columnCount + 2); // total lines (for last line visibility)
+                                   fileBufferSize/columnCount + 2); // total lines (for last line visibility)
 
         const ImRect& winRect = ImGui::GetCurrentWindow()->Rect();
 
@@ -567,7 +568,7 @@ void DataPanels::doUi(const ImRect& viewRect)
 
         switch(selectedTab) {
             case 0:
-                ImGui::Text("tab0 selected");
+                doInspector();
                 break;
             case 1:
                 ImGui::Text("tab1 selected");
@@ -591,7 +592,7 @@ void DataPanels::doHexPanel(const char* label, const i32 startLine)
     ImRect panelRect = window->Rect();
 
     const i32 lineCount = (panelRect.GetHeight() - columnHeaderHeight) / rowHeight;
-    const i32 itemCount = min(dataSize - (i64)startLine * columnCount, lineCount * columnCount);
+    const i32 itemCount = min(fileBufferSize - (i64)startLine * columnCount, lineCount * columnCount);
 
     ImVec2 winPos = window->DC.CursorPos;
     const ImGuiID id = window->GetID(label);
@@ -633,7 +634,7 @@ void DataPanels::doHexPanel(const char* label, const i32 startLine)
     const i64 startLineOff = (i64)startLine * columnCount;
     for(i64 i = 0; i < itemCount; ++i) {
         const i64 dataOffset = i + startLineOff;
-        u8 val = data[dataOffset];
+        u8 val = fileBuffer[dataOffset];
         u32 hex = toHexStr(val);
 
         f32 bgColor = val/255.f * 0.7 + 0.3;
@@ -690,14 +691,14 @@ void DataPanels::doAsciiPanel(const char* label, const i32 startLine)
     winPos.y += columnHeaderHeight;
 
     const i32 lineCount = (panelRect.GetHeight() - columnHeaderHeight) / rowHeight + 1;
-    const i32 itemCount = min(dataSize - (i64)startLine * columnCount, lineCount * columnCount);
+    const i32 itemCount = min(fileBufferSize - (i64)startLine * columnCount, lineCount * columnCount);
 
     ImGui::PushFont(fontMono);
 
     const i64 startLineOff = (i64)startLine * columnCount;
     for(i64 i = 0; i < itemCount; ++i) {
         const i64 dataOff = i + startLineOff;
-        const char c = (char)data[dataOff];
+        const char c = (char)fileBuffer[dataOff];
         i32 line = i / columnCount;
         i32 column = i & (columnCount - 1);
         ImRect bb(winPos.x + column * asciiCharWidth, winPos.y + line * rowHeight,
@@ -799,7 +800,7 @@ void DataPanels::doIntegerPanel(const char* label, const i32 startLine, i32 bitS
     ImGui::ItemSize(colHeadBb);
 
     const i32 lineCount = (panelRect.GetHeight() - columnHeaderHeight) / rowHeight + 1;
-    i32 itemCount = min(dataSize - (i64)startLine * columnCount, lineCount * columnCount);
+    i32 itemCount = min(fileBufferSize - (i64)startLine * columnCount, lineCount * columnCount);
     itemCount &= ~(itemCount & (byteSize-1)); // round off item count based of byteSize
     const ImVec2 cellSize(intColumnWidth * byteSize, rowHeight);
 
@@ -812,16 +813,16 @@ void DataPanels::doIntegerPanel(const char* label, const i32 startLine, i32 bitS
         if(isSigned) {
             switch(bitSize) {
                 case 8:
-                    itoa(*(i8*)&data[dataOff], integerStr, 10);
+                    itoa(*(i8*)&fileBuffer[dataOff], integerStr, 10);
                     break;
                 case 16:
-                    itoa(*(i16*)&data[dataOff], integerStr, 10);
+                    itoa(*(i16*)&fileBuffer[dataOff], integerStr, 10);
                     break;
                 case 32:
-                    itoa(*(i32*)&data[dataOff], integerStr, 10);
+                    itoa(*(i32*)&fileBuffer[dataOff], integerStr, 10);
                     break;
                 case 64:
-                    sprintf(integerStr, "%lld", *(i64*)&data[dataOff]);
+                    sprintf(integerStr, "%lld", *(i64*)&fileBuffer[dataOff]);
                     break;
                 default:
                     assert(0);
@@ -831,16 +832,16 @@ void DataPanels::doIntegerPanel(const char* label, const i32 startLine, i32 bitS
         else {
             switch(bitSize) {
                 case 8:
-                    itoa(*(u8*)&data[dataOff], integerStr, 10);
+                    itoa(*(u8*)&fileBuffer[dataOff], integerStr, 10);
                     break;
                 case 16:
-                    itoa(*(u16*)&data[dataOff], integerStr, 10);
+                    itoa(*(u16*)&fileBuffer[dataOff], integerStr, 10);
                     break;
                 case 32:
-                    itoa(*(u32*)&data[dataOff], integerStr, 10);
+                    itoa(*(u32*)&fileBuffer[dataOff], integerStr, 10);
                     break;
                 case 64:
-                    sprintf(integerStr, "%llu", *(u64*)&data[dataOff]);
+                    sprintf(integerStr, "%llu", *(u64*)&fileBuffer[dataOff]);
                     break;
                 default:
                     assert(0);
@@ -856,9 +857,9 @@ void DataPanels::doIntegerPanel(const char* label, const i32 startLine, i32 bitS
         ImVec2 cellPos(col * intColumnWidth, line * cellSize.y);
         ImRect bb(winPos + cellPos, winPos + cellPos + size);
 
-        f32 avgByteVal = data[dataOff];
+        f32 avgByteVal = fileBuffer[dataOff];
         for(i32 a = 1; a < byteSize; ++a) {
-            avgByteVal += data[dataOff + a];
+            avgByteVal += fileBuffer[dataOff + a];
         }
         avgByteVal /= byteSize;
 
@@ -910,4 +911,141 @@ void DataPanels::doIntegerPanel(const char* label, const i32 startLine, i32 bitS
         ImGui::RenderFrame(bb.Min, bb.Max, lineColor, false, 0);
     }
 
+}
+
+void DataPanels::doInspector()
+{
+    u8* dataStart = &fileBuffer[min(selectionState.selectStart, selectionState.selectEnd)];
+    u8* dataEnd = &fileBuffer[max(selectionState.selectStart, selectionState.selectEnd) + 1];
+
+    if(selectionState.selectStart < 0) {
+        dataStart = 0;
+        dataEnd = 0;
+    }
+
+    ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(15, 5));
+    ImGui::PushStyleVar(ImGuiStyleVar_ItemInnerSpacing, ImVec2(5, 0));
+    ImGui::Columns(2, "#inspector_table");
+
+    char dataStr[32];
+    i32 strLen = min(sizeof(dataStr), dataEnd - dataStart);
+    memset(dataStr, 0, sizeof(dataStr));
+    memmove(dataStr, dataStart, strLen);
+    for(i32 i = 0; i < strLen; ++i) {
+        if(*(u8*)&dataStr[i] < 0x20) {
+            dataStr[i] = ' ';
+        }
+    }
+
+    // String ASCII
+    ImGui::Text("String");
+    ImGui::NextColumn();
+    ImGui::TextUnformatted(dataStr, dataStr + strLen);
+    ImGui::NextColumn();
+    ImGui::Separator();
+
+    i64 dataInt = 0;
+    memmove(&dataInt, dataStart, min(8, dataEnd - dataStart));
+
+    // Int 8
+    ImGui::Text("Integer 8");
+    ImGui::NextColumn();
+    ImGui::Text("%d", *(i8*)&dataInt);
+    ImGui::NextColumn();
+
+    // Uint 8
+    ImGui::Text("Unsigned integer 8");
+    ImGui::NextColumn();
+    ImGui::Text("%u", *(u8*)&dataInt);
+    ImGui::NextColumn();
+    ImGui::Separator();
+
+    // Int 16
+    ImGui::Text("Integer 16");
+    ImGui::NextColumn();
+    ImGui::Text("%d", *(i16*)&dataInt);
+    ImGui::NextColumn();
+
+    // Uint 16
+    ImGui::Text("Unsigned integer 16");
+    ImGui::NextColumn();
+    ImGui::Text("%u", *(u16*)&dataInt);
+    ImGui::NextColumn();
+    ImGui::Separator();
+
+    // Int 32
+    ImGui::Text("Integer 32");
+    ImGui::NextColumn();
+    ImGui::Text("%d", *(i32*)&dataInt);
+    ImGui::NextColumn();
+
+    // Uint 32
+    ImGui::Text("Unsigned integer 32");
+    ImGui::NextColumn();
+    ImGui::Text("%u", *(u32*)&dataInt);
+    ImGui::NextColumn();
+    ImGui::Separator();
+
+    // Int 64
+    ImGui::Text("Integer 64");
+    ImGui::NextColumn();
+    ImGui::Text("%lld", *(i64*)&dataInt);
+    ImGui::NextColumn();
+
+    // Uint 64
+    ImGui::Text("Unsigned integer 64");
+    ImGui::NextColumn();
+    ImGui::Text("%llu", *(u64*)&dataInt);
+    ImGui::NextColumn();
+    ImGui::Separator();
+
+    // Float 32
+    ImGui::Text("Float 32");
+    ImGui::NextColumn();
+    f32 dataFloat = 0;
+    memmove(&dataFloat, dataStart, min(4, dataEnd - dataStart));
+    if(isnan(dataFloat)) {
+        ImGui::Text("NaN");
+    }
+    else {
+        ImGui::Text("%g", dataFloat);
+    }
+    ImGui::NextColumn();
+
+    // Float 64
+    ImGui::Text("Float 64");
+    ImGui::NextColumn();
+    f64 dataFloat64 = 0;
+    memmove(&dataFloat64, dataStart, min(8, dataEnd - dataStart));
+    if(isnan(dataFloat64)) {
+        ImGui::Text("NaN");
+    }
+    else {
+        ImGui::Text("%g", dataFloat64);
+    }
+    ImGui::NextColumn();
+    ImGui::Separator();
+
+
+    const ImVec4 green(0, 1, 0, 1);
+    const ImVec4 red(1, 0, 0, 1);
+
+    // Offset 32
+    ImGui::Text("File Offset 32");
+    ImGui::NextColumn();
+    u32 offset = *(u32*)&dataInt;
+    ImGui::TextColored(offset < fileBufferSize ? green : red, "%#x", offset);
+    ImGui::NextColumn();
+
+    // Offset 64
+    ImGui::Text("File Offset 64");
+    ImGui::NextColumn();
+    u64 offset64 = *(u64*)&dataInt;
+    ImGui::TextColored(offset64 < fileBufferSize ? green : red, "%#llx", offset64);
+    ImGui::NextColumn();
+    ImGui::Separator();
+
+    ImGui::Columns(1);
+
+    ImGui::PopStyleVar(2);
 }
