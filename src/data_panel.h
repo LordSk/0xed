@@ -35,7 +35,7 @@ struct DataPanels
 
     f32 panelRectWidth[PANEL_MAX_COUNT];
     i32 panelType[PANEL_MAX_COUNT];
-    i32 panelCount = 2;
+    i32 panelCount = 3;
 
     u8* data;
     i64 dataSize;
@@ -46,7 +46,7 @@ struct DataPanels
     const i32 rowHeight = 22;
     const i32 columnHeaderHeight = 24;
     const i32 rowHeaderWidth = 32;
-    i32 rowCount = 100;
+    const i32 panelSpacing = 10;
 
     const i32 asciiCharWidth = 14;
     const i32 intColumnWidth = 34;

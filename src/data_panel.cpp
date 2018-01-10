@@ -375,6 +375,9 @@ bool DataPanels::selectionInSelectionRange(i64 dataOffset)
 DataPanels::DataPanels()
 {
     memset(panelType, 0, sizeof(panelType));
+    panelType[0] = PT_HEX;
+    panelType[1] = PT_ASCII;
+    panelType[2] = PT_INT32;
 }
 
 void DataPanels::doUi(const ImRect& viewRect)
@@ -404,7 +407,6 @@ void DataPanels::doUi(const ImRect& viewRect)
     }
 
     const ImGuiStyle& style = ImGui::GetStyle();
-    rowCount = dataSize / columnCount;
 
     constexpr char* panelComboItems[] = {
         "Hex",
@@ -431,11 +433,8 @@ void DataPanels::doUi(const ImRect& viewRect)
 
         processMouseInput(winRect);
 
-        ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(1, 0));
-
         // row header
-        ImGui::BeginChild("##ROWHEADER", ImVec2(rowHeaderWidth, -1), false,
-                          ImGuiWindowFlags_NoScrollbar|ImGuiWindowFlags_NoScrollWithMouse);
+        ImGui::ItemSize(ImVec2(rowHeaderWidth, -1));
 
         const i32 lineCount = (winRect.GetHeight() - columnHeaderHeight) / rowHeight + 1;
         const ImVec2& winPos = winRect.Min;
@@ -471,8 +470,9 @@ void DataPanels::doUi(const ImRect& viewRect)
             ImGui::PopStyleColor();
         }
 
-        ImGui::EndChild();
         ImGui::SameLine();
+
+        ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(panelSpacing, 0));
 
         // panels
         for(i32 p = 0; p < panelCount; ++p) {
@@ -746,6 +746,7 @@ void DataPanels::doIntegerPanel(const char* label, const i32 startLine, i32 bitS
 
     const i32 byteSize = bitSize >> 3; // div 8
     ImVec2 winPos = window->DC.CursorPos;
+    const ImVec2 panelPos = winPos;
     const ImGuiStyle& style = ImGui::GetStyle();
 
     // column header
@@ -758,7 +759,7 @@ void DataPanels::doIntegerPanel(const char* label, const i32 startLine, i32 bitS
         u32 hex = toHexStr(i);
         const char* label = (const char*)&hex;
         const ImVec2 label_size = ImGui::CalcTextSize(label, label+2);
-        const ImVec2 size = ImGui::CalcItemSize(ImVec2(intColumnWidth, rowHeight),
+        const ImVec2 size = ImGui::CalcItemSize(ImVec2(intColumnWidth, columnHeaderHeight),
                                                 label_size.x, label_size.y);
 
         ImVec2 cellPos(i * intColumnWidth, 0);
@@ -836,7 +837,18 @@ void DataPanels::doIntegerPanel(const char* label, const i32 startLine, i32 bitS
         ImVec2 cellPos(col * intColumnWidth, line * cellSize.y);
         ImRect bb(winPos + cellPos, winPos + cellPos + size);
 
+        f32 avgByteVal = data[dataOff];
+        for(i32 a = 1; a < byteSize; ++a) {
+            avgByteVal += data[dataOff + a];
+        }
+        avgByteVal /= byteSize;
+
         ImU32 frameColor = ImGui::GetColorU32(ImGuiCol_FrameBg);
+        /*if((i + (line & 1) * byteSize) & byteSize) {
+            frameColor = 0xffe0e0e0;
+        }*/
+        f32 bgColor = avgByteVal/255.f * 0.4 + 0.6;
+        frameColor = ImGui::ColorConvertFloat4ToU32(ImVec4(bgColor, bgColor, bgColor, 1));
         ImU32 textColor = ImGui::GetColorU32(ImGuiCol_Text);
 
         // TODO: find a better way to do this (overlapping ranges)
@@ -864,4 +876,19 @@ void DataPanels::doIntegerPanel(const char* label, const i32 startLine, i32 bitS
                                  &labelSize, ImVec2(1, 0.5), &bb);
         ImGui::PopStyleColor();
     }
+
+
+    ImU32 lineColor = 0xff808080;
+    ImVec2 winSize = window->Size;
+    for(i32 c = 0; c <= columnCount; ++c) {
+        ImRect bb(panelPos.x + cellSize.x * c, panelPos.y + columnHeaderHeight,
+                  panelPos.x + cellSize.x * c + 1, panelPos.y + winSize.y - columnHeaderHeight);
+        ImGui::RenderFrame(bb.Min, bb.Max, lineColor, false, 0);
+    }
+    for(i32 l = 0; l < lineCount; ++l) {
+        ImRect bb(winPos.x, winPos.y + cellSize.y * l,
+                  winPos.x + winSize.x, winPos.y + cellSize.y * l + 1);
+        ImGui::RenderFrame(bb.Min, bb.Max, lineColor, false, 0);
+    }
+
 }
