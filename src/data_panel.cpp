@@ -155,25 +155,30 @@ static void Tabs(const char* label, const char** names, const i32 count, i32* se
     }
 }
 
-static void BeginChildResizableV(const char* label, f32* width)
+static void SplitVBeginLeft(const char* label, f32* leftWidth, f32* rightWidth, const i32 separatorWidth = 6)
 {
-    constexpr f32 resizeGrabWidth = 6;
-    BeginChild("#resize_grab_v", ImVec2(resizeGrabWidth, -1), false);
+    assert(leftWidth || rightWidth);
 
-    const i32 thisFrameWidth = *width;
+    PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(0, 0));
 
     ImGuiWindow* window = GetCurrentWindow();
-    ImVec2 size = CalcItemSize(ImVec2(10, -1), 10, window->Rect().GetHeight());
-    ImVec2 pos = window->DC.CursorPos;
-    const ImRect bb(pos, pos + size);
+    ImVec2 size(separatorWidth, window->Rect().GetHeight());
 
-    const ImGuiID id = window->GetID(width);
 
-    ItemSize(bb, 0);
-    if(!ItemAdd(bb, id)) {
-        return;
+    f32 childLeftWidth = 100, childRightWidth = 100;
+    if(leftWidth) {
+        childLeftWidth = *leftWidth;
+        childRightWidth = window->Rect().GetWidth() - separatorWidth - childLeftWidth;
+    }
+    else {
+        childRightWidth = *rightWidth;
+        childLeftWidth = window->Rect().GetWidth() - separatorWidth - childRightWidth;
     }
 
+    ImVec2 pos = window->Rect().Min + ImVec2(childLeftWidth, 0);
+    ImRect bb(pos, pos + size);
+
+    const ImGuiID id = window->GetID(leftWidth ? leftWidth : rightWidth);
     bool held = false;
     bool hovered = false;
     ButtonBehavior(bb, id, &hovered, &held);
@@ -184,8 +189,15 @@ static void BeginChildResizableV(const char* label, f32* width)
         buttonColor = 0xffff7200;
         textColor = 0xff000000;
         ImVec2 mousePos = GetIO().MousePos;
-        mousePos.x -= bb.Min.x + resizeGrabWidth * 0.5; // vertical center of button
-        *width -= mousePos.x;
+        mousePos.x -= bb.Min.x + separatorWidth * 0.5; // vertical center of button
+        childLeftWidth += mousePos.x;
+
+        if(leftWidth) {
+            *leftWidth = childLeftWidth;
+        }
+        else {
+            *rightWidth = window->Rect().GetWidth() - childLeftWidth - separatorWidth;
+        }
     }
     else if(hovered) {
         buttonColor = 0xffffc5a3;
@@ -193,15 +205,38 @@ static void BeginChildResizableV(const char* label, f32* width)
     }
     RenderFrame(bb.Min, bb.Max, buttonColor, false);
 
-    EndChild();
-    SameLine();
-
-    BeginChild(label, ImVec2(thisFrameWidth - resizeGrabWidth, -1), false);
+    BeginChild(label, ImVec2(childLeftWidth, -1), false,
+               ImGuiWindowFlags_NoScrollbar|ImGuiWindowFlags_NoScrollWithMouse);
 }
 
-inline void EndChildResizableV()
+static void SplitVBeginRight(const char* label, f32* leftWidth, f32* rightWidth, const i32 separatorWidth = 6)
+{
+    assert(leftWidth || rightWidth);
+
+    EndChild();
+
+    ImGuiWindow* window = GetCurrentWindow();
+    SameLine();
+    ItemSize(ImVec2(separatorWidth, window->Rect().GetHeight()));
+    SameLine();
+
+
+    f32 childRightWidth = 100;
+    if(leftWidth) {
+        childRightWidth = window->Rect().GetWidth() - separatorWidth - *leftWidth;
+    }
+    else {
+        childRightWidth = *rightWidth;
+    }
+
+    BeginChild(label, ImVec2(childRightWidth, -1), false,
+               ImGuiWindowFlags_NoScrollbar|ImGuiWindowFlags_NoScrollWithMouse);
+}
+
+inline void SplitVEnd()
 {
     EndChild();
+    PopStyleVar(1);
 }
 
 }
@@ -385,9 +420,8 @@ void DataPanels::doUi(const ImRect& viewRect)
     };
 
     // START MAIN LEFT (DATA PANELS)
-    ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(0, 0));
-    ImGui::BeginChild("Mainframe_left", ImVec2(viewRect.GetWidth() - inspectorWidth, -1), false,
-                      ImGuiWindowFlags_NoScrollbar|ImGuiWindowFlags_NoScrollWithMouse);
+    ImGui::SplitVBeginLeft("Mainframe_left", nullptr, &inspectorWidth);
+
 #if 1
         const ImRect& winRect = ImGui::GetCurrentWindow()->Rect();
 
@@ -498,14 +532,9 @@ void DataPanels::doUi(const ImRect& viewRect)
         ImGui::PopStyleVar(1);
 #endif
 
-        ImGui::Text("LEFT");
+    ImGui::SplitVBeginRight("Mainframe_right", nullptr, &inspectorWidth);
 
-    // END MAIN LEFT (DATA PANELS)
-    ImGui::EndChild();
-    ImGui::SameLine();
-
-    ImGui::BeginChildResizableV("Mainframe_right", &inspectorWidth);
-
+#if 1
         const char* tabs[] = {
             "Inspector",
             "Script",
@@ -529,10 +558,10 @@ void DataPanels::doUi(const ImRect& viewRect)
                 break;
         }
 
+#endif
+    ImGui::SplitVEnd();
 
-    ImGui::EndChildResizableV();
 
-    ImGui::PopStyleVar(1);
 }
 
 void DataPanels::doHexPanel(const char* label, const i32 startLine)
