@@ -111,7 +111,7 @@ i32 AppWindow::run()
         }
         else {
             u32 now = SDL_GetTicks();
-            if(now - eventTick > 500) {
+            if(now - eventTick > 10000) {
                 SDL_Delay(100);
                 continue;
             }
@@ -216,7 +216,7 @@ void AppWindow::doUI()
     ImGui::End();
     ImGui::PopStyleVar(2);
 
-    ImGui::ShowDemoWindow();
+    //ImGui::ShowDemoWindow();
 }
 
 void AppWindow::pushGlobalEvents()

@@ -71,10 +71,11 @@ static void DoScrollbarVertical(i64* outScrollVal, i64 scrollPageSize, i64 scrol
     else {
         // TODO: find a better place for this?
         ImGuiWindow* hovered = g.HoveredWindow;
-        while(hovered && hovered != window) {
+        if(hovered && hovered != window) { // go up one level
             hovered = hovered->ParentWindow;
         }
-        if(hovered && g.IO.MouseWheel != 0.0f) {
+
+        if(hovered && hovered == window && g.IO.MouseWheel != 0.0f) {
             scrollVal -= g.IO.MouseWheel;
 
             // clamp
@@ -198,6 +199,8 @@ static void SplitVBeginLeft(const char* label, f32* leftWidth, f32* rightWidth, 
         else {
             *rightWidth = window->Rect().GetWidth() - childLeftWidth - separatorWidth;
         }
+
+        bb.Translate(ImVec2(mousePos.x, 0));
     }
     else if(hovered) {
         buttonColor = 0xffffc5a3;
@@ -239,6 +242,12 @@ inline void SplitVEnd()
     PopStyleVar(1);
 }
 
+inline bool IsAnyPopupOpen()
+{
+    ImGuiContext& g = *GImGui;
+    return !g.OpenPopupStack.empty();
+}
+
 }
 
 // https://johnnylee-sde.github.io/Fast-unsigned-integer-to-hex-string/
@@ -252,25 +261,28 @@ inline u32 toHexStr(u8 val)
 }
 
 // TODO: might not be such a good idea to generalize this function...
-void DataPanels::processMouseInput(const ImRect& winRect)
+void DataPanels::processMouseInput(ImRect winRect)
 {
+    winRect.Min.y += ImGui::GetComboHeight();
+
     ImGuiIO& io = ImGui::GetIO();
-    selectionState.hoverStart = -1;
-    if(io.MouseClicked[1]) {
-        selectionState.selectStart = -1;
-        selectionState.selectEnd = -1;
+    if(ImGui::IsAnyPopupOpen()) {
+        return;
     }
+    selectionState.hoverStart = -1;
 
     f32 panelOffX = 0;
+    bool mouseClickedOutsidePanel = io.MouseClicked[0] && winRect.Contains(io.MousePos);
     for(i32 p = 0; p < panelCount; ++p) {
         const f32 panelWidth = panelRectWidth[p];
         ImRect panelRect = winRect;
         panelRect.Min.x += panelOffX + rowHeaderWidth;
+        panelRect.Min.y += columnHeaderHeight;
         panelRect.Max.x = panelRect.Min.x + panelWidth;
-        panelRect.Min.y += ImGui::GetComboHeight() + columnHeaderHeight;
-        panelOffX += panelWidth;
+        panelOffX += panelWidth + panelSpacing;
 
         ImVec2 mousePos = io.MousePos;
+        mouseClickedOutsidePanel &= !panelRect.Contains(io.MousePos);
 
         // TODO: should be able to know every panel rect, all the time
         if(selectionState.lockedPanelId >= 0) {
@@ -310,6 +322,13 @@ void DataPanels::processMouseInput(const ImRect& winRect)
                 break;
         }
     }
+
+    // clear selection
+    if(mouseClickedOutsidePanel || io.MouseClicked[1]) {
+        selectionState.selectStart = -1;
+        selectionState.selectEnd = -1;
+        selectionState.lockedPanelId = -1;
+    }
 }
 
 void DataPanels::selectionProcessMouseInput(const i32 panelId, ImVec2 mousePos, ImRect rect, const i32 columnWidth_,
@@ -328,7 +347,7 @@ void DataPanels::selectionProcessMouseInput(const i32 panelId, ImVec2 mousePos, 
     selectionState.hoverEnd = selectionState.hoverStart + hoverLen;
 
     // selection
-    if(io.MouseClicked[0]) {
+    if(io.MouseClicked[0] && rect.Contains(io.MouseClickedPos[0])) {
         selectionState.selectStart = (startLine + hoverLine) * columnCount + hoverColumn * hoverLen;
         selectionState.selectEnd = selectionState.selectStart + hoverLen-1;
         selectionState.lockedPanelId = panelId;
@@ -343,7 +362,7 @@ void DataPanels::selectionProcessMouseInput(const i32 panelId, ImVec2 mousePos, 
     hoverColumn = relMousePos.x / columnWidth_;
     hoverLine = relMousePos.y / rowHeight_;
 
-    if(io.MouseDown[0] && selectionState.selectStart >= 0) {
+    if(io.MouseDown[0] && selectionState.selectStart >= 0 && selectionState.lockedPanelId >= 0) {
         i64 startCell = selectionState.selectStart & ~(hoverLen-1);
         i64 hoveredCell = (startLine + hoverLine) * columnCount + hoverColumn * hoverLen;
         if(hoveredCell < startCell) {
@@ -425,11 +444,11 @@ void DataPanels::doUi(const ImRect& viewRect)
     ImGui::SplitVBeginLeft("Mainframe_left", nullptr, &inspectorWidth);
 
 #if 1
-        const ImRect& winRect = ImGui::GetCurrentWindow()->Rect();
-
         ImGui::DoScrollbarVertical(&scrollCurrent,
                                    (viewRect.GetHeight() - columnHeaderHeight)/rowHeight, // page size (in lines)
                                    dataSize/columnCount + 2); // total lines (for last line visibility)
+
+        const ImRect& winRect = ImGui::GetCurrentWindow()->Rect();
 
         processMouseInput(winRect);
 

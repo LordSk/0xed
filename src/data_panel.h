@@ -59,7 +59,7 @@ struct DataPanels
 
     // TODO: do hover logic all in the same place?
     SelectionState selectionState;
-    void processMouseInput(const ImRect& winRect);
+    void processMouseInput(ImRect winRect);
     inline void selectionProcessMouseInput(const i32 panelId, ImVec2 mousePos, ImRect rect,
                                const i32 columnWidth_, const i32 rowHeight_,
                                const i32 startLine, const i32 hoverLen);
