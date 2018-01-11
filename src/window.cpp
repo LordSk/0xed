@@ -194,6 +194,11 @@ void AppWindow::doUI()
             }
             ImGui::EndMenu();
         }
+
+        if(ImGui::Button("Add panel")) {
+            dataPanels.addNewPanel();
+        }
+
         ImGui::EndMainMenuBar();
     }
 

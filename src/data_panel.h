@@ -67,6 +67,7 @@ struct DataPanels
     const i32 columnHeaderHeight = 24;
     const i32 rowHeaderWidth = 32;
     const i32 panelSpacing = 10;
+    const f32 panelCloseButtonWidth = 20;
 
     const i32 asciiCharWidth = 14;
     const i32 intColumnWidth = 34;
@@ -89,6 +90,7 @@ struct DataPanels
     f32 inspectorWidth = 400;
 
     DataPanels();
+    void addNewPanel();
     void doUi(const ImRect& viewRect);
 
     void doHexPanel(const char* label, const i32 startLine);

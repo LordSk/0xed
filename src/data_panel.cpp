@@ -447,6 +447,15 @@ DataPanels::DataPanels()
     panelType[2] = PT_INT32;
 }
 
+void DataPanels::addNewPanel()
+{
+    if(panelCount >= PANEL_MAX_COUNT) {
+        return;
+    }
+
+    panelType[panelCount++] = PT_HEX;
+}
+
 void DataPanels::doUi(const ImRect& viewRect)
 {
     // TODO: remove this limitation
@@ -530,6 +539,8 @@ void DataPanels::doUi(const ImRect& viewRect)
 
         ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(panelSpacing, 0));
 
+        i32 panelMarkedForDelete = -1;
+
         // panels
         for(i32 p = 0; p < panelCount; ++p) {
             const f32 panelWidth = panelRectWidth[p];
@@ -538,12 +549,22 @@ void DataPanels::doUi(const ImRect& viewRect)
             ImGui::BeginChild("##ChildPanel", ImVec2(panelWidth, -1), false,
                               ImGuiWindowFlags_NoScrollbar|ImGuiWindowFlags_NoScrollWithMouse);
 
-            ImGui::PushItemWidth(panelWidth);
+            ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(0, 0));
+
+            ImGui::PushItemWidth(panelWidth - panelCloseButtonWidth);
             ImGui::PushID(&panelType[p]);
             ImGui::Combo("##PanelType", &panelType[p], panelComboItems, IM_ARRAYSIZE(panelComboItems),
                          IM_ARRAYSIZE(panelComboItems));
             ImGui::PopID();
             ImGui::PopItemWidth();
+
+            ImGui::SameLine();
+
+            if(ImGui::Button("X", ImVec2(panelCloseButtonWidth, 0))) {
+                panelMarkedForDelete = p;
+            }
+
+            ImGui::PopStyleVar(1);
 
             switch(panelType[p]) {
                 case PT_HEX:
@@ -595,6 +616,15 @@ void DataPanels::doUi(const ImRect& viewRect)
         }
 
         ImGui::PopStyleVar(1);
+
+        if(panelMarkedForDelete >= 0 && panelCount > 1) {
+            if(panelMarkedForDelete+1 < panelCount) {
+                panelType[panelMarkedForDelete] = panelType[panelMarkedForDelete+1];
+                memmove(panelType + panelMarkedForDelete, panelType + panelMarkedForDelete + 1,
+                        sizeof(panelType[0]) * (panelCount - panelMarkedForDelete - 1));
+            }
+            panelCount--;
+        }
 #endif
 
     ImGui::SplitVBeginRight("Mainframe_right", nullptr, &inspectorWidth);
