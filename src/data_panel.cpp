@@ -265,6 +265,34 @@ inline bool IsAnyPopupOpen()
     return !g.OpenPopupStack.empty();
 }
 
+static void TextBox(ImU32 frameColor, ImU32 textColor, ImVec2 size, ImVec2 align, ImVec2 textOffset,
+                    const char* fmt, ...)
+{
+    ImGuiWindow* window = GetCurrentWindow();
+    ImVec2 pos = window->DC.CursorPos;
+    ImRect bb(pos, pos + size);
+
+    ItemSize(size);
+    RenderFrame(bb.Min, bb.Max, frameColor, false, 0);
+
+    char str[64];
+    i32 strLen = 0;
+
+    va_list args;
+    va_start(args, fmt);
+    strLen = vsprintf(str, fmt, args);
+    va_end(args);
+
+    ImVec2 labelSize = CalcTextSize(str, str + strLen);
+
+    bb.Translate(textOffset);
+
+    PushStyleColor(ImGuiCol_Text, textColor);
+    RenderTextClipped(bb.Min, bb.Max, str, str + strLen,
+                      &labelSize, align, &bb);
+    PopStyleColor(1);
+}
+
 }
 
 // https://johnnylee-sde.github.io/Fast-unsigned-integer-to-hex-string/
@@ -330,11 +358,13 @@ void DataPanels::processMouseInput(ImRect winRect)
                 break;
             case PT_INT32:
             case PT_UINT32:
+            case PT_FLOAT32:
                 selectionProcessMouseInput(p, mousePos, panelRect, intColumnWidth * 4,
                                            rowHeight, scrollCurrent, 4);
                 break;
             case PT_INT64:
             case PT_UINT64:
+            case PT_FLOAT64:
                 selectionProcessMouseInput(p, mousePos, panelRect, intColumnWidth * 8,
                                            rowHeight, scrollCurrent, 8);
                 break;
@@ -438,25 +468,14 @@ void DataPanels::doUi(const ImRect& viewRect)
             case PT_UINT32:
             case PT_INT64:
             case PT_UINT64:
+            case PT_FLOAT32:
+            case PT_FLOAT64:
                 panelRectWidth[p] = intColumnWidth * columnCount;
                 break;
         }
     }
 
     const ImGuiStyle& style = ImGui::GetStyle();
-
-    constexpr char* panelComboItems[] = {
-        "Hex",
-        "ASCII",
-        "Int8",
-        "Uint8",
-        "Int16",
-        "Uint16",
-        "Int32",
-        "Uint32",
-        "Int64",
-        "Uint64",
-    };
 
     // START MAIN LEFT (DATA PANELS)
     ImGui::SplitVBeginLeft("Mainframe_left", nullptr, &inspectorWidth);
@@ -534,28 +553,37 @@ void DataPanels::doUi(const ImRect& viewRect)
                     doAsciiPanel("#ascii_panel", scrollCurrent);
                     break;
                 case PT_INT8:
-                    doIntegerPanel("#int8_panel", scrollCurrent, 8, true);
+                    doFormatPanel<i8>("#int8_panel", scrollCurrent, "%d");
                     break;
                 case PT_UINT8:
-                    doIntegerPanel("#uint8_panel", scrollCurrent, 8, false);
+                    doFormatPanel<u8>("#uint8_panel", scrollCurrent, "%u");
                     break;
                 case PT_INT16:
-                    doIntegerPanel("#int16_panel", scrollCurrent, 16, true);
+                    doFormatPanel<i16>("#int16_panel", scrollCurrent, "%d");
                     break;
                 case PT_UINT16:
-                    doIntegerPanel("#uint16_panel", scrollCurrent, 16, false);
+                    doFormatPanel<u16>("#uint16_panel", scrollCurrent, "%u");
                     break;
                 case PT_INT32:
-                    doIntegerPanel("#int32_panel", scrollCurrent, 32, true);
+                    doFormatPanel<i32>("#int32_panel", scrollCurrent, "%d");
                     break;
                 case PT_UINT32:
-                    doIntegerPanel("#uint32_panel", scrollCurrent, 32, false);
+                    doFormatPanel<u32>("#uint32_panel", scrollCurrent, "%u");
                     break;
                 case PT_INT64:
-                    doIntegerPanel("#int64_panel", scrollCurrent, 64, true);
+                    doFormatPanel<i64>("#int64_panel", scrollCurrent, "%lld");
                     break;
                 case PT_UINT64:
-                    doIntegerPanel("#uint64_panel", scrollCurrent, 64, false);
+                    doFormatPanel<u64>("#uint64_panel", scrollCurrent, "%llu");
+                    break;
+                case PT_FLOAT32:
+                    doFormatPanel<f32>("#f32_panel", scrollCurrent, "%g");
+                    break;
+                case PT_FLOAT64:
+                    doFormatPanel<f64>("#f64_panel", scrollCurrent, "%g");
+                    break;
+                default:
+                    assert(0);
                     break;
             }
 
@@ -774,6 +802,7 @@ void DataPanels::doAsciiPanel(const char* label, const i32 startLine)
     ImGui::PopFont();
 }
 
+#if 0
 void DataPanels::doIntegerPanel(const char* label, const i32 startLine, i32 bitSize, bool isSigned)
 {
     ImGuiWindow* window = ImGui::GetCurrentWindow();
@@ -929,6 +958,124 @@ void DataPanels::doIntegerPanel(const char* label, const i32 startLine, i32 bitS
     }
 
 }
+#endif
+
+template<typename T>
+void DataPanels::doFormatPanel(const char* label, const i32 startLine, const char* format)
+{
+    ImGuiWindow* window = ImGui::GetCurrentWindow();
+    ImRect panelRect = window->Rect();
+
+    const i32 byteSize = sizeof(T);
+    const i32 bitSize = byteSize << 3;
+    ImVec2 winPos = window->DC.CursorPos;
+    const ImVec2 panelPos = winPos;
+    const ImGuiStyle& style = ImGui::GetStyle();
+
+    // column header
+    ImRect colHeadBb(winPos, winPos + ImVec2(panelRect.GetWidth(), columnHeaderHeight));
+    const ImU32 headerColor = ImGui::ColorConvertFloat4ToU32(ImVec4(0.9, 0.9, 0.9, 1));
+    const ImU32 headerColorOdd = ImGui::ColorConvertFloat4ToU32(ImVec4(0.85, 0.85, 0.85, 1));
+    ImGui::RenderFrame(colHeadBb.Min, colHeadBb.Max, headerColor, false, 0);
+
+    for(i64 i = 0; i < columnCount; i++) {
+        u32 hex = toHexStr(i);
+        const char* label = (const char*)&hex;
+        const ImVec2 label_size = ImGui::CalcTextSize(label, label+2);
+        const ImVec2 size = ImGui::CalcItemSize(ImVec2(intColumnWidth, columnHeaderHeight),
+                                                label_size.x, label_size.y);
+
+        ImVec2 cellPos(i * intColumnWidth, 0);
+        cellPos += winPos;
+        const ImRect bb(cellPos, cellPos + size);
+
+        if(i & 1) {
+            ImGui::RenderFrame(bb.Min, bb.Max, headerColorOdd, false, 0);
+        }
+
+        ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.5, 0.5, 0.5, 1));
+        ImGui::RenderTextClipped(bb.Min, bb.Max, label, label+2,
+                          &label_size, ImVec2(0.5, 0.5), &bb);
+        ImGui::PopStyleColor();
+    }
+    winPos.y += columnHeaderHeight;
+
+    ImGui::ItemSize(colHeadBb);
+
+    const i32 lineCount = (panelRect.GetHeight() - columnHeaderHeight) / rowHeight + 1;
+    i32 itemCount = min(fileBufferSize - (i64)startLine * columnCount, lineCount * columnCount);
+    itemCount &= ~(itemCount & (byteSize-1)); // round off item count based of byteSize
+    const ImVec2 cellSize(intColumnWidth * byteSize, rowHeight);
+
+    const i64 startLineOff = (i64)startLine * columnCount;
+    for(i64 i = 0; i < itemCount; i += byteSize) {
+        const i64 dataOff = i + startLineOff;
+        char integerStr[32];
+        sprintf(integerStr, format, *(T*)&fileBuffer[dataOff]);
+
+        const ImVec2 labelSize = ImGui::CalcTextSize(integerStr, NULL, true);
+        ImVec2 size = ImGui::CalcItemSize(cellSize, labelSize.x, labelSize.y);
+
+        i32 col = i & (columnCount - 1);
+        i32 line = i / columnCount;
+        ImVec2 cellPos(col * intColumnWidth, line * cellSize.y);
+        ImRect bb(winPos + cellPos, winPos + cellPos + size);
+
+        f32 avgByteVal = fileBuffer[dataOff];
+        for(i32 a = 1; a < byteSize; ++a) {
+            avgByteVal += fileBuffer[dataOff + a];
+        }
+        avgByteVal /= byteSize;
+
+        ImU32 frameColor = ImGui::GetColorU32(ImGuiCol_FrameBg);
+        /*if((i + (line & 1) * byteSize) & byteSize) {
+            frameColor = 0xffe0e0e0;
+        }*/
+        f32 bgColor = avgByteVal/255.f * 0.4 + 0.6;
+        frameColor = ImGui::ColorConvertFloat4ToU32(ImVec4(bgColor, bgColor, bgColor, 1));
+        ImU32 textColor = ImGui::GetColorU32(ImGuiCol_Text);
+
+        // TODO: find a better way to do this (overlapping ranges)
+        bool hovered = false;
+        bool selected = false;
+        for(i32 h = 0; h < byteSize; ++h) {
+            hovered |= selectionInHoverRange(dataOff+h);
+            selected |= selectionInSelectionRange(dataOff+h);
+        }
+
+        if(selected) {
+            frameColor = selectedFrameColor;
+            textColor = selectedTextColor;
+        }
+        else if(hovered) {
+            frameColor = hoverFrameColor;
+        }
+
+        ImGui::RenderFrame(bb.Min, bb.Max, frameColor, false, 0);
+
+        bb.Translate(ImVec2(-4, 0));
+
+        ImGui::PushStyleColor(ImGuiCol_Text, textColor);
+        ImGui::RenderTextClipped(bb.Min, bb.Max, integerStr, NULL,
+                                 &labelSize, ImVec2(1, 0.5), &bb);
+        ImGui::PopStyleColor();
+    }
+
+
+    ImU32 lineColor = 0xff808080;
+    ImVec2 winSize = window->Size;
+    for(i32 c = 0; c <= columnCount; ++c) {
+        ImRect bb(panelPos.x + cellSize.x * c, panelPos.y + columnHeaderHeight,
+                  panelPos.x + cellSize.x * c + 1, panelPos.y + winSize.y - columnHeaderHeight);
+        ImGui::RenderFrame(bb.Min, bb.Max, lineColor, false, 0);
+    }
+    for(i32 l = 0; l < lineCount; ++l) {
+        ImRect bb(winPos.x, winPos.y + cellSize.y * l,
+                  winPos.x + winSize.x, winPos.y + cellSize.y * l + 1);
+        ImGui::RenderFrame(bb.Min, bb.Max, lineColor, false, 0);
+    }
+}
+
 
 void DataPanels::doInspector()
 {
@@ -940,129 +1087,118 @@ void DataPanels::doInspector()
         dataEnd = 0;
     }
 
-    ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(15, 5));
-    ImGui::PushStyleVar(ImGuiStyleVar_ItemInnerSpacing, ImVec2(5, 0));
-    ImGui::Columns(2, "#inspector_table");
+    // ---- TYPES ----
+    ImGui::BeginChild("#inspector_left", ImVec2(150, -1));
 
-    char dataStr[32];
-    i32 strLen = min(sizeof(dataStr), dataEnd - dataStart);
-    memset(dataStr, 0, sizeof(dataStr));
-    memmove(dataStr, dataStart, strLen);
-    for(i32 i = 0; i < strLen; ++i) {
-        if(*(u8*)&dataStr[i] < 0x20) {
-            dataStr[i] = ' ';
+        constexpr char* typeStr[] = {
+            "String",
+            "Integer 8",
+            "Unsigned integer 8",
+            "Integer 16",
+            "Unsigned integer 16",
+            "Integer 32",
+            "Unsigned integer 32",
+            "Integer 64",
+            "Unsigned integer 64",
+            "Float 32",
+            "Float 64",
+            "File offset 32",
+            "File offset 64",
+        };
+
+        constexpr i32 typeCount = IM_ARRAYSIZE(typeStr);
+
+        ImU32 frameColor = 0xffeeeeee;
+        ImU32 frameColorOdd = 0xffdddddd;
+        ImU32 textColor = 0xff303030;
+        ImVec2 cellSize(150, 24);
+        ImVec2 align(1, 0.5);
+        ImVec2 textOffset(-8, 0);
+
+        for(i32 t = 0; t < typeCount; ++t) {
+            ImU32 fc = t & 1 ? frameColorOdd : frameColor;
+            ImGui::TextBox(fc, textColor, cellSize, align, textOffset, typeStr[t]);
         }
-    }
 
-    // String ASCII
-    ImGui::Text("String");
-    ImGui::NextColumn();
-    ImGui::TextUnformatted(dataStr, dataStr + strLen);
-    ImGui::NextColumn();
-    ImGui::Separator();
+    ImGui::EndChild();
+    ImGui::SameLine();
 
-    i64 dataInt = 0;
-    memmove(&dataInt, dataStart, min(8, dataEnd - dataStart));
+    // ---- VALUES ----
+    ImGui::BeginChild("#inspector_right", ImVec2(0, -1));
 
-    // Int 8
-    ImGui::Text("Integer 8");
-    ImGui::NextColumn();
-    ImGui::Text("%d", *(i8*)&dataInt);
-    ImGui::NextColumn();
+        frameColor = 0xffffffff;
+        frameColorOdd = 0xfff0f0f0;
+        textColor = 0xff000000;
+        cellSize = ImVec2(ImGui::GetCurrentWindow()->Rect().GetWidth(), 24);
+        align = ImVec2(0, 0.5);
+        textOffset = ImVec2(8, 0);
 
-    // Uint 8
-    ImGui::Text("Unsigned integer 8");
-    ImGui::NextColumn();
-    ImGui::Text("%u", *(u8*)&dataInt);
-    ImGui::NextColumn();
-    ImGui::Separator();
+        char dataStr[64];
+        i32 strLen = min(sizeof(dataStr)-1, dataEnd - dataStart);
+        memset(dataStr, 0, sizeof(dataStr));
+        memmove(dataStr, dataStart, strLen);
+        for(i32 i = 0; i < strLen; ++i) {
+            if(*(u8*)&dataStr[i] < 0x20) {
+                dataStr[i] = ' ';
+            }
+        }
 
-    // Int 16
-    ImGui::Text("Integer 16");
-    ImGui::NextColumn();
-    ImGui::Text("%d", *(i16*)&dataInt);
-    ImGui::NextColumn();
+        // String ASCII
+        ImGui::TextBox(frameColor, textColor, cellSize, align, textOffset, "%.*s", strLen, dataStr);
 
-    // Uint 16
-    ImGui::Text("Unsigned integer 16");
-    ImGui::NextColumn();
-    ImGui::Text("%u", *(u16*)&dataInt);
-    ImGui::NextColumn();
-    ImGui::Separator();
+        i64 dataInt = 0;
+        memmove(&dataInt, dataStart, min(8, dataEnd - dataStart));
 
-    // Int 32
-    ImGui::Text("Integer 32");
-    ImGui::NextColumn();
-    ImGui::Text("%d", *(i32*)&dataInt);
-    ImGui::NextColumn();
+        // Int 8
+        ImGui::TextBox(frameColorOdd, textColor, cellSize, align, textOffset, "%d", *(i8*)&dataInt);
+        // Uint 8
+        ImGui::TextBox(frameColor, textColor, cellSize, align, textOffset, "%u", *(u8*)&dataInt);
+        // Int 16
+        ImGui::TextBox(frameColorOdd, textColor, cellSize, align, textOffset, "%d", *(i16*)&dataInt);
+        // Uint 16
+        ImGui::TextBox(frameColor, textColor, cellSize, align, textOffset, "%u", *(u16*)&dataInt);
+        // Int 32
+        ImGui::TextBox(frameColorOdd, textColor, cellSize, align, textOffset, "%d", *(i32*)&dataInt);
+        // Uint 32
+        ImGui::TextBox(frameColor, textColor, cellSize, align, textOffset, "%u", *(u32*)&dataInt);
+        // Int 64
+        ImGui::TextBox(frameColorOdd, textColor, cellSize, align, textOffset, "%lld", *(i64*)&dataInt);
+        // Uint 64
+        ImGui::TextBox(frameColor, textColor, cellSize, align, textOffset, "%llu", *(u64*)&dataInt);
 
-    // Uint 32
-    ImGui::Text("Unsigned integer 32");
-    ImGui::NextColumn();
-    ImGui::Text("%u", *(u32*)&dataInt);
-    ImGui::NextColumn();
-    ImGui::Separator();
+        // Float 32
+        f32 dataFloat = 0;
+        memmove(&dataFloat, dataStart, min(4, dataEnd - dataStart));
+        if(isnan(dataFloat)) {
+            ImGui::TextBox(frameColorOdd, textColor, cellSize, align, textOffset, "NaN");
+        }
+        else {
+            ImGui::TextBox(frameColorOdd, textColor, cellSize, align, textOffset, "%g", dataFloat);
+        }
 
-    // Int 64
-    ImGui::Text("Integer 64");
-    ImGui::NextColumn();
-    ImGui::Text("%lld", *(i64*)&dataInt);
-    ImGui::NextColumn();
+        // Float 64
+        f64 dataFloat64 = 0;
+        memmove(&dataFloat64, dataStart, min(8, dataEnd - dataStart));
+        if(isnan(dataFloat64)) {
+            ImGui::TextBox(frameColor, textColor, cellSize, align, textOffset, "NaN");
+        }
+        else {
+            ImGui::TextBox(frameColor, textColor, cellSize, align, textOffset, "%g", dataFloat64);
+        }
 
-    // Uint 64
-    ImGui::Text("Unsigned integer 64");
-    ImGui::NextColumn();
-    ImGui::Text("%llu", *(u64*)&dataInt);
-    ImGui::NextColumn();
-    ImGui::Separator();
+        const ImU32 green = 0xff00ff00;
+        const ImU32 red = 0xff0000ff;
 
-    // Float 32
-    ImGui::Text("Float 32");
-    ImGui::NextColumn();
-    f32 dataFloat = 0;
-    memmove(&dataFloat, dataStart, min(4, dataEnd - dataStart));
-    if(isnan(dataFloat)) {
-        ImGui::Text("NaN");
-    }
-    else {
-        ImGui::Text("%g", dataFloat);
-    }
-    ImGui::NextColumn();
+        // Offset 32
+        u32 offset = *(u32*)&dataInt;
+        ImGui::TextBox(frameColorOdd, offset < fileBufferSize ? green : red, cellSize, align,
+                       textOffset, "%#x", offset);
 
-    // Float 64
-    ImGui::Text("Float 64");
-    ImGui::NextColumn();
-    f64 dataFloat64 = 0;
-    memmove(&dataFloat64, dataStart, min(8, dataEnd - dataStart));
-    if(isnan(dataFloat64)) {
-        ImGui::Text("NaN");
-    }
-    else {
-        ImGui::Text("%g", dataFloat64);
-    }
-    ImGui::NextColumn();
-    ImGui::Separator();
+        // Offset 64
+        u64 offset64 = *(u64*)&dataInt;
+        ImGui::TextBox(frameColor, offset < fileBufferSize ? green : red, cellSize, align,
+                       textOffset, "%#llx", offset64);
 
 
-    const ImVec4 green(0, 1, 0, 1);
-    const ImVec4 red(1, 0, 0, 1);
-
-    // Offset 32
-    ImGui::Text("File Offset 32");
-    ImGui::NextColumn();
-    u32 offset = *(u32*)&dataInt;
-    ImGui::TextColored(offset < fileBufferSize ? green : red, "%#x", offset);
-    ImGui::NextColumn();
-
-    // Offset 64
-    ImGui::Text("File Offset 64");
-    ImGui::NextColumn();
-    u64 offset64 = *(u64*)&dataInt;
-    ImGui::TextColored(offset64 < fileBufferSize ? green : red, "%#llx", offset64);
-    ImGui::NextColumn();
-    ImGui::Separator();
-
-    ImGui::Columns(1);
-
-    ImGui::PopStyleVar(2);
+    ImGui::EndChild();
 }

@@ -17,22 +17,42 @@ struct SelectionState
     ImRect lockedPanelRect;
 };
 
+enum PanelTypes {
+    PT_HEX = 0,
+    PT_ASCII,
+
+    PT_INT8,
+    PT_UINT8,
+    PT_INT16,
+    PT_UINT16,
+    PT_INT32,
+    PT_UINT32,
+    PT_INT64,
+    PT_UINT64,
+
+    PT_FLOAT32,
+    PT_FLOAT64,
+};
+
+constexpr char* panelComboItems[] = {
+    "Hex",
+    "ASCII",
+
+    "Int8",
+    "Uint8",
+    "Int16",
+    "Uint16",
+    "Int32",
+    "Uint32",
+    "Int64",
+    "Uint64",
+
+    "Float32",
+    "Float64",
+};
+
 struct DataPanels
 {
-    enum {
-        PT_HEX = 0,
-        PT_ASCII,
-
-        PT_INT8,
-        PT_UINT8,
-        PT_INT16,
-        PT_UINT16,
-        PT_INT32,
-        PT_UINT32,
-        PT_INT64,
-        PT_UINT64,
-    };
-
     f32 panelRectWidth[PANEL_MAX_COUNT];
     i32 panelType[PANEL_MAX_COUNT];
     i32 panelCount = 3;
@@ -73,7 +93,10 @@ struct DataPanels
 
     void doHexPanel(const char* label, const i32 startLine);
     void doAsciiPanel(const char* label, const i32 startLine);
-    void doIntegerPanel(const char* label, const i32 startLine, i32 bitSize, bool isSigned);
+    //void doIntegerPanel(const char* label, const i32 startLine, i32 bitSize, bool isSigned);
+
+    template<typename T>
+    void doFormatPanel(const char* label, const i32 startLine, const char* format);
 
     void doInspector();
 };

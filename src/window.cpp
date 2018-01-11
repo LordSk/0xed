@@ -216,7 +216,7 @@ void AppWindow::doUI()
     ImGui::End();
     ImGui::PopStyleVar(2);
 
-    //ImGui::ShowDemoWindow();
+    ImGui::ShowDemoWindow();
 }
 
 void AppWindow::pushGlobalEvents()
