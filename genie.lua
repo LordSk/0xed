@@ -55,7 +55,8 @@ solution "0xed solution"
 		"imm32",
 		"version",
 		"ws2_32",
-		"advapi32"
+		"advapi32",
+        "comdlg32" -- GetOpenFileName 
 	}
 	
 	flags {

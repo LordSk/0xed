@@ -90,6 +90,7 @@ struct DataPanels
     f32 inspectorWidth = 400;
 
     DataPanels();
+    void setFileBuffer(u8* buff, i64 buffSize);
     void addNewPanel();
 
     void calculatePanelWidth();

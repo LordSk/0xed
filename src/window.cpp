@@ -6,6 +6,10 @@
 #define GL3W_IMPLEMENTATION
 #include "gl3w.h"
 
+#define NOC_FILE_DIALOG_IMPLEMENTATION
+#define NOC_FILE_DIALOG_WIN32
+#include "noc_file_dialog.h"
+
 #define WINDOW_TITLE "0xed [v0.0002]"
 #define WINDOW_WIDTH 1600
 #define WINDOW_HEIGHT 900
@@ -39,6 +43,7 @@ bool AppWindow::init()
     }
 
     SDL_GL_SetSwapInterval(0);
+    SDL_EventState(SDL_DROPFILE, SDL_ENABLE);
 
     if(gl3w_init()) {
         LOG("ERROR: can't init gl3w");
@@ -61,21 +66,13 @@ bool AppWindow::init()
     ImGui::GetIO().FontDefault = fontTimes;
 
 
-    if(!loadFile("C:\\Program Files (x86)\\NAMCO BANDAI Games\\DarkSouls\\"
+    /*if(!loadFile("C:\\Program Files (x86)\\NAMCO BANDAI Games\\DarkSouls\\"
                  "dvdbnd0.bhd5.extract\\map\\MapStudio\\m18_01_00_00.msb")) {
         return false;
-    }
-
-    /*if(!loadFile("C:/Prog/Projects/0xed/build/genmu.mp3")) {
-        return false;
     }*/
 
-    /*if(!loadFile("C:/Prog/Projects/0xed/build/0xed.qbs")) {
-        return false;
-    }*/
-
-    dataPanels.fileBuffer = curFileBuff.data;
-    dataPanels.fileBufferSize = curFileBuff.size;
+    dataPanels.fileBuffer = 0;
+    dataPanels.fileBufferSize = 0;
     dataPanels.fontMono = fontMono;
 
     return true;
@@ -136,14 +133,14 @@ i32 AppWindow::run()
 
 void AppWindow::cleanUp()
 {
+    imguiDeinit(imguiSetup);
+    SDL_GL_DeleteContext(glContext);
+    SDL_DestroyWindow(window);
+
     if(curFileBuff.data) {
         free(curFileBuff.data);
         curFileBuff.data = nullptr;
     }
-
-    imguiDeinit(imguiSetup);
-    SDL_GL_DeleteContext(glContext);
-    SDL_DestroyWindow(window);
 }
 
 static void setStyleLight()
@@ -159,32 +156,26 @@ void AppWindow::doUI()
 {
     setStyleLight();
 
-    constexpr i32 menubarRowHeight = 22;
-    const ImColor colorContextMenuBg = ImColor(242, 242, 242);
-    const ImColor colorContextMenuBorder = ImColor(204, 204, 204);
-    constexpr i32 statusBarRowHeight = 22;
-
     i32 winWidth, winHeight;
     SDL_GL_GetDrawableSize(window, &winWidth, &winHeight);
 
-    i32 menubarWinHeight = 0;
-    i32 statusbarWinHeight = 0;
-
     ImGuiIO& io = ImGui::GetIO();
-    io.FontDefault->FontSize;
     auto& style = ImGui::GetStyle();
-    style.FramePadding.y;
-
     const i32 menuBarHeight = io.FontDefault->FontSize + style.FramePadding.y * 2.0;
 
     // menu bar
     if(ImGui::BeginMainMenuBar()) {
         if(ImGui::BeginMenu("File")) {
             if(ImGui::MenuItem("Open", "CTRL+O")) {
-
+                const char* filepath = noc_file_dialog_open(NOC_FILE_DIALOG_OPEN, "*", "", "");
+                if(filepath) {
+                    if(loadFile(filepath)) {
+                        dataPanels.setFileBuffer(curFileBuff.data, curFileBuff.size);
+                    }
+                }
             }
             if(ImGui::MenuItem("Exit", "CTRL+X")) {
-
+                running = false;
             }
             ImGui::EndMenu();
         }
@@ -221,7 +212,7 @@ void AppWindow::doUI()
     ImGui::End();
     ImGui::PopStyleVar(2);
 
-    ImGui::ShowDemoWindow();
+    //ImGui::ShowDemoWindow();
 }
 
 void AppWindow::pushGlobalEvents()
@@ -297,6 +288,17 @@ void AppWindow::handleEvent(const SDL_Event& event)
             focused = false;
             return;
         }
+    }
+
+    if(event.type == SDL_DROPFILE) {
+        char* droppedFilepath = event.drop.file;
+
+        if(loadFile(droppedFilepath)) {
+            dataPanels.setFileBuffer(curFileBuff.data, curFileBuff.size);
+        }
+
+        SDL_free(droppedFilepath);
+        return;
     }
 }
 

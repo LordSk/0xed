@@ -223,7 +223,7 @@ static void SplitVBeginLeft(const char* label, f32* leftWidth, f32* rightWidth, 
         buttonColor = 0xffffc5a3;
         textColor = 0xff000000;
     }
-    RenderFrame(bb.Min, bb.Max, buttonColor, false);
+    RenderFrame(bb.Min, bb.Max, buttonColor, true);
 
     BeginChild(label, ImVec2(childLeftWidth, -1), false/*,
                ImGuiWindowFlags_NoScrollbar|ImGuiWindowFlags_NoScrollWithMouse*/);
@@ -447,6 +447,13 @@ DataPanels::DataPanels()
     panelType[2] = PT_INT32;
 }
 
+void DataPanels::setFileBuffer(u8* buff, i64 buffSize)
+{
+    fileBuffer = buff;
+    fileBufferSize = buffSize;
+    selectionState = {};
+}
+
 void DataPanels::addNewPanel()
 {
     if(panelCount >= PANEL_MAX_COUNT) {
@@ -536,6 +543,7 @@ void DataPanels::doUi(const ImRect& viewRect)
     // START MAIN LEFT (DATA PANELS)
     ImGui::SplitVBeginLeft("Mainframe_left", nullptr, &inspectorWidth);
 
+    if(fileBuffer) {
 #if 1
         ImGui::DoScrollbarVertical(&scrollCurrent,
                        (viewRect.GetHeight() - columnHeaderHeight)/rowHeight, // page size (in lines)
@@ -642,6 +650,7 @@ void DataPanels::doUi(const ImRect& viewRect)
         }
 
         ImGui::PopClipRect();
+    }
 #endif
 
     ImGui::SplitVBeginRight("Mainframe_right", nullptr, &inspectorWidth);
