@@ -456,11 +456,8 @@ void DataPanels::addNewPanel()
     panelType[panelCount++] = PT_HEX;
 }
 
-void DataPanels::doUi(const ImRect& viewRect)
+void DataPanels::calculatePanelWidth()
 {
-    // TODO: remove this limitation
-    assert(columnCount <= 16);
-
     for(i32 p = 0; p < panelCount; ++p) {
         switch(panelType[p]) {
             case PT_HEX:
@@ -483,6 +480,56 @@ void DataPanels::doUi(const ImRect& viewRect)
                 break;
         }
     }
+}
+
+void DataPanels::doRowHeader(const ImRect& winRect)
+{
+    // row header
+    ImGui::ItemSize(ImVec2(rowHeaderWidth, -1));
+
+    const i32 lineCount = (winRect.GetHeight() - columnHeaderHeight) / rowHeight + 1;
+    const ImVec2& winPos = winRect.Min;
+
+    ImRect rowHeadBb(winPos, winPos + ImVec2(rowHeaderWidth, winRect.GetHeight()));
+    const ImU32 headerColor = ImGui::ColorConvertFloat4ToU32(ImVec4(0.9, 0.9, 0.9, 1));
+    const ImU32 headerColorOdd = ImGui::ColorConvertFloat4ToU32(ImVec4(0.85, 0.85, 0.85, 1));
+    ImGui::RenderFrame(rowHeadBb.Min, rowHeadBb.Max, headerColor, false, 0);
+
+    for(i64 i = 0; i < lineCount; ++i) {
+        u32 hex = toHexStr(((i + scrollCurrent) * columnCount) & 0xFF);
+
+        const char* label = (const char*)&hex;
+        const ImVec2 label_size = ImGui::CalcTextSize(label, label+2);
+        const ImVec2 size = ImGui::CalcItemSize(ImVec2(rowHeaderWidth, rowHeight),
+                                                label_size.x, label_size.y);
+
+        ImVec2 cellPos(0, rowHeight * i);
+        cellPos += winPos;
+        cellPos.y += columnHeaderHeight + 21;
+        const ImRect bb(cellPos, cellPos + size);
+
+        ImVec4 textCol = ImVec4(0.5, 0.5, 0.5, 1);
+        if(i & 1) {
+            textCol = ImVec4(0.45, 0.45, 0.45, 1);
+            ImGui::RenderFrame(bb.Min, bb.Max, headerColorOdd, false, 0);
+        }
+
+        ImGui::PushStyleColor(ImGuiCol_Text, textCol);
+        ImGui::RenderTextClipped(bb.Min, bb.Max, label, label+2,
+                          &label_size, ImVec2(0.3, 0.5), &bb);
+
+        ImGui::PopStyleColor();
+    }
+
+    ImGui::SameLine();
+}
+
+void DataPanels::doUi(const ImRect& viewRect)
+{
+    // TODO: remove this limitation
+    assert(columnCount <= 16);
+
+    calculatePanelWidth();
 
     const ImGuiStyle& style = ImGui::GetStyle();
 
@@ -491,51 +538,19 @@ void DataPanels::doUi(const ImRect& viewRect)
 
 #if 1
         ImGui::DoScrollbarVertical(&scrollCurrent,
-                                   (viewRect.GetHeight() - columnHeaderHeight)/rowHeight, // page size (in lines)
-                                   fileBufferSize/columnCount + 2); // total lines (for last line visibility)
+                       (viewRect.GetHeight() - columnHeaderHeight)/rowHeight, // page size (in lines)
+                       fileBufferSize/columnCount + 2); // total lines (for last line visibility)
 
         const ImRect& winRect = ImGui::GetCurrentWindow()->Rect();
 
         processMouseInput(winRect);
 
-        // row header
-        ImGui::ItemSize(ImVec2(rowHeaderWidth, -1));
+        // TODO: remove this and allow use of horizontal scroll
+        ImRect clipRect = winRect;
+        clipRect.Max.x -= ImGui::GetStyle().ScrollbarSize;
+        ImGui::PushClipRect(clipRect.Min, clipRect.Max, false);
 
-        const i32 lineCount = (winRect.GetHeight() - columnHeaderHeight) / rowHeight + 1;
-        const ImVec2& winPos = winRect.Min;
-
-        ImRect rowHeadBb(winPos, winPos + ImVec2(rowHeaderWidth, winRect.GetHeight()));
-        const ImU32 headerColor = ImGui::ColorConvertFloat4ToU32(ImVec4(0.9, 0.9, 0.9, 1));
-        const ImU32 headerColorOdd = ImGui::ColorConvertFloat4ToU32(ImVec4(0.85, 0.85, 0.85, 1));
-        ImGui::RenderFrame(rowHeadBb.Min, rowHeadBb.Max, headerColor, false, 0);
-
-        for(i64 i = 0; i < lineCount; ++i) {
-            u32 hex = toHexStr(((i + scrollCurrent) * columnCount) & 0xFF);
-
-            const char* label = (const char*)&hex;
-            const ImVec2 label_size = ImGui::CalcTextSize(label, label+2);
-            const ImVec2 size = ImGui::CalcItemSize(ImVec2(rowHeaderWidth, rowHeight),
-                                                    label_size.x, label_size.y);
-
-            ImVec2 cellPos(0, rowHeight * i);
-            cellPos += winPos;
-            cellPos.y += columnHeaderHeight + 21;
-            const ImRect bb(cellPos, cellPos + size);
-
-            ImVec4 textCol = ImVec4(0.5, 0.5, 0.5, 1);
-            if(i & 1) {
-                textCol = ImVec4(0.45, 0.45, 0.45, 1);
-                ImGui::RenderFrame(bb.Min, bb.Max, headerColorOdd, false, 0);
-            }
-
-            ImGui::PushStyleColor(ImGuiCol_Text, textCol);
-            ImGui::RenderTextClipped(bb.Min, bb.Max, label, label+2,
-                              &label_size, ImVec2(0.3, 0.5), &bb);
-
-            ImGui::PopStyleColor();
-        }
-
-        ImGui::SameLine();
+        doRowHeader(winRect);
 
         ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(panelSpacing, 0));
 
@@ -625,6 +640,8 @@ void DataPanels::doUi(const ImRect& viewRect)
             }
             panelCount--;
         }
+
+        ImGui::PopClipRect();
 #endif
 
     ImGui::SplitVBeginRight("Mainframe_right", nullptr, &inspectorWidth);
@@ -662,8 +679,6 @@ void DataPanels::doUi(const ImRect& viewRect)
 void DataPanels::doHexPanel(const char* label, const i32 startLine)
 {
     ImGuiWindow* window = ImGui::GetCurrentWindow();
-    if(window->SkipItems)
-        return;
     ImRect panelRect = window->Rect();
 
     const i32 lineCount = (panelRect.GetHeight() - columnHeaderHeight) / rowHeight;
@@ -1113,37 +1128,48 @@ void DataPanels::doInspector()
     u8* dataEnd = &fileBuffer[max(selectionState.selectStart, selectionState.selectEnd) + 1];
 
     if(selectionState.selectStart < 0) {
-        dataStart = 0;
-        dataEnd = 0;
+        if(selectionState.hoverStart >= 0) {
+            dataStart = &fileBuffer[min(selectionState.hoverStart, selectionState.hoverEnd)];
+            dataEnd = &fileBuffer[max(selectionState.hoverStart, selectionState.hoverEnd) + 1];
+        }
+        else {
+            dataStart = 0;
+            dataEnd = 0;
+        }
     }
 
+    constexpr char* typeStr[] = {
+        "String",
+        "Integer 8",
+        "Unsigned integer 8",
+        "Integer 16",
+        "Unsigned integer 16",
+        "Integer 32",
+        "Unsigned integer 32",
+        "Integer 64",
+        "Unsigned integer 64",
+        "Float 32",
+        "Float 64",
+        "File offset 32",
+        "File offset 64",
+        "Cursor",
+        "Selection start",
+        "Selection end",
+        "Selection size",
+    };
+
+    constexpr i32 typeCount = IM_ARRAYSIZE(typeStr);
+    constexpr f32 tableLineHeight = 24;
+
     // ---- TYPES ----
-    ImGui::BeginChild("#inspector_left", ImVec2(150, -1));
-
-        constexpr char* typeStr[] = {
-            "String",
-            "Integer 8",
-            "Unsigned integer 8",
-            "Integer 16",
-            "Unsigned integer 16",
-            "Integer 32",
-            "Unsigned integer 32",
-            "Integer 64",
-            "Unsigned integer 64",
-            "Float 32",
-            "Float 64",
-            "File offset 32",
-            "File offset 64",
-        };
-
-        constexpr i32 typeCount = IM_ARRAYSIZE(typeStr);
+    ImGui::BeginChild("#inspector_left", ImVec2(150, typeCount * tableLineHeight));
 
         ImU32 frameColor = 0xffeeeeee;
         ImU32 frameColorOdd = 0xffdddddd;
         ImU32 textColor = 0xff303030;
-        ImVec2 cellSize(150, 24);
-        ImVec2 align(1, 0.5);
-        ImVec2 textOffset(-8, 0);
+        ImVec2 cellSize(150, tableLineHeight);
+        ImVec2 align(0, 0.5);
+        ImVec2 textOffset(8, 0);
 
         for(i32 t = 0; t < typeCount; ++t) {
             ImU32 fc = t & 1 ? frameColorOdd : frameColor;
@@ -1154,12 +1180,12 @@ void DataPanels::doInspector()
     ImGui::SameLine();
 
     // ---- VALUES ----
-    ImGui::BeginChild("#inspector_right", ImVec2(0, -1));
+    ImGui::BeginChild("#inspector_right", ImVec2(0, typeCount * 24));
 
         frameColor = 0xffffffff;
         frameColorOdd = 0xfff0f0f0;
         textColor = 0xff000000;
-        cellSize = ImVec2(ImGui::GetCurrentWindow()->Rect().GetWidth(), 24);
+        cellSize = ImVec2(ImGui::GetCurrentWindow()->Rect().GetWidth(), tableLineHeight);
         align = ImVec2(0, 0.5);
         textOffset = ImVec2(8, 0);
 
@@ -1228,6 +1254,35 @@ void DataPanels::doInspector()
         u64 offset64 = *(u64*)&dataInt;
         ImGui::TextBox(frameColor, offset < fileBufferSize ? green : red, cellSize, align,
                        textOffset, "%#llx", offset64);
+
+
+        // Cursor/Selection info
+        textColor = 0xff404040;
+        if(selectionState.hoverStart >=0 ) {
+            ImGui::TextBox(frameColorOdd, textColor, cellSize, align,
+                           textOffset, "0x%llX", selectionState.hoverStart);
+        }
+        else {
+            ImGui::TextBox(frameColorOdd, textColor, cellSize, align,
+                           textOffset, "");
+        }
+        if(selectionState.selectStart >= 0) {
+            ImGui::TextBox(frameColor, textColor, cellSize, align,
+                           textOffset, "0x%llX", selectionState.selectStart);
+            ImGui::TextBox(frameColorOdd, textColor, cellSize, align,
+                           textOffset, "0x%llX", selectionState.selectEnd);
+            ImGui::TextBox(frameColor, textColor, cellSize, align,
+                           textOffset, "0x%llX",
+                           llabs(selectionState.selectEnd - selectionState.selectStart));
+        }
+        else {
+            ImGui::TextBox(frameColor, textColor, cellSize, align,
+                           textOffset, "");
+            ImGui::TextBox(frameColorOdd, textColor, cellSize, align,
+                           textOffset, "");
+            ImGui::TextBox(frameColor, textColor, cellSize, align,
+                           textOffset, "");
+        }
 
 
     ImGui::EndChild();

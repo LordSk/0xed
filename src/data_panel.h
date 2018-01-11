@@ -91,6 +91,10 @@ struct DataPanels
 
     DataPanels();
     void addNewPanel();
+
+    void calculatePanelWidth();
+    void doRowHeader(const ImRect& winRect);
+
     void doUi(const ImRect& viewRect);
 
     void doHexPanel(const char* label, const i32 startLine);
