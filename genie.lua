@@ -82,7 +82,7 @@ solution "0xed solution"
 	
 
 project "0xed"
-	kind "WindowedApp"
+	kind "WindowedApp" -- doesnt do anything?
 
 	configuration {}
 	
@@ -106,3 +106,5 @@ project "0xed"
 		"opengl32",
 		SDL2_lib,
 	}
+    
+    linkoptions{ "/subsystem:windows" }

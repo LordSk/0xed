@@ -166,15 +166,17 @@ static void SplitVBeginLeft(const char* label, f32* leftWidth, f32* rightWidth, 
     ImGuiWindow* window = GetCurrentWindow();
     ImVec2 size(separatorWidth, window->Rect().GetHeight());
 
+    const f32 winWidth = window->Rect().GetWidth();
+
 
     f32 childLeftWidth = 100, childRightWidth = 100;
     if(leftWidth) {
         childLeftWidth = *leftWidth;
-        childRightWidth = window->Rect().GetWidth() - separatorWidth - childLeftWidth;
+        childRightWidth = winWidth - separatorWidth - childLeftWidth;
     }
     else {
         childRightWidth = *rightWidth;
-        childLeftWidth = window->Rect().GetWidth() - separatorWidth - childRightWidth;
+        childLeftWidth = winWidth - separatorWidth - childRightWidth;
     }
 
     ImVec2 pos = window->Rect().Min + ImVec2(childLeftWidth, 0);
@@ -185,6 +187,8 @@ static void SplitVBeginLeft(const char* label, f32* leftWidth, f32* rightWidth, 
     bool hovered = false;
     ButtonBehavior(bb, id, &hovered, &held);
 
+    constexpr i32 minWidth = 100;
+
     ImU32 buttonColor = 0xffcccccc;
     ImU32 textColor = 0xff505050;
     if(held) {
@@ -193,12 +197,24 @@ static void SplitVBeginLeft(const char* label, f32* leftWidth, f32* rightWidth, 
         ImVec2 mousePos = GetIO().MousePos;
         mousePos.x -= bb.Min.x + separatorWidth * 0.5; // vertical center of button
         childLeftWidth += mousePos.x;
+        childRightWidth = winWidth - childLeftWidth - separatorWidth;
+
+        if(childLeftWidth < minWidth) {
+            mousePos.x = 0;
+            childLeftWidth = minWidth;
+            childRightWidth = winWidth - childLeftWidth - separatorWidth;
+        }
+        else if(childRightWidth < minWidth) {
+            mousePos.x = 0;
+            childRightWidth = minWidth;
+            childLeftWidth = winWidth - separatorWidth - childRightWidth;
+        }
 
         if(leftWidth) {
             *leftWidth = childLeftWidth;
         }
         else {
-            *rightWidth = window->Rect().GetWidth() - childLeftWidth - separatorWidth;
+            *rightWidth = childRightWidth;
         }
 
         bb.Translate(ImVec2(mousePos.x, 0));
@@ -209,8 +225,8 @@ static void SplitVBeginLeft(const char* label, f32* leftWidth, f32* rightWidth, 
     }
     RenderFrame(bb.Min, bb.Max, buttonColor, false);
 
-    BeginChild(label, ImVec2(childLeftWidth, -1), false,
-               ImGuiWindowFlags_NoScrollbar|ImGuiWindowFlags_NoScrollWithMouse);
+    BeginChild(label, ImVec2(childLeftWidth, -1), false/*,
+               ImGuiWindowFlags_NoScrollbar|ImGuiWindowFlags_NoScrollWithMouse*/);
 }
 
 static void SplitVBeginRight(const char* label, f32* leftWidth, f32* rightWidth, const i32 separatorWidth = 6)
@@ -233,8 +249,8 @@ static void SplitVBeginRight(const char* label, f32* leftWidth, f32* rightWidth,
         childRightWidth = *rightWidth;
     }
 
-    BeginChild(label, ImVec2(childRightWidth, -1), false,
-               ImGuiWindowFlags_NoScrollbar|ImGuiWindowFlags_NoScrollWithMouse);
+    BeginChild(label, ImVec2(childRightWidth, -1), false/*,
+               ImGuiWindowFlags_NoScrollbar|ImGuiWindowFlags_NoScrollWithMouse*/);
 }
 
 inline void SplitVEnd()
@@ -265,6 +281,7 @@ inline u32 toHexStr(u8 val)
 void DataPanels::processMouseInput(ImRect winRect)
 {
     winRect.Min.y += ImGui::GetComboHeight();
+    winRect.Max.x -= ImGui::GetStyle().ScrollbarSize;
 
     ImGuiIO& io = ImGui::GetIO();
     if(ImGui::IsAnyPopupOpen()) {

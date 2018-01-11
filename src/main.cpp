@@ -2,7 +2,11 @@
 #include <stdio.h>
 #include "window.h"
 
+#ifdef WIN32
+int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine, int nCmdShow)
+#else
 int main()
+#endif
 {
     i32 sdl = SDL_Init(SDL_INIT_VIDEO|SDL_INIT_TIMER|SDL_INIT_EVENTS);
     if(sdl != 0) {
