@@ -185,7 +185,7 @@ ImGuiGLSetup* imguiInit(u32 width, u32 height, const char* iniPath)
     ImGuiIO& io = ImGui::GetIO();
     io.DisplaySize.x = width;
     io.DisplaySize.y = height;
-    io.IniFilename = "imgui.ini";
+    io.IniFilename = iniPath;
     io.RenderDrawListsFn = renderUI;
     io.UserData = ims;
 

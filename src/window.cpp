@@ -7,6 +7,7 @@
 #include "imgui_extended.h"
 #include "data_panel.h"
 #include "tools_panel.h"
+#include "config.h"
 
 #define GL3W_IMPLEMENTATION
 #include "gl3w.h"
@@ -15,21 +16,16 @@
 #define NOC_FILE_DIALOG_WIN32
 #include "noc_file_dialog.h"
 
-#define WINDOW_TITLE "0xed [v0.0002]"
-#define WINDOW_WIDTH 1600
-#define WINDOW_HEIGHT 900
-
-struct FileBuffer
-{
-    u8* data = nullptr;
-    i64 size = 0;
-};
+#define CONFIG_FILENAME "0xed_config.ini"
+#define WINDOW_BASE_TITLE "0xed"
 
 struct AppWindow {
 
 SDL_Window* window;
 SDL_GLContext glContext;
 bool running = true;
+
+Config config;
 
 ImGuiGLSetup* imguiSetup;
 
@@ -40,6 +36,8 @@ i32 winX;
 i32 winY;
 i32 winWidth;
 i32 winHeight;
+i32 winBeforeMaxWidth;
+i32 winBeforeMaxHeight;
 i32 globalMouseX = -1;
 i32 globalMouseY = -1;
 u32 globalMouseState = 0;
@@ -52,6 +50,8 @@ f32 toolsPanelWidth = 400;
 
 bool init()
 {
+    loadConfigFile(CONFIG_FILENAME, &config);
+
     SDL_SetHint(SDL_HINT_VIDEO_HIGHDPI_DISABLED, "0");
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_FLAGS, SDL_GL_CONTEXT_FORWARD_COMPATIBLE_FLAG);
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
@@ -59,13 +59,14 @@ bool init()
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 3);
     SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
 
-    window = SDL_CreateWindow(WINDOW_TITLE,
+    window = SDL_CreateWindow(WINDOW_BASE_TITLE,
                               SDL_WINDOWPOS_CENTERED,
                               SDL_WINDOWPOS_CENTERED,
-                              WINDOW_WIDTH, WINDOW_HEIGHT,
+                              config.windowWidth, config.windowHeight,
                               SDL_WINDOW_OPENGL|SDL_WINDOW_SHOWN|
                               SDL_WINDOW_ALLOW_HIGHDPI|
-                              SDL_WINDOW_RESIZABLE);
+                              SDL_WINDOW_RESIZABLE|
+                              (config.windowMaximized ? SDL_WINDOW_MAXIMIZED : 0));
 
     if(!window) {
         LOG("ERROR: can't create SDL2 window (%s)",  SDL_GetError());
@@ -94,7 +95,7 @@ bool init()
     glClearColor(0.15f, 0.15f, 0.15f, 1.f);
     glViewport(0, 0, WINDOW_WIDTH, WINDOW_HEIGHT);
 
-    imguiSetup = imguiInit(WINDOW_WIDTH, WINDOW_HEIGHT, "0xed_imgui");
+    imguiSetup = imguiInit(WINDOW_WIDTH, WINDOW_HEIGHT, "0xed_imgui.ini");
     assert(imguiSetup);
 
     // TODO: load multiple fonts at once
@@ -106,9 +107,10 @@ bool init()
     dataPanels.fileBuffer = 0;
     dataPanels.fileBufferSize = 0;
     dataPanels.fontMono = fontMono;
+    dataPanels.panelCount = config.panelCount;
 
-    if(loadFile("C:\\Program Files (x86)\\NAMCO BANDAI Games\\DarkSouls\\"
-                 "dvdbnd0.bhd5.extract\\map\\MapStudio\\m18_01_00_00.msb")) {
+    if(openFileReadAll("C:\\Program Files (x86)\\NAMCO BANDAI Games\\DarkSouls\\"
+                 "dvdbnd0.bhd5.extract\\map\\MapStudio\\m18_01_00_00.msb", &curFileBuff)) {
         dataPanels.setFileBuffer(curFileBuff.data, curFileBuff.size);
     }
 
@@ -169,6 +171,23 @@ i32 run()
 
 void cleanUp()
 {
+    u32 winFlags = SDL_GetWindowFlags(window);
+
+    config.windowMonitor = 0;
+    config.windowMaximized = winFlags & SDL_WINDOW_MAXIMIZED ? 1:0;
+    if(config.windowMaximized) {
+        config.windowWidth = winBeforeMaxWidth;
+        config.windowHeight = winBeforeMaxHeight;
+    }
+    else {
+        config.windowWidth = winWidth;
+        config.windowHeight = winHeight;
+    }
+
+    config.panelCount = dataPanels.panelCount;
+
+    saveConfigFile(CONFIG_FILENAME, config);
+
     imguiDeinit(imguiSetup);
     SDL_GL_DeleteContext(glContext);
     SDL_DestroyWindow(window);
@@ -251,12 +270,17 @@ void handleEvent(const SDL_Event& event)
             focused = false;
             return;
         }
+        if(event.window.event == SDL_WINDOWEVENT_MAXIMIZED) {
+            winBeforeMaxWidth = winWidth;
+            winBeforeMaxHeight = winHeight;
+            return;
+        }
     }
 
     if(event.type == SDL_DROPFILE) {
         char* droppedFilepath = event.drop.file;
 
-        if(loadFile(droppedFilepath)) {
+        if(openFileReadAll(droppedFilepath, &curFileBuff)) {
             dataPanels.setFileBuffer(curFileBuff.data, curFileBuff.size);
         }
 
@@ -305,7 +329,7 @@ void doUI()
             if(ImGui::MenuItem("Open", "CTRL+O")) {
                 const char* filepath = noc_file_dialog_open(NOC_FILE_DIALOG_OPEN, "*", "", "");
                 if(filepath) {
-                    if(loadFile(filepath)) {
+                    if(openFileReadAll(filepath, &curFileBuff)) {
                         dataPanels.setFileBuffer(curFileBuff.data, curFileBuff.size);
                     }
                 }
@@ -380,43 +404,6 @@ void doUI()
     ImGui::PopStyleVar(2);
 
     //ImGui::ShowDemoWindow();
-}
-
-bool loadFile(const char* path)
-{
-    FILE* file = fopen(path, "rb");
-    if(!file) {
-        LOG("ERROR: Can not open file %s", path);
-        return false;
-    }
-
-    if(curFileBuff.data) {
-        free(curFileBuff.data);
-        curFileBuff.data = nullptr;
-        curFileBuff.size = 0;
-    }
-
-    FileBuffer fb;
-
-    i64 start = ftell(file);
-    fseek(file, 0, SEEK_END);
-    i64 len = ftell(file) - start;
-    fseek(file, start, SEEK_SET);
-
-    fb.data = (u8*)malloc(len + 1);
-    assert(fb.data);
-    fb.size = len;
-
-    // read
-    fread(fb.data, 1, len, file);
-    fb.data[len] = 0;
-
-    fclose(file);
-    curFileBuff = fb;
-
-    LOG("file loaded path=%s size=%llu", path, curFileBuff.size);
-
-    return true;
 }
 
 };

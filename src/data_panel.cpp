@@ -170,7 +170,7 @@ DataPanels::DataPanels()
     memset(panelType, 0, sizeof(panelType));
     panelType[0] = PT_HEX;
     panelType[1] = PT_ASCII;
-    panelType[2] = PT_INT32;
+    //panelType[2] = PT_INT32;
 }
 
 void DataPanels::setFileBuffer(u8* buff, i64 buffSize)
@@ -347,6 +347,7 @@ void DataPanels::doUi()
                 doFormatPanel<u64>("#uint64_panel", scrollCurrent, "%llu");
                 break;
             case PT_FLOAT32:
+                // TODO: color range to better see which values may be useful
                 doFormatPanel<f32>("#f32_panel", scrollCurrent, "%g");
                 break;
             case PT_FLOAT64:
