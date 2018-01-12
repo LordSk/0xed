@@ -34,23 +34,6 @@ enum PanelTypes {
     PT_FLOAT64,
 };
 
-constexpr char* panelComboItems[] = {
-    "Hex",
-    "ASCII",
-
-    "Int8",
-    "Uint8",
-    "Int16",
-    "Uint16",
-    "Int32",
-    "Uint32",
-    "Int64",
-    "Uint64",
-
-    "Float32",
-    "Float64",
-};
-
 struct DataPanels
 {
     f32 panelRectWidth[PANEL_MAX_COUNT];
@@ -78,16 +61,16 @@ struct DataPanels
 
     struct ImFont* fontMono;
 
-    // TODO: do hover logic all in the same place?
     SelectionState selectionState;
+
+    ImGuiWindow* mainWindow;
+
     void processMouseInput(ImRect winRect);
     inline void selectionProcessMouseInput(const i32 panelId, ImVec2 mousePos, ImRect rect,
                                const i32 columnWidth_, const i32 rowHeight_,
                                const i32 startLine, const i32 hoverLen);
     inline bool selectionInHoverRange(i64 dataOffset);
     inline bool selectionInSelectionRange(i64 dataOffset);
-
-    f32 inspectorWidth = 400;
 
     DataPanels();
     void setFileBuffer(u8* buff, i64 buffSize);
@@ -96,14 +79,11 @@ struct DataPanels
     void calculatePanelWidth();
     void doRowHeader(const ImRect& winRect);
 
-    void doUi(const ImRect& viewRect);
+    void doUi();
 
     void doHexPanel(const char* label, const i32 startLine);
     void doAsciiPanel(const char* label, const i32 startLine);
-    //void doIntegerPanel(const char* label, const i32 startLine, i32 bitSize, bool isSigned);
 
     template<typename T>
     void doFormatPanel(const char* label, const i32 startLine, const char* format);
-
-    void doInspector();
 };

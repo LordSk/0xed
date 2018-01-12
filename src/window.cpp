@@ -1,7 +1,12 @@
+#include <SDL2/SDL.h>
 #include <stdio.h>
 #include <assert.h>
 #include "window.h"
 #include "imgui.h"
+#include "imgui_sdl2_setup.h"
+#include "imgui_extended.h"
+#include "data_panel.h"
+#include "tools_panel.h"
 
 #define GL3W_IMPLEMENTATION
 #include "gl3w.h"
@@ -14,7 +19,38 @@
 #define WINDOW_WIDTH 1600
 #define WINDOW_HEIGHT 900
 
-bool AppWindow::init()
+struct FileBuffer
+{
+    u8* data = nullptr;
+    i64 size = 0;
+};
+
+struct AppWindow {
+
+SDL_Window* window;
+SDL_GLContext glContext;
+bool running = true;
+
+ImGuiGLSetup* imguiSetup;
+
+FileBuffer curFileBuff;
+DataPanels dataPanels;
+
+i32 winX;
+i32 winY;
+i32 winWidth;
+i32 winHeight;
+i32 globalMouseX = -1;
+i32 globalMouseY = -1;
+u32 globalMouseState = 0;
+bool focused = true;
+
+ImFont* fontTimes;
+ImFont* fontMono;
+
+f32 toolsPanelWidth = 400;
+
+bool init()
 {
     SDL_SetHint(SDL_HINT_VIDEO_HIGHDPI_DISABLED, "0");
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_FLAGS, SDL_GL_CONTEXT_FORWARD_COMPATIBLE_FLAG);
@@ -61,32 +97,32 @@ bool AppWindow::init()
     imguiSetup = imguiInit(WINDOW_WIDTH, WINDOW_HEIGHT, "0xed_imgui");
     assert(imguiSetup);
 
-    fontTimes = imguiLoadFont("C:\\Windows\\Fonts\\tahoma.ttf", 15); // TODO: load multiple fonts at once
+    // TODO: load multiple fonts at once
+    // TODO: use free fonts (linux)?
+    fontTimes = imguiLoadFont("C:\\Windows\\Fonts\\tahoma.ttf", 15);
     fontMono = imguiLoadFont("C:\\Windows\\Fonts\\consola.ttf", 15);
     ImGui::GetIO().FontDefault = fontTimes;
-
-
-    /*if(!loadFile("C:\\Program Files (x86)\\NAMCO BANDAI Games\\DarkSouls\\"
-                 "dvdbnd0.bhd5.extract\\map\\MapStudio\\m18_01_00_00.msb")) {
-        return false;
-    }*/
 
     dataPanels.fileBuffer = 0;
     dataPanels.fileBufferSize = 0;
     dataPanels.fontMono = fontMono;
 
+    if(loadFile("C:\\Program Files (x86)\\NAMCO BANDAI Games\\DarkSouls\\"
+                 "dvdbnd0.bhd5.extract\\map\\MapStudio\\m18_01_00_00.msb")) {
+        dataPanels.setFileBuffer(curFileBuff.data, curFileBuff.size);
+    }
+
     return true;
 }
 
-i32 AppWindow::run()
+i32 run()
 {
     u32 eventTick = SDL_GetTicks();
 
     while(running) {
         u32 frameStart = SDL_GetTicks();
 
-        SDL_GetWindowSize(window, &winWidth, &winHeight);
-        pushGlobalEvents();
+        computeGlobalMouseState();
 
         i32 eventCount = 0;
         SDL_Event event;
@@ -131,7 +167,7 @@ i32 AppWindow::run()
     return 0;
 }
 
-void AppWindow::cleanUp()
+void cleanUp()
 {
     imguiDeinit(imguiSetup);
     SDL_GL_DeleteContext(glContext);
@@ -143,6 +179,107 @@ void AppWindow::cleanUp()
     }
 }
 
+void computeGlobalMouseState()
+{
+    if(!focused) {
+        return;
+    }
+
+    i32 winx, winy;
+    SDL_GetWindowPosition(window, &winx, &winy);
+    i32 gmx, gmy;
+    u32 gmstate = SDL_GetGlobalMouseState(&gmx, &gmy);
+
+    defer(
+        imguiSetMouseState(imguiSetup, globalMouseX - winx, globalMouseY - winy, globalMouseState);
+    );
+
+    if(gmx >= winx && gmx < winx+winWidth && gmy >= winy && gmy < winy+winHeight) {
+        globalMouseX = gmx;
+        globalMouseY = gmy;
+        globalMouseState = gmstate;
+        return;
+    }
+
+    if(gmx != globalMouseX || gmy != globalMouseY) {
+        SDL_Event mouseEvent;
+        mouseEvent.type = SDL_MOUSEMOTION;
+        mouseEvent.motion.x = gmx - winx;
+        mouseEvent.motion.y = gmy - winy;
+        mouseEvent.motion.xrel = gmx - globalMouseX;
+        mouseEvent.motion.yrel = gmy - globalMouseY;
+        SDL_PushEvent(&mouseEvent);
+    }
+    globalMouseX = gmx;
+    globalMouseY = gmy;
+
+    // mouse left up outside window
+    if((gmstate&SDL_BUTTON(SDL_BUTTON_LEFT)) != (globalMouseState&SDL_BUTTON(SDL_BUTTON_LEFT))) {
+        SDL_Event mouseEvent;
+        mouseEvent.type = gmstate&SDL_BUTTON(SDL_BUTTON_LEFT) > 0 ? SDL_MOUSEBUTTONDOWN: SDL_MOUSEBUTTONUP;
+        mouseEvent.button.button = SDL_BUTTON_LEFT;
+        SDL_PushEvent(&mouseEvent);
+    }
+    globalMouseState = gmstate;
+
+
+    //LOG("mx=%d my=%d", gmx, gmy);
+}
+
+void handleEvent(const SDL_Event& event)
+{
+    if(event.type == SDL_QUIT) {
+        running = false;
+        return;
+    }
+
+    if(event.type == SDL_KEYDOWN) {
+#ifdef CONF_DEBUG
+        if(event.key.keysym.sym == SDLK_ESCAPE) {
+            running = false;
+            return;
+        }
+#endif
+    }
+
+    if(event.type == SDL_WINDOWEVENT) {
+        if(event.window.event == SDL_WINDOWEVENT_FOCUS_GAINED) {
+            focused = true;
+            return;
+        }
+        else if(event.window.event == SDL_WINDOWEVENT_FOCUS_LOST) {
+            focused = false;
+            return;
+        }
+    }
+
+    if(event.type == SDL_DROPFILE) {
+        char* droppedFilepath = event.drop.file;
+
+        if(loadFile(droppedFilepath)) {
+            dataPanels.setFileBuffer(curFileBuff.data, curFileBuff.size);
+        }
+
+        SDL_free(droppedFilepath);
+        return;
+    }
+}
+
+void update()
+{
+    ImGui::GetIO().DisplaySize = ImVec2(winWidth, winHeight);
+
+    imguiUpdate(imguiSetup, 0);
+
+    doUI();
+
+    glViewport(0, 0, winWidth, winHeight);
+    glClear(GL_COLOR_BUFFER_BIT);
+
+    ImGui::Render();
+}
+
+
 static void setStyleLight()
 {
     ImGui::StyleColorsLight();
@@ -152,11 +289,10 @@ static void setStyleLight()
     style.PopupBorderSize = 1.0f;
 }
 
-void AppWindow::doUI()
+void doUI()
 {
     setStyleLight();
 
-    i32 winWidth, winHeight;
     SDL_GL_GetDrawableSize(window, &winWidth, &winHeight);
 
     ImGuiIO& io = ImGui::GetIO();
@@ -206,7 +342,38 @@ void AppWindow::doUI()
                  ImGuiWindowFlags_NoTitleBar|ImGuiWindowFlags_NoBringToFrontOnFocus/*|
                  ImGuiWindowFlags_NoScrollbar|ImGuiWindowFlags_NoScrollWithMouse*/);
 
-    dataPanels.doUi(ImGui::GetCurrentWindow()->Rect());
+        // START MAIN LEFT (DATA PANELS)
+        ImGui::SplitVBeginLeft("Mainframe_left", nullptr, &toolsPanelWidth);
+
+            dataPanels.doUi();
+
+        ImGui::SplitVBeginRight("Mainframe_right", nullptr, &toolsPanelWidth);
+
+            const char* tabs[] = {
+                "Inspector",
+                "Script",
+                "Output"
+            };
+
+            static i32 selectedTab = 0;
+            ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(15, 5));
+            ImGui::Tabs("Inspector_tabs", tabs, IM_ARRAYSIZE(tabs), &selectedTab);
+            ImGui::PopStyleVar(1);
+
+            switch(selectedTab) {
+                case 0:
+                    toolsDoInspector(dataPanels.fileBuffer, dataPanels.fileBufferSize,
+                                     dataPanels.selectionState);
+                    break;
+                case 1:
+                    ImGui::Text("tab1 selected");
+                    break;
+                case 2:
+                    ImGui::Text("tab2 selected");
+                    break;
+            }
+
+        ImGui::SplitVEnd();
 
     // MAIN FRAME END
     ImGui::End();
@@ -215,109 +382,7 @@ void AppWindow::doUI()
     //ImGui::ShowDemoWindow();
 }
 
-void AppWindow::pushGlobalEvents()
-{
-    // TODO: check if top most window
-    if(!focused) {
-        return;
-    }
-
-    i32 winx, winy;
-    SDL_GetWindowPosition(window, &winx, &winy);
-    i32 gmx, gmy;
-    u32 gmstate = SDL_GetGlobalMouseState(&gmx, &gmy);
-
-    defer(
-        imguiSetMouseState(imguiSetup, globalMouseX - winx, globalMouseY - winy, globalMouseState);
-    );
-
-    if(gmx >= winx && gmx < winx+winWidth && gmy >= winy && gmy < winy+winHeight) {
-        globalMouseX = gmx;
-        globalMouseY = gmy;
-        globalMouseState = gmstate;
-        return;
-    }
-
-    if(gmx != globalMouseX || gmy != globalMouseY) {
-        SDL_Event mouseEvent;
-        mouseEvent.type = SDL_MOUSEMOTION;
-        mouseEvent.motion.x = gmx - winx;
-        mouseEvent.motion.y = gmy - winy;
-        mouseEvent.motion.xrel = gmx - globalMouseX;
-        mouseEvent.motion.yrel = gmy - globalMouseY;
-        SDL_PushEvent(&mouseEvent);
-    }
-    globalMouseX = gmx;
-    globalMouseY = gmy;
-
-    // mouse left up outside window
-    if((gmstate&SDL_BUTTON(SDL_BUTTON_LEFT)) != (globalMouseState&SDL_BUTTON(SDL_BUTTON_LEFT))) {
-        SDL_Event mouseEvent;
-        mouseEvent.type = gmstate&SDL_BUTTON(SDL_BUTTON_LEFT) > 0 ? SDL_MOUSEBUTTONDOWN: SDL_MOUSEBUTTONUP;
-        mouseEvent.button.button = SDL_BUTTON_LEFT;
-        SDL_PushEvent(&mouseEvent);
-    }
-    globalMouseState = gmstate;
-
-
-    //LOG("mx=%d my=%d", gmx, gmy);
-}
-
-void AppWindow::handleEvent(const SDL_Event& event)
-{
-    if(event.type == SDL_QUIT) {
-        running = false;
-        return;
-    }
-
-    if(event.type == SDL_KEYDOWN) {
-#ifdef CONF_DEBUG
-        if(event.key.keysym.sym == SDLK_ESCAPE) {
-            running = false;
-            return;
-        }
-#endif
-    }
-
-    if(event.type == SDL_WINDOWEVENT) {
-        if(event.window.event == SDL_WINDOWEVENT_FOCUS_GAINED) {
-            focused = true;
-            return;
-        }
-        else if(event.window.event == SDL_WINDOWEVENT_FOCUS_LOST) {
-            focused = false;
-            return;
-        }
-    }
-
-    if(event.type == SDL_DROPFILE) {
-        char* droppedFilepath = event.drop.file;
-
-        if(loadFile(droppedFilepath)) {
-            dataPanels.setFileBuffer(curFileBuff.data, curFileBuff.size);
-        }
-
-        SDL_free(droppedFilepath);
-        return;
-    }
-}
-
-void AppWindow::update()
-{
-    ImGui::GetIO().DisplaySize = ImVec2(winWidth, winHeight);
-
-    imguiUpdate(imguiSetup, 0);
-
-    doUI();
-
-    glClearColor(1, 1, 1, 1);
-    glViewport(0, 0, winWidth, winHeight);
-    glClear(GL_COLOR_BUFFER_BIT);
-
-    ImGui::Render();
-}
-
-bool AppWindow::loadFile(const char* path)
+bool loadFile(const char* path)
 {
     FILE* file = fopen(path, "rb");
     if(!file) {
@@ -352,4 +417,18 @@ bool AppWindow::loadFile(const char* path)
     LOG("file loaded path=%s size=%llu", path, curFileBuff.size);
 
     return true;
+}
+
+};
+
+static AppWindow app;
+
+bool applicationInit()
+{
+    return app.init();
+}
+
+i32 applicationRun()
+{
+    return app.run();
 }
