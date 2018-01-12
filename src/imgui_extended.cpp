@@ -44,13 +44,13 @@ void DoScrollbarVertical(i64* outScrollVal, i64 scrollPageSize, i64 scrollTotalS
                      -ImClamp((float)(int)((bb.Max.y - bb.Min.y - 2.0f) * 0.5f), 0.0f, 3.0f)));*/
     bool held = false;
     bool hovered = false;
-    const bool previously_held = (g.ActiveId == id);
+    const bool previouslyHeld = (g.ActiveId == id);
     ButtonBehavior(bb, id, &hovered, &held);
 
-    f32 mouseGrabDeltaY = 0;
+    static f32 mouseGrabDeltaY = 0;
 
     if(held) {
-        if(!previously_held) {
+        if(!previouslyHeld) {
             f32 my = g.IO.MousePos.y;
             my -= bb.Min.y;
             mouseGrabDeltaY = my;

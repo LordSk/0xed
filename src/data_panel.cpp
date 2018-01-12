@@ -178,6 +178,7 @@ void DataPanels::setFileBuffer(u8* buff, i64 buffSize)
     fileBuffer = buff;
     fileBufferSize = buffSize;
     selectionState = {};
+    scrollCurrent = 0;
 }
 
 void DataPanels::addNewPanel()

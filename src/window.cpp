@@ -68,6 +68,11 @@ bool init()
                               SDL_WINDOW_RESIZABLE|
                               (config.windowMaximized ? SDL_WINDOW_MAXIMIZED : 0));
 
+    winWidth = config.windowWidth;
+    winHeight = config.windowHeight;
+    winBeforeMaxWidth = winWidth;
+    winBeforeMaxHeight = winHeight;
+
     if(!window) {
         LOG("ERROR: can't create SDL2 window (%s)",  SDL_GetError());
         return false;
