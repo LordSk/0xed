@@ -112,7 +112,7 @@ bool init()
     dataPanels.fileBuffer = 0;
     dataPanels.fileBufferSize = 0;
     dataPanels.fontMono = fontMono;
-    dataPanels.panelCount = config.panelCount;
+    dataPanels.panelCount = clamp(config.panelCount, 1, PANEL_MAX_COUNT);
 
     if(openFileReadAll("C:\\Program Files (x86)\\NAMCO BANDAI Games\\DarkSouls\\"
                  "dvdbnd0.bhd5.extract\\map\\MapStudio\\m18_01_00_00.msb", &curFileBuff)) {
@@ -328,6 +328,8 @@ void doUI()
     auto& style = ImGui::GetStyle();
     const i32 menuBarHeight = io.FontDefault->FontSize + style.FramePadding.y * 2.0;
 
+    bool openGoto = false;
+
     // menu bar
     if(ImGui::BeginMainMenuBar()) {
         if(ImGui::BeginMenu("File")) {
@@ -355,6 +357,10 @@ void doUI()
             dataPanels.addNewPanel();
         }
 
+        if(ImGui::Button("Goto")) {
+            openGoto = true;
+        }
+
         ImGui::EndMainMenuBar();
     }
 
@@ -380,7 +386,7 @@ void doUI()
 
             const char* tabs[] = {
                 "Inspector",
-                "Script",
+                "Template",
                 "Output"
             };
 
@@ -389,18 +395,22 @@ void doUI()
             ImGui::Tabs("Inspector_tabs", tabs, IM_ARRAYSIZE(tabs), &selectedTab);
             ImGui::PopStyleVar(1);
 
+            ImGui::BeginChild("#tab_content", ImVec2(0, 0));
+
             switch(selectedTab) {
                 case 0:
                     toolsDoInspector(dataPanels.fileBuffer, dataPanels.fileBufferSize,
                                      dataPanels.selectionState);
                     break;
                 case 1:
-                    ImGui::Text("tab1 selected");
+                    toolsDoTemplate();
                     break;
                 case 2:
                     ImGui::Text("tab2 selected");
                     break;
             }
+
+            ImGui::EndChild();
 
         ImGui::SplitVEnd();
 
@@ -408,7 +418,27 @@ void doUI()
     ImGui::End();
     ImGui::PopStyleVar(2);
 
-    //ImGui::ShowDemoWindow();
+    static i32 gotoOffset = 0;
+    if(openGoto) {
+        ImGui::OpenPopup("Go to file offset");
+        gotoOffset = dataPanels.getSelectedInt();
+    }
+    if(ImGui::BeginPopupModal("Go to file offset", NULL, ImGuiWindowFlags_AlwaysAutoResize)) {
+        ImGui::Text("Go to");
+        ImGui::Separator();
+
+        ImGui::InputInt("##offset", &gotoOffset);
+
+        if(ImGui::Button("OK", ImVec2(120,0))) {
+            dataPanels.goTo(gotoOffset);
+            ImGui::CloseCurrentPopup();
+        }
+        ImGui::SameLine();
+        if(ImGui::Button("Cancel", ImVec2(120,0))) { ImGui::CloseCurrentPopup(); }
+        ImGui::EndPopup();
+    }
+
+    ImGui::ShowDemoWindow();
 }
 
 };

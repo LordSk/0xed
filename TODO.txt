@@ -1,0 +1,7 @@
+0xed TODO list
+
+# Block Template System
+- First implement small type blocks (i32, byte, char[], etc...)
+- Coloration of blocks inside panels
+- Arrays of said blocks
+- Structure of blocks (block type strutureT ?)

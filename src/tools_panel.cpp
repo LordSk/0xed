@@ -152,7 +152,7 @@ void toolsDoInspector(const u8* fileBuffer, const i64 fileBufferSize, const Sele
                            textOffset, "0x%llX", selection.selectEnd);
             ImGui::TextBox(frameColor, textColor, cellSize, align,
                            textOffset, "0x%llX",
-                           llabs(selection.selectEnd - selection.selectStart));
+                           llabs(selection.selectEnd - selection.selectStart) + 1);
         }
         else {
             ImGui::TextBox(frameColor, textColor, cellSize, align,
@@ -165,4 +165,20 @@ void toolsDoInspector(const u8* fileBuffer, const i64 fileBufferSize, const Sele
 
 
     ImGui::EndChild();
+}
+
+void toolsDoTemplate()
+{
+    ImGui::GetCurrentWindow()->ContentsRegionRect.Expand(-10);
+    ImRect winRect = ImGui::GetCurrentWindow()->Rect();
+    ImGui::BeginChild("#template_content", ImVec2(0, winRect.GetHeight() - 50));
+
+
+
+    ImGui::EndChild();
+
+    ImGui::Button("Int8"); ImGui::SameLine();
+    ImGui::Button("Int16"); ImGui::SameLine();
+    ImGui::Button("Int32"); ImGui::SameLine();
+    ImGui::Button("Int64"); ImGui::SameLine();
 }

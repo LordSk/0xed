@@ -65,33 +65,33 @@ void DataPanels::processMouseInput(ImRect winRect)
         switch(panelType[p]) {
             case PT_HEX:
                 selectionProcessMouseInput(p, mousePos, panelRect, columnWidth,
-                                           rowHeight, scrollCurrent, 1);
+                                           rowHeight, scrollCurrentLine, 1);
                 break;
             case PT_ASCII:
                 selectionProcessMouseInput(p, mousePos, panelRect, asciiCharWidth,
-                                           rowHeight, scrollCurrent, 1);
+                                           rowHeight, scrollCurrentLine, 1);
                 break;
             case PT_INT8:
             case PT_UINT8:
                 selectionProcessMouseInput(p, mousePos, panelRect, intColumnWidth * 1,
-                                           rowHeight, scrollCurrent, 1);
+                                           rowHeight, scrollCurrentLine, 1);
                 break;
             case PT_INT16:
             case PT_UINT16:
                 selectionProcessMouseInput(p, mousePos, panelRect, intColumnWidth * 2,
-                                           rowHeight, scrollCurrent, 2);
+                                           rowHeight, scrollCurrentLine, 2);
                 break;
             case PT_INT32:
             case PT_UINT32:
             case PT_FLOAT32:
                 selectionProcessMouseInput(p, mousePos, panelRect, intColumnWidth * 4,
-                                           rowHeight, scrollCurrent, 4);
+                                           rowHeight, scrollCurrentLine, 4);
                 break;
             case PT_INT64:
             case PT_UINT64:
             case PT_FLOAT64:
                 selectionProcessMouseInput(p, mousePos, panelRect, intColumnWidth * 8,
-                                           rowHeight, scrollCurrent, 8);
+                                           rowHeight, scrollCurrentLine, 8);
                 break;
         }
     }
@@ -178,7 +178,7 @@ void DataPanels::setFileBuffer(u8* buff, i64 buffSize)
     fileBuffer = buff;
     fileBufferSize = buffSize;
     selectionState = {};
-    scrollCurrent = 0;
+    scrollCurrentLine = 0;
 }
 
 void DataPanels::addNewPanel()
@@ -188,6 +188,25 @@ void DataPanels::addNewPanel()
     }
 
     panelType[panelCount++] = PT_HEX;
+}
+
+void DataPanels::goTo(i32 offset)
+{
+    if(offset >=0 && offset < fileBufferSize) {
+        scrollCurrentLine = offset / columnCount;
+    }
+}
+
+i32 DataPanels::getSelectedInt()
+{
+    if(selectionState.selectStart > -1) {
+        i64 selMin = min(selectionState.selectStart, selectionState.selectEnd);
+        i64 selMax = max(selectionState.selectStart, selectionState.selectEnd);
+        if((selMax - selMin + 1) == 4) {
+            return *(i32*)(fileBuffer + selMin);
+        }
+    }
+    return 0;
 }
 
 void DataPanels::calculatePanelWidth()
@@ -230,7 +249,7 @@ void DataPanels::doRowHeader(const ImRect& winRect)
     ImGui::RenderFrame(rowHeadBb.Min, rowHeadBb.Max, headerColor, false, 0);
 
     for(i64 i = 0; i < lineCount; ++i) {
-        u32 hex = toHexStr(((i + scrollCurrent) * columnCount) & 0xFF);
+        u32 hex = toHexStr(((i + scrollCurrentLine) * columnCount) & 0xFF);
 
         const char* label = (const char*)&hex;
         const ImVec2 label_size = ImGui::CalcTextSize(label, label+2);
@@ -274,7 +293,7 @@ void DataPanels::doUi()
     const ImRect& winRect = mainWindow->Rect();
 
 #if 1
-    ImGui::DoScrollbarVertical(&scrollCurrent,
+    ImGui::DoScrollbarVertical(&scrollCurrentLine,
                    (winRect.GetHeight() - columnHeaderHeight)/rowHeight, // page size (in lines)
                    fileBufferSize/columnCount + 2); // total lines (for last line visibility)
 
@@ -318,41 +337,41 @@ void DataPanels::doUi()
 
         switch(panelType[p]) {
             case PT_HEX:
-                doHexPanel("#hex_panel", scrollCurrent);
+                doHexPanel("#hex_panel", scrollCurrentLine);
                 break;
             case PT_ASCII:
-                doAsciiPanel("#ascii_panel", scrollCurrent);
+                doAsciiPanel("#ascii_panel", scrollCurrentLine);
                 break;
             case PT_INT8:
-                doFormatPanel<i8>("#int8_panel", scrollCurrent, "%d");
+                doFormatPanel<i8>("#int8_panel", scrollCurrentLine, "%d");
                 break;
             case PT_UINT8:
-                doFormatPanel<u8>("#uint8_panel", scrollCurrent, "%u");
+                doFormatPanel<u8>("#uint8_panel", scrollCurrentLine, "%u");
                 break;
             case PT_INT16:
-                doFormatPanel<i16>("#int16_panel", scrollCurrent, "%d");
+                doFormatPanel<i16>("#int16_panel", scrollCurrentLine, "%d");
                 break;
             case PT_UINT16:
-                doFormatPanel<u16>("#uint16_panel", scrollCurrent, "%u");
+                doFormatPanel<u16>("#uint16_panel", scrollCurrentLine, "%u");
                 break;
             case PT_INT32:
-                doFormatPanel<i32>("#int32_panel", scrollCurrent, "%d");
+                doFormatPanel<i32>("#int32_panel", scrollCurrentLine, "%d");
                 break;
             case PT_UINT32:
-                doFormatPanel<u32>("#uint32_panel", scrollCurrent, "%u");
+                doFormatPanel<u32>("#uint32_panel", scrollCurrentLine, "%u");
                 break;
             case PT_INT64:
-                doFormatPanel<i64>("#int64_panel", scrollCurrent, "%lld");
+                doFormatPanel<i64>("#int64_panel", scrollCurrentLine, "%lld");
                 break;
             case PT_UINT64:
-                doFormatPanel<u64>("#uint64_panel", scrollCurrent, "%llu");
+                doFormatPanel<u64>("#uint64_panel", scrollCurrentLine, "%llu");
                 break;
             case PT_FLOAT32:
                 // TODO: color range to better see which values may be useful
-                doFormatPanel<f32>("#f32_panel", scrollCurrent, "%g");
+                doFormatPanel<f32>("#f32_panel", scrollCurrentLine, "%g");
                 break;
             case PT_FLOAT64:
-                doFormatPanel<f64>("#f64_panel", scrollCurrent, "%g");
+                doFormatPanel<f64>("#f64_panel", scrollCurrentLine, "%g");
                 break;
             default:
                 assert(0);

@@ -42,7 +42,7 @@ struct DataPanels
 
     u8* fileBuffer;
     i64 fileBufferSize;
-    i64 scrollCurrent = 0;
+    i64 scrollCurrentLine = 0;
 
     const i32 columnCount = 16; // NOTE: has to be power of 2
     const i32 columnWidth = 22;
@@ -75,6 +75,8 @@ struct DataPanels
     DataPanels();
     void setFileBuffer(u8* buff, i64 buffSize);
     void addNewPanel();
+    void goTo(i32 offset);
+    i32 getSelectedInt();
 
     void calculatePanelWidth();
     void doRowHeader(const ImRect& winRect);

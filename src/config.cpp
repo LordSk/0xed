@@ -60,6 +60,12 @@ bool loadConfigFile(const char* path, Config* config)
     parseLine(cursor, 1, "maximized=%d", &config->windowMaximized);
     parseLine(cursor, 1, "panelCount=%d", &config->panelCount);
 
+    config->windowMonitor = clamp(config->windowMonitor, 0, 1);
+    config->windowMaximized = clamp(config->windowMaximized, 0, 1);
+    config->panelCount = clamp(config->panelCount, 1, 10);
+    config->windowWidth = max(100, config->windowWidth);
+    config->windowHeight = max(100, config->windowHeight);
+
     return true;
 }
 
