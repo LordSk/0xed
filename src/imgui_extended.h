@@ -12,8 +12,10 @@ f32 GetComboHeight();
 
 void Tabs(const char* label, const char** names, const i32 count, i32* selected);
 
-void SplitVBeginLeft(const char* label, f32* leftWidth, f32* rightWidth, const i32 separatorWidth = 6);
-void SplitVBeginRight(const char* label, f32* leftWidth, f32* rightWidth, const i32 separatorWidth = 6);
+void SplitVBeginLeft(const char* label, const ImRect& rect, f32* leftWidth, f32* rightWidth,
+                     const i32 separatorWidth = 6);
+void SplitVBeginRight(const char* label, const ImRect& rect, f32* leftWidth, f32* rightWidth,
+                      const i32 separatorWidth = 6);
 void SplitVEnd();
 
 bool IsAnyPopupOpen();

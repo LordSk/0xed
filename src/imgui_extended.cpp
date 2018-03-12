@@ -157,17 +157,13 @@ void Tabs(const char* label, const char** names, const i32 count, i32* selected)
     }
 }
 
-void SplitVBeginLeft(const char* label, f32* leftWidth, f32* rightWidth, const i32 separatorWidth)
+void SplitVBeginLeft(const char* label, const ImRect& rect, f32* leftWidth, f32* rightWidth,
+                     const i32 separatorWidth)
 {
     assert(leftWidth || rightWidth);
 
-    PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(0, 0));
-
-    ImGuiWindow* window = GetCurrentWindow();
-    ImVec2 size(separatorWidth, window->Rect().GetHeight());
-
-    const f32 winWidth = window->Rect().GetWidth();
-
+    ImVec2 size(separatorWidth, rect.GetHeight());
+    const f32 winWidth = rect.GetWidth();
 
     f32 childLeftWidth = 100, childRightWidth = 100;
     if(leftWidth) {
@@ -179,10 +175,18 @@ void SplitVBeginLeft(const char* label, f32* leftWidth, f32* rightWidth, const i
         childLeftWidth = winWidth - separatorWidth - childRightWidth;
     }
 
-    ImVec2 pos = window->Rect().Min + ImVec2(childLeftWidth, 0);
+    SetNextWindowSize(rect.Max - rect.Min);
+    SetNextWindowPos(rect.Min);
+    Begin("##bg_separatorwindow", NULL, ImGuiWindowFlags_NoMove|ImGuiWindowFlags_NoResize|
+          ImGuiWindowFlags_NoTitleBar|ImGuiWindowFlags_NoBringToFrontOnFocus|
+          ImGuiWindowFlags_NoFocusOnAppearing);
+
+    BringWindowToBack(GetCurrentWindow());
+
+    ImVec2 pos = rect.Min + ImVec2(childLeftWidth, 0);
     ImRect bb(pos, pos + size);
 
-    const ImGuiID id = window->GetID(leftWidth ? leftWidth : rightWidth);
+    const ImGuiID id = GetCurrentWindow()->GetID(leftWidth ? leftWidth : rightWidth);
     bool held = false;
     bool hovered = false;
     ButtonBehavior(bb, id, &hovered, &held);
@@ -224,39 +228,47 @@ void SplitVBeginLeft(const char* label, f32* leftWidth, f32* rightWidth, const i
         textColor = 0xff000000;
     }
     RenderFrame(bb.Min, bb.Max, buttonColor, true);
+    End();
 
-    BeginChild(label, ImVec2(childLeftWidth, -1), false/*,
-               ImGuiWindowFlags_NoScrollbar|ImGuiWindowFlags_NoScrollWithMouse*/);
+    PushStyleVar(ImGuiStyleVar_WindowRounding, 0.0f);
+    PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
+    PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0);
+    SetNextWindowSize(ImVec2(childLeftWidth, rect.GetHeight()));
+    SetNextWindowPos(rect.Min);
+    Begin(label, NULL, ImGuiWindowFlags_NoMove|ImGuiWindowFlags_NoResize|
+          ImGuiWindowFlags_NoTitleBar|ImGuiWindowFlags_NoBringToFrontOnFocus);
+
 }
 
-void SplitVBeginRight(const char* label, f32* leftWidth, f32* rightWidth, const i32 separatorWidth)
+void SplitVBeginRight(const char* label, const ImRect& rect, f32* leftWidth, f32* rightWidth,
+                      const i32 separatorWidth)
 {
     assert(leftWidth || rightWidth);
 
-    EndChild();
-
-    ImGuiWindow* window = GetCurrentWindow();
-    SameLine();
-    ItemSize(ImVec2(separatorWidth, window->Rect().GetHeight()));
-    SameLine();
-
+    End();
+    PopStyleVar(3);
 
     f32 childRightWidth = 100;
     if(leftWidth) {
-        childRightWidth = window->Rect().GetWidth() - separatorWidth - *leftWidth;
+        childRightWidth = rect.GetWidth() - separatorWidth - *leftWidth;
     }
     else {
         childRightWidth = *rightWidth;
     }
 
-    BeginChild(label, ImVec2(childRightWidth, -1), false/*,
-               ImGuiWindowFlags_NoScrollbar|ImGuiWindowFlags_NoScrollWithMouse*/);
+    PushStyleVar(ImGuiStyleVar_WindowRounding, 0.0f);
+    PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
+    PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0);
+    SetNextWindowSize(ImVec2(childRightWidth, rect.GetHeight()));
+    SetNextWindowPos(rect.Min + ImVec2(rect.GetWidth() - childRightWidth, 0));
+    Begin(label, NULL, ImGuiWindowFlags_NoMove|ImGuiWindowFlags_NoResize|
+          ImGuiWindowFlags_NoTitleBar|ImGuiWindowFlags_NoBringToFrontOnFocus);
 }
 
 void SplitVEnd()
 {
-    EndChild();
-    PopStyleVar(1);
+    End();
+    PopStyleVar(3);
 }
 
 bool IsAnyPopupOpen()

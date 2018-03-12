@@ -4,54 +4,63 @@
 #include "window.h"
 #include "imgui.h"
 #include "imgui_sdl2_setup.h"
-#include "imgui_extended.h"
-#include "data_panel.h"
-#include "tools_panel.h"
-#include "config.h"
 
-#define GL3W_IMPLEMENTATION
-#include "gl3w.h"
-
-#define NOC_FILE_DIALOG_IMPLEMENTATION
-#define NOC_FILE_DIALOG_WIN32
-#include "noc_file_dialog.h"
-
-#define CONFIG_FILENAME "0xed_config.ini"
-#define WINDOW_BASE_TITLE "0xed"
-
-struct AppWindow {
-
-SDL_Window* window;
-SDL_GLContext glContext;
-bool running = true;
-
-Config config;
-
-ImGuiGLSetup* imguiSetup;
-
-FileBuffer curFileBuff;
-DataPanels dataPanels;
-
-i32 winX;
-i32 winY;
-i32 winWidth;
-i32 winHeight;
-i32 winBeforeMaxWidth;
-i32 winBeforeMaxHeight;
-i32 globalMouseX = -1;
-i32 globalMouseY = -1;
-u32 globalMouseState = 0;
-bool focused = true;
-
-ImFont* fontTimes;
-ImFont* fontMono;
-
-f32 toolsPanelWidth = 400;
-
-bool init()
+void loadWindowIcon(SDL_Window* window)
 {
-    loadConfigFile(CONFIG_FILENAME, &config);
+#ifdef _WIN32
+    const unsigned int mask_r = 0x00ff0000;
+    const unsigned int mask_g = 0x0000ff00;
+    const unsigned int mask_b = 0x000000ff;
+    const unsigned int mask_a = 0xff000000;
+    const int res_id = 101;
+    const int size = 32;
+    const int bpp = 32;
 
+    HICON icon = (HICON)LoadImage(
+        GetModuleHandle(NULL),
+        MAKEINTRESOURCE(res_id),
+        IMAGE_ICON,
+        size, size,
+        LR_SHARED
+    );
+
+    if(icon) {
+        ICONINFO ici;
+
+        if(GetIconInfo(icon, &ici)) {
+            HDC dc = CreateCompatibleDC(NULL);
+
+            if(dc) {
+                SDL_Surface* surface = SDL_CreateRGBSurface(0, size, size, bpp, mask_r,
+                                                            mask_g, mask_b, mask_a);
+
+                if(surface) {
+                    BITMAPINFO bmi;
+                    bmi.bmiHeader.biSize = sizeof(BITMAPINFOHEADER);
+                    bmi.bmiHeader.biWidth = size;
+                    bmi.bmiHeader.biHeight = -size;
+                    bmi.bmiHeader.biPlanes = 1;
+                    bmi.bmiHeader.biBitCount = bpp;
+                    bmi.bmiHeader.biCompression = BI_RGB;
+                    bmi.bmiHeader.biSizeImage = 0;
+
+                    SelectObject(dc, ici.hbmColor);
+                    GetDIBits(dc, ici.hbmColor, 0, size, surface->pixels, &bmi, DIB_RGB_COLORS);
+                    SDL_SetWindowIcon(window, surface);
+                    SDL_FreeSurface(surface);
+                }
+                DeleteDC(dc);
+            }
+            DeleteObject(ici.hbmColor);
+            DeleteObject(ici.hbmMask);
+        }
+        DestroyIcon(icon);
+    }
+#endif
+}
+
+bool AppWindow::init(const char* title, i32 width, i32 height, bool maximized, const char* imgui_ini)
+{
     SDL_SetHint(SDL_HINT_VIDEO_HIGHDPI_DISABLED, "0");
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_FLAGS, SDL_GL_CONTEXT_FORWARD_COMPATIBLE_FLAG);
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
@@ -59,26 +68,28 @@ bool init()
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 3);
     SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
 
-    window = SDL_CreateWindow(WINDOW_BASE_TITLE,
+    sdlWin = SDL_CreateWindow(title,
                               SDL_WINDOWPOS_CENTERED,
                               SDL_WINDOWPOS_CENTERED,
-                              config.windowWidth, config.windowHeight,
+                              width, height,
                               SDL_WINDOW_OPENGL|SDL_WINDOW_SHOWN|
                               SDL_WINDOW_ALLOW_HIGHDPI|
                               SDL_WINDOW_RESIZABLE|
-                              (config.windowMaximized ? SDL_WINDOW_MAXIMIZED : 0));
+                              (maximized ? SDL_WINDOW_MAXIMIZED : 0));
 
-    winWidth = config.windowWidth;
-    winHeight = config.windowHeight;
+    winWidth = width;
+    winHeight = height;
     winBeforeMaxWidth = winWidth;
     winBeforeMaxHeight = winHeight;
 
-    if(!window) {
+    if(!sdlWin) {
         LOG("ERROR: can't create SDL2 window (%s)",  SDL_GetError());
         return false;
     }
 
-    glContext = SDL_GL_CreateContext(window);
+    loadWindowIcon(sdlWin);
+
+    glContext = SDL_GL_CreateContext(sdlWin);
     if(!glContext) {
         LOG("ERROR: can't create OpenGL 3.3 context (%s)",  SDL_GetError());
         return false;
@@ -98,9 +109,9 @@ bool init()
     }
 
     glClearColor(0.15f, 0.15f, 0.15f, 1.f);
-    glViewport(0, 0, WINDOW_WIDTH, WINDOW_HEIGHT);
+    glViewport(0, 0, width, height);
 
-    imguiSetup = imguiInit(WINDOW_WIDTH, WINDOW_HEIGHT, "0xed_imgui.ini");
+    imguiSetup = imguiInit(width, height, imgui_ini);
     assert(imguiSetup);
 
     // TODO: load multiple fonts at once
@@ -109,33 +120,23 @@ bool init()
     fontMono = imguiLoadFont("C:\\Windows\\Fonts\\consola.ttf", 15);
     ImGui::GetIO().FontDefault = fontTimes;
 
-    dataPanels.fileBuffer = 0;
-    dataPanels.fileBufferSize = 0;
-    dataPanels.fontMono = fontMono;
-    dataPanels.panelCount = clamp(config.panelCount, 1, PANEL_MAX_COUNT);
-
-    if(openFileReadAll("C:\\Program Files (x86)\\NAMCO BANDAI Games\\DarkSouls\\"
-                 "dvdbnd0.bhd5.extract\\map\\MapStudio\\m18_01_00_00.msb", &curFileBuff)) {
-        dataPanels.setFileBuffer(curFileBuff.data, curFileBuff.size);
-    }
-
     return true;
 }
 
-i32 run()
+void AppWindow::loop()
 {
     u32 eventTick = SDL_GetTicks();
 
     while(running) {
         u32 frameStart = SDL_GetTicks();
 
-        computeGlobalMouseState();
+        _computeGlobalMouseState();
 
         i32 eventCount = 0;
         SDL_Event event;
         while(SDL_PollEvent(&event)) {
             eventCount++;
-            handleEvent(event);
+            _handleEvent(event);
             imguiHandleInput(imguiSetup, event);
         }
 
@@ -158,8 +159,20 @@ i32 run()
         }
 
         if(focused) {
-            update();
-            SDL_GL_SwapWindow(window);
+            // update
+            SDL_GL_GetDrawableSize(sdlWin, &winWidth, &winHeight);
+            ImGui::GetIO().DisplaySize = ImVec2(winWidth, winHeight);
+            imguiUpdate(imguiSetup, 0);
+
+            assert(callbackUpdate);
+            callbackUpdate();
+
+            glViewport(0, 0, winWidth, winHeight);
+            glClear(GL_COLOR_BUFFER_BIT);
+
+            ImGui::Render();
+
+            SDL_GL_SwapWindow(sdlWin);
 
             // limit framerate
             u32 frameTime = SDL_GetTicks() - frameStart;
@@ -168,49 +181,23 @@ i32 run()
             }
         }
     }
-
-    cleanUp();
-
-    return 0;
 }
 
-void cleanUp()
+void AppWindow::cleanUp()
 {
-    u32 winFlags = SDL_GetWindowFlags(window);
-
-    config.windowMonitor = 0;
-    config.windowMaximized = winFlags & SDL_WINDOW_MAXIMIZED ? 1:0;
-    if(config.windowMaximized) {
-        config.windowWidth = winBeforeMaxWidth;
-        config.windowHeight = winBeforeMaxHeight;
-    }
-    else {
-        config.windowWidth = winWidth;
-        config.windowHeight = winHeight;
-    }
-
-    config.panelCount = dataPanels.panelCount;
-
-    saveConfigFile(CONFIG_FILENAME, config);
-
     imguiDeinit(imguiSetup);
     SDL_GL_DeleteContext(glContext);
-    SDL_DestroyWindow(window);
-
-    if(curFileBuff.data) {
-        free(curFileBuff.data);
-        curFileBuff.data = nullptr;
-    }
+    SDL_DestroyWindow(sdlWin);
 }
 
-void computeGlobalMouseState()
+void AppWindow::_computeGlobalMouseState()
 {
     if(!focused) {
         return;
     }
 
     i32 winx, winy;
-    SDL_GetWindowPosition(window, &winx, &winy);
+    SDL_GetWindowPosition(sdlWin, &winx, &winy);
     i32 gmx, gmy;
     u32 gmstate = SDL_GetGlobalMouseState(&gmx, &gmy);
 
@@ -250,7 +237,7 @@ void computeGlobalMouseState()
     //LOG("mx=%d my=%d", gmx, gmy);
 }
 
-void handleEvent(const SDL_Event& event)
+void AppWindow::_handleEvent(const SDL_Event& event)
 {
     if(event.type == SDL_QUIT) {
         running = false;
@@ -282,175 +269,6 @@ void handleEvent(const SDL_Event& event)
         }
     }
 
-    if(event.type == SDL_DROPFILE) {
-        char* droppedFilepath = event.drop.file;
-
-        if(openFileReadAll(droppedFilepath, &curFileBuff)) {
-            dataPanels.setFileBuffer(curFileBuff.data, curFileBuff.size);
-        }
-
-        SDL_free(droppedFilepath);
-        return;
-    }
-}
-
-void update()
-{
-    ImGui::GetIO().DisplaySize = ImVec2(winWidth, winHeight);
-
-    imguiUpdate(imguiSetup, 0);
-
-    doUI();
-
-    glViewport(0, 0, winWidth, winHeight);
-    glClear(GL_COLOR_BUFFER_BIT);
-
-    ImGui::Render();
-}
-
-
-static void setStyleLight()
-{
-    ImGui::StyleColorsLight();
-    ImGuiStyle& style = ImGui::GetStyle();
-    style.WindowBorderSize = 1.0f;
-    style.FrameBorderSize = 1.0f;
-    style.PopupBorderSize = 1.0f;
-}
-
-void doUI()
-{
-    setStyleLight();
-
-    SDL_GL_GetDrawableSize(window, &winWidth, &winHeight);
-
-    ImGuiIO& io = ImGui::GetIO();
-    auto& style = ImGui::GetStyle();
-    const i32 menuBarHeight = io.FontDefault->FontSize + style.FramePadding.y * 2.0;
-
-    bool openGoto = false;
-
-    // menu bar
-    if(ImGui::BeginMainMenuBar()) {
-        if(ImGui::BeginMenu("File")) {
-            if(ImGui::MenuItem("Open", "CTRL+O")) {
-                const char* filepath = noc_file_dialog_open(NOC_FILE_DIALOG_OPEN, "*", "", "");
-                if(filepath) {
-                    if(openFileReadAll(filepath, &curFileBuff)) {
-                        dataPanels.setFileBuffer(curFileBuff.data, curFileBuff.size);
-                    }
-                }
-            }
-            if(ImGui::MenuItem("Exit", "CTRL+X")) {
-                running = false;
-            }
-            ImGui::EndMenu();
-        }
-        if(ImGui::BeginMenu("About")) {
-            if(ImGui::MenuItem("About 0xed", "")) {
-
-            }
-            ImGui::EndMenu();
-        }
-
-        if(ImGui::Button("Add panel")) {
-            dataPanels.addNewPanel();
-        }
-
-        if(ImGui::Button("Goto")) {
-            openGoto = true;
-        }
-
-        ImGui::EndMainMenuBar();
-    }
-
-    // TODO: status bar?
-    // MAIN FRAME BEGIN
-    ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0.0f);
-    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
-    const ImVec2 mainFrameSize(winWidth, winHeight - menuBarHeight);
-    ImGui::SetNextWindowSize(mainFrameSize);
-    ImGui::SetNextWindowPos(ImVec2(0, menuBarHeight));
-    ImGui::SetNextWindowSizeConstraints(mainFrameSize, mainFrameSize);
-    ImGui::Begin("Mainframe", nullptr,
-                 ImGuiWindowFlags_NoMove|ImGuiWindowFlags_NoResize|
-                 ImGuiWindowFlags_NoTitleBar|ImGuiWindowFlags_NoBringToFrontOnFocus/*|
-                 ImGuiWindowFlags_NoScrollbar|ImGuiWindowFlags_NoScrollWithMouse*/);
-
-        // START MAIN LEFT (DATA PANELS)
-        ImGui::SplitVBeginLeft("Mainframe_left", nullptr, &toolsPanelWidth);
-
-            dataPanels.doUi();
-
-        ImGui::SplitVBeginRight("Mainframe_right", nullptr, &toolsPanelWidth);
-
-            const char* tabs[] = {
-                "Inspector",
-                "Template",
-                "Output"
-            };
-
-            static i32 selectedTab = 0;
-            ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(15, 5));
-            ImGui::Tabs("Inspector_tabs", tabs, IM_ARRAYSIZE(tabs), &selectedTab);
-            ImGui::PopStyleVar(1);
-
-            ImGui::BeginChild("#tab_content", ImVec2(0, 0));
-
-            switch(selectedTab) {
-                case 0:
-                    toolsDoInspector(dataPanels.fileBuffer, dataPanels.fileBufferSize,
-                                     dataPanels.selectionState);
-                    break;
-                case 1:
-                    toolsDoTemplate();
-                    break;
-                case 2:
-                    ImGui::Text("tab2 selected");
-                    break;
-            }
-
-            ImGui::EndChild();
-
-        ImGui::SplitVEnd();
-
-    // MAIN FRAME END
-    ImGui::End();
-    ImGui::PopStyleVar(2);
-
-    static i32 gotoOffset = 0;
-    if(openGoto) {
-        ImGui::OpenPopup("Go to file offset");
-        gotoOffset = dataPanels.getSelectedInt();
-    }
-    if(ImGui::BeginPopupModal("Go to file offset", NULL, ImGuiWindowFlags_AlwaysAutoResize)) {
-        ImGui::Text("Go to");
-        ImGui::Separator();
-
-        ImGui::InputInt("##offset", &gotoOffset);
-
-        if(ImGui::Button("OK", ImVec2(120,0))) {
-            dataPanels.goTo(gotoOffset);
-            ImGui::CloseCurrentPopup();
-        }
-        ImGui::SameLine();
-        if(ImGui::Button("Cancel", ImVec2(120,0))) { ImGui::CloseCurrentPopup(); }
-        ImGui::EndPopup();
-    }
-
-    ImGui::ShowDemoWindow();
-}
-
-};
-
-static AppWindow app;
-
-bool applicationInit()
-{
-    return app.init();
-}
-
-i32 applicationRun()
-{
-    return app.run();
+    assert(callbackEvent);
+    callbackEvent(event);
 }

@@ -91,6 +91,7 @@ project "0xed"
 		"src/**.h",
 		"src/**.c",
 		"src/**.cpp",
+        "src/0xed.rc",
 	}
 	
 	excludes {
