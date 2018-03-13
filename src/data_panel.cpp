@@ -1,4 +1,5 @@
 #include "data_panel.h"
+#include "bricks.h"
 #include "imgui_extended.h"
 #include <stdlib.h>
 #include <float.h>
@@ -18,6 +19,8 @@ constexpr char* panelComboItems[] = {
 
     "Float32",
     "Float64",
+
+    "Bricks"
 };
 
 // https://johnnylee-sde.github.io/Fast-unsigned-integer-to-hex-string/
@@ -99,9 +102,7 @@ void DataPanels::processMouseInput(ImRect winRect)
 
     // clear selection
     if(mouseClickedOutsidePanel || io.MouseClicked[1]) {
-        selectionState.selectStart = -1;
-        selectionState.selectEnd = -1;
-        selectionState.lockedPanelId = -1;
+        deselect();
     }
 }
 
@@ -166,12 +167,27 @@ bool DataPanels::selectionInSelectionRange(i64 dataOffset)
     return dataOffset >= selMin && dataOffset <= selMax;
 }
 
+bool DataPanels::selectionIsEmpty()
+{
+    if(selectionState.selectStart < 0) return true;
+    return false;
+}
+
+void DataPanels::deselect()
+{
+    selectionState.selectStart = -1;
+    selectionState.selectEnd = -1;
+    selectionState.lockedPanelId = -1;
+}
+
 DataPanels::DataPanels()
 {
     memset(panelType, 0, sizeof(panelType));
     panelType[0] = PT_HEX;
     panelType[1] = PT_ASCII;
     //panelType[2] = PT_INT32;
+
+    panelColorDisplay[0] = ColorDisplay::BRICK_COLOR;
 }
 
 void DataPanels::setFileBuffer(u8* buff, i64 buffSize)
@@ -341,7 +357,7 @@ void DataPanels::doUi()
 
         switch(panelType[p]) {
             case PT_HEX:
-                doHexPanel("#hex_panel", scrollCurrentLine);
+                doHexPanel("#hex_panel", scrollCurrentLine, panelColorDisplay[p]);
                 break;
             case PT_ASCII:
                 doAsciiPanel("#ascii_panel", scrollCurrentLine);
@@ -405,7 +421,7 @@ void DataPanels::doUi()
 
 }
 
-void DataPanels::doHexPanel(const char* label, const i32 startLine)
+void DataPanels::doHexPanel(const char* label, const i32 startLine, ColorDisplay colorDisplay)
 {
     ImGuiWindow* window = ImGui::GetCurrentWindow();
     ImRect panelRect = window->Rect();
@@ -456,7 +472,19 @@ void DataPanels::doHexPanel(const char* label, const i32 startLine)
         u8 val = fileBuffer[dataOffset];
         u32 hex = toHexStr(val);
 
-        f32 bgColor = val/255.f * 0.7 + 0.3;
+        ImU32 frameColor = 0xffffffff;
+        if(colorDisplay == ColorDisplay::GRAY_SCALE) {
+            f32 bgColor = val/255.f * 0.7 + 0.3;
+            frameColor = ImGui::ColorConvertFloat4ToU32(ImVec4(bgColor, bgColor, bgColor, 1.0f));
+        }
+        else if(colorDisplay == ColorDisplay::BRICK_COLOR) {
+            assert(brickWall);
+            const Brick* b = brickWall->getBrick(dataOffset);
+            if(b) {
+                frameColor = b->color;
+            }
+        }
+
         constexpr f32 textColor = 0.0f;
 
         const char* label = (const char*)&hex;
@@ -478,7 +506,6 @@ void DataPanels::doHexPanel(const char* label, const i32 startLine)
             ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(textColor, textColor, textColor, 1));
         }
         else {
-            const ImU32 frameColor = ImGui::ColorConvertFloat4ToU32(ImVec4(bgColor, bgColor, bgColor, 1));
             ImGui::RenderFrame(bb.Min, bb.Max, frameColor, false, 0);
             ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(textColor, textColor, textColor, 1));
         }

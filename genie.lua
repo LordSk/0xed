@@ -43,7 +43,8 @@ solution "0xed solution"
 	targetdir(BUILD_DIR)
 	
 	includedirs {
-		"src"
+		"src",
+		SDL2_include,
 	}
 	
 	links {
@@ -56,7 +57,11 @@ solution "0xed solution"
 		"version",
 		"ws2_32",
 		"advapi32",
-        "comdlg32" -- GetOpenFileName 
+        "comdlg32", -- GetOpenFileName 
+		"gdi32",
+		"glu32",
+		"opengl32",
+		SDL2_lib,
 	}
 	
 	flags {
@@ -84,7 +89,7 @@ solution "0xed solution"
 
 project "0xed"
 	kind "WindowedApp" -- doesnt do anything?
-
+	
 	configuration {}
 	
 	files {
@@ -92,21 +97,6 @@ project "0xed"
 		"src/**.c",
 		"src/**.cpp",
         "src/0xed.rc",
-	}
-	
-	excludes {
-		"src/overview.c"
-	}
-	
-	includedirs {
-		SDL2_include,
-	}
-	
-	links {
-		"gdi32",
-		"glu32",
-		"opengl32",
-		SDL2_lib,
 	}
     
     linkoptions{ "/subsystem:windows" }

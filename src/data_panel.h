@@ -32,17 +32,27 @@ enum PanelTypes {
 
     PT_FLOAT32,
     PT_FLOAT64,
+
+    PT_BRICKS,
 };
 
 struct DataPanels
 {
+    enum class ColorDisplay: i32 {
+        GRAY_SCALE = 0, // default
+        PLAIN,
+        BRICK_COLOR
+    };
+
     f32 panelRectWidth[PANEL_MAX_COUNT];
     i32 panelType[PANEL_MAX_COUNT];
+    ColorDisplay panelColorDisplay[PANEL_MAX_COUNT];
     i32 panelCount = 2;
 
     u8* fileBuffer;
     i64 fileBufferSize;
     i64 scrollCurrentLine = 0;
+    struct BrickWall* brickWall = nullptr;
 
     const i32 columnCount = 16; // NOTE: has to be power of 2
     const i32 columnWidth = 22;
@@ -71,6 +81,8 @@ struct DataPanels
                                const i32 startLine, const i32 hoverLen);
     inline bool selectionInHoverRange(i64 dataOffset);
     inline bool selectionInSelectionRange(i64 dataOffset);
+    bool selectionIsEmpty();
+    void deselect();
 
     DataPanels();
     void setFileBuffer(u8* buff, i64 buffSize);
@@ -83,7 +95,7 @@ struct DataPanels
 
     void doUi();
 
-    void doHexPanel(const char* label, const i32 startLine);
+    void doHexPanel(const char* label, const i32 startLine, ColorDisplay colorDisplay);
     void doAsciiPanel(const char* label, const i32 startLine);
 
     template<typename T>

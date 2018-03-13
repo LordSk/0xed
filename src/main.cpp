@@ -9,6 +9,8 @@
 #include "data_panel.h"
 #include "tools_panel.h"
 #include "config.h"
+#include "utils.h"
+#include "bricks.h"
 
 #define GL3W_IMPLEMENTATION
 #include "gl3w.h"
@@ -20,14 +22,21 @@
 #define CONFIG_FILENAME "0xed_config.ini"
 #define WINDOW_BASE_TITLE "0xed"
 
+#define POPUP_BRICK_ADD "Add brick"
+
 struct Application {
 
 AppWindow win;
+Config config;
 FileBuffer curFileBuff;
 DataPanels dataPanels;
-Config config;
+BrickWall brickWall;
 
 f32 toolsPanelWidth = 400;
+
+bool popupBrickWantOpen = false;
+intptr_t popupBrickSelStart;
+i64 popupBrickSelLength;
 
 bool init()
 {
@@ -49,6 +58,7 @@ bool init()
     dataPanels.fileBufferSize = 0;
     dataPanels.fontMono = win.fontMono;
     dataPanels.panelCount = clamp(config.panelCount, 1, PANEL_MAX_COUNT);
+    dataPanels.brickWall = &brickWall;
 
     if(openFileReadAll("C:\\Prog\\Projets\\sacred_remake\\sacred_data\\mixed.pak", &curFileBuff)) {
         dataPanels.setFileBuffer(curFileBuff.data, curFileBuff.size);
@@ -91,6 +101,11 @@ i32 run()
     return 0;
 }
 
+void update()
+{
+    doUI();
+}
+
 void handleEvent(const SDL_Event& event)
 {
     if(event.type == SDL_DROPFILE) {
@@ -103,11 +118,26 @@ void handleEvent(const SDL_Event& event)
         SDL_free(droppedFilepath);
         return;
     }
+
+    if(event.type == SDL_KEYDOWN) {
+        switch(event.key.keysym.sym) {
+            case SDLK_b:
+                userTryAddBrick();
+                break;
+        }
+        return;
+    }
 }
 
-void update()
+void userTryAddBrick()
 {
-    doUI();
+    if(dataPanels.selectionIsEmpty()) return;
+    intptr_t selMin = min(dataPanels.selectionState.selectStart, dataPanels.selectionState.selectEnd);
+    intptr_t selMax = max(dataPanels.selectionState.selectStart, dataPanels.selectionState.selectEnd);
+    popupBrickSelStart = selMin;
+    popupBrickSelLength = selMax - selMin + 1;
+    popupBrickWantOpen = true;
+    dataPanels.deselect();
 }
 
 static void setStyleLight()
@@ -221,6 +251,13 @@ void doUI()
         if(ImGui::Button("Cancel", ImVec2(120,0))) { ImGui::CloseCurrentPopup(); }
         ImGui::EndPopup();
     }
+
+    if(popupBrickWantOpen) {
+        popupBrickWantOpen = false;
+        ImGui::OpenPopup(POPUP_BRICK_ADD);
+    }
+
+    ui_brickPopup(POPUP_BRICK_ADD, popupBrickSelStart, popupBrickSelLength, &brickWall);
 
     ImGui::ShowDemoWindow();
 }
