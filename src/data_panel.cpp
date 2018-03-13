@@ -34,6 +34,7 @@ inline u32 toHexStr(u8 val)
 void DataPanels::processMouseInput(ImRect winRect)
 {
     winRect.Min.y += ImGui::GetComboHeight();
+    winRect.Min.x += panelSpacing;
     winRect.Max.x -= ImGui::GetStyle().ScrollbarSize;
 
     ImGuiIO& io = ImGui::GetIO();
@@ -304,9 +305,12 @@ void DataPanels::doUi()
     clipRect.Max.x -= ImGui::GetStyle().ScrollbarSize;
     ImGui::PushClipRect(clipRect.Min, clipRect.Max, false);
 
+    ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(panelSpacing, 0));
+
     doRowHeader(winRect);
 
-    ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(panelSpacing, 0));
+    //ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(0, 0));
+    //ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, 0);
 
     i32 panelMarkedForDelete = -1;
 
@@ -488,9 +492,6 @@ void DataPanels::doHexPanel(const char* label, const i32 startLine)
 void DataPanels::doAsciiPanel(const char* label, const i32 startLine)
 {
     ImGuiWindow* window = ImGui::GetCurrentWindow();
-    if(window->SkipItems)
-        return;
-
     ImRect panelRect = window->Rect();
     ImVec2 winPos = window->DC.CursorPos;
     const ImGuiStyle& style = ImGui::GetStyle();

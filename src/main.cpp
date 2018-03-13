@@ -50,7 +50,7 @@ bool init()
     dataPanels.fontMono = win.fontMono;
     dataPanels.panelCount = clamp(config.panelCount, 1, PANEL_MAX_COUNT);
 
-    if(openFileReadAll("genmu.mp3", &curFileBuff)) {
+    if(openFileReadAll("C:\\Prog\\Projets\\sacred_remake\\sacred_data\\mixed.pak", &curFileBuff)) {
         dataPanels.setFileBuffer(curFileBuff.data, curFileBuff.size);
     }
 

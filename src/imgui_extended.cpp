@@ -175,6 +175,9 @@ void SplitVBeginLeft(const char* label, const ImRect& rect, f32* leftWidth, f32*
         childLeftWidth = winWidth - separatorWidth - childRightWidth;
     }
 
+    PushStyleVar(ImGuiStyleVar_WindowRounding, 0.0f);
+    PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
+    PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0);
     SetNextWindowSize(rect.Max - rect.Min);
     SetNextWindowPos(rect.Min);
     Begin("##bg_separatorwindow", NULL, ImGuiWindowFlags_NoMove|ImGuiWindowFlags_NoResize|
@@ -227,8 +230,11 @@ void SplitVBeginLeft(const char* label, const ImRect& rect, f32* leftWidth, f32*
         buttonColor = 0xffffc5a3;
         textColor = 0xff000000;
     }
+
     RenderFrame(bb.Min, bb.Max, buttonColor, true);
+
     End();
+    PopStyleVar(3); // separator window end
 
     PushStyleVar(ImGuiStyleVar_WindowRounding, 0.0f);
     PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
