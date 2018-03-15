@@ -38,7 +38,7 @@ enum PanelTypes {
 
 struct DataPanels
 {
-    enum class ColorDisplay: i32 {
+    enum ColorDisplay: i32 {
         GRAY_SCALE = 0, // default
         PLAIN,
         BRICK_COLOR
@@ -46,7 +46,7 @@ struct DataPanels
 
     f32 panelRectWidth[PANEL_MAX_COUNT];
     i32 panelType[PANEL_MAX_COUNT];
-    ColorDisplay panelColorDisplay[PANEL_MAX_COUNT];
+    ColorDisplay panelColorDisplay[PANEL_MAX_COUNT] = {0};
     i32 panelCount = 2;
 
     u8* fileBuffer;
@@ -61,6 +61,7 @@ struct DataPanels
     const i32 rowHeaderWidth = 32;
     const i32 panelSpacing = 10;
     const f32 panelCloseButtonWidth = 20;
+    const f32 panelColorButtonWidth = 30;
 
     const i32 asciiCharWidth = 14;
     const i32 intColumnWidth = 34;
@@ -96,7 +97,7 @@ struct DataPanels
     void doUi();
 
     void doHexPanel(const char* label, const i32 startLine, ColorDisplay colorDisplay);
-    void doAsciiPanel(const char* label, const i32 startLine);
+    void doAsciiPanel(const char* label, const i32 startLine, ColorDisplay colorDisplay);
 
     template<typename T>
     void doFormatPanel(const char* label, const i32 startLine, const char* format);

@@ -6,8 +6,9 @@
 template<typename T>
 struct Array: public std::vector<T>
 {
-    inline void push(T elem) {
+    inline T& push(T elem) {
         push_back(elem);
+        return *(end()-1);
     }
 
     inline void insert(i32 where, T elem) {
@@ -26,3 +27,23 @@ struct FileBuffer
 };
 
 bool openFileReadAll(const char* path, FileBuffer* out_fb);
+
+inline u32 colorAddAllChannels(u32 color, i32 add)
+{
+    i32 hoverR = color & 0xff;
+    i32 hoverG = (color & 0xff00) >> 8;
+    i32 hoverB = (color & 0xff0000) >> 16;
+    hoverR = clamp(hoverR + add, 0, 255);
+    hoverG = clamp(hoverG + add, 0, 255);
+    hoverB = clamp(hoverB + add, 0, 255);
+    return (0xff000000 | (hoverB << 16) | (hoverG << 8) | hoverR);
+}
+
+inline f32 colorAvgChannel(u32 color)
+{
+    i32 hoverR = color & 0xff;
+    i32 hoverG = (color & 0xff00) >> 8;
+    i32 hoverB = (color & 0xff0000) >> 16;
+    f32 total = hoverR + hoverG + hoverB;
+    return total / 3.0f;
+}

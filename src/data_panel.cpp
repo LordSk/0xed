@@ -186,8 +186,6 @@ DataPanels::DataPanels()
     panelType[0] = PT_HEX;
     panelType[1] = PT_ASCII;
     //panelType[2] = PT_INT32;
-
-    panelColorDisplay[0] = ColorDisplay::BRICK_COLOR;
 }
 
 void DataPanels::setFileBuffer(u8* buff, i64 buffSize)
@@ -340,12 +338,18 @@ void DataPanels::doUi()
 
         ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(0, 0));
 
-        ImGui::PushItemWidth(panelWidth - panelCloseButtonWidth);
+        ImGui::PushItemWidth(panelWidth - panelCloseButtonWidth - panelColorButtonWidth);
         ImGui::PushID(&panelType[p]);
         ImGui::Combo("##PanelType", &panelType[p], panelComboItems, IM_ARRAYSIZE(panelComboItems),
                      IM_ARRAYSIZE(panelComboItems));
         ImGui::PopID();
         ImGui::PopItemWidth();
+
+        ImGui::SameLine();
+
+        if(ImGui::Button("C", ImVec2(panelColorButtonWidth, 0))) {
+            panelColorDisplay[p] = (ColorDisplay)(((i32)panelColorDisplay[p] + 1) % 3);
+        }
 
         ImGui::SameLine();
 
@@ -360,7 +364,7 @@ void DataPanels::doUi()
                 doHexPanel("#hex_panel", scrollCurrentLine, panelColorDisplay[p]);
                 break;
             case PT_ASCII:
-                doAsciiPanel("#ascii_panel", scrollCurrentLine);
+                doAsciiPanel("#ascii_panel", scrollCurrentLine, panelColorDisplay[p]);
                 break;
             case PT_INT8:
                 doFormatPanel<i8>("#int8_panel", scrollCurrentLine, "%d");
@@ -473,15 +477,18 @@ void DataPanels::doHexPanel(const char* label, const i32 startLine, ColorDisplay
         u32 hex = toHexStr(val);
 
         ImU32 frameColor = 0xffffffff;
+        f32 geyScale = val/255.f * 0.7 + 0.3;
         if(colorDisplay == ColorDisplay::GRAY_SCALE) {
-            f32 bgColor = val/255.f * 0.7 + 0.3;
-            frameColor = ImGui::ColorConvertFloat4ToU32(ImVec4(bgColor, bgColor, bgColor, 1.0f));
+            frameColor = ImGui::ColorConvertFloat4ToU32(ImVec4(geyScale, geyScale, geyScale, 1.0f));
         }
         else if(colorDisplay == ColorDisplay::BRICK_COLOR) {
             assert(brickWall);
             const Brick* b = brickWall->getBrick(dataOffset);
             if(b) {
                 frameColor = b->color;
+            }
+            else {
+                frameColor = ImGui::ColorConvertFloat4ToU32(ImVec4(geyScale, geyScale, geyScale, 1.0f));
             }
         }
 
@@ -516,7 +523,7 @@ void DataPanels::doHexPanel(const char* label, const i32 startLine, ColorDisplay
     }
 }
 
-void DataPanels::doAsciiPanel(const char* label, const i32 startLine)
+void DataPanels::doAsciiPanel(const char* label, const i32 startLine, ColorDisplay colorDisplay)
 {
     ImGuiWindow* window = ImGui::GetCurrentWindow();
     ImRect panelRect = window->Rect();
@@ -558,7 +565,7 @@ void DataPanels::doAsciiPanel(const char* label, const i32 startLine)
 
         ImGui::PushStyleColor(ImGuiCol_Text, textColor);
 
-        if((u8)c < 0x20) {
+        if((u8)c < 0x20 && colorDisplay != ColorDisplay::PLAIN) {
             f32 greyOne = (f32)c / 0x19 * 0.2 + 0.8;
             ImU32 frameColor = ImGui::ColorConvertFloat4ToU32(ImVec4(greyOne, greyOne, greyOne, 1));
             if(isSelected) {
@@ -574,6 +581,14 @@ void DataPanels::doAsciiPanel(const char* label, const i32 startLine)
         }
         else {
             ImU32 frameColor = ImGui::GetColorU32(ImGuiCol_FrameBg);
+            if(colorDisplay == ColorDisplay::BRICK_COLOR) {
+                assert(brickWall);
+                const Brick* b = brickWall->getBrick(dataOff);
+                if(b) {
+                    frameColor = b->color;
+                }
+            }
+
             if(isSelected) {
                 frameColor = selectedFrameColor;
             }

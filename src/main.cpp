@@ -64,6 +64,56 @@ bool init()
         dataPanels.setFileBuffer(curFileBuff.data, curFileBuff.size);
     }
 
+    BrickStruct* bs = brickWall.addStruct("PakHeader", 0xffff0080);
+
+    Brick member;
+    member.type = BrickType::CHAR;
+    member.size = 3;
+    member.color = 0xff0000ff;
+    member.name.set("fileTypeStr");
+    bs->bricks.push(member);
+
+    member = {};
+    member.type = BrickType::UINT8;
+    member.size = 1;
+    member.color = 0xff00ffff;
+    member.name.set("version");
+    bs->bricks.push(member);
+
+    member = {};
+    member.type = BrickType::INT32;
+    member.size = 4;
+    member.color = 0xffffff00;
+    member.name.set("entryCount");
+    bs->bricks.push(member);
+
+    bs->computeSize();
+
+    bs = brickWall.addStruct("FileDesc", 0xffc5ff7f);
+
+    member = {};
+    member.type = BrickType::INT32;
+    member.size = 4;
+    member.color = 0xff7c7c7c;
+    member.name.set("type");
+    bs->bricks.push(member);
+
+    member = {};
+    member.type = BrickType::INT32;
+    member.size = 4;
+    member.color = 0xff8414bc;
+    member.name.set("offset");
+    bs->bricks.push(member);
+
+    member = {};
+    member.type = BrickType::INT32;
+    member.size = 4;
+    member.color = 0xffbc141d;
+    member.name.set("size");
+    bs->bricks.push(member);
+
+    bs->computeSize();
+
     return true;
 }
 
@@ -137,7 +187,6 @@ void userTryAddBrick()
     popupBrickSelStart = selMin;
     popupBrickSelLength = selMax - selMin + 1;
     popupBrickWantOpen = true;
-    dataPanels.deselect();
 }
 
 static void setStyleLight()
@@ -154,7 +203,7 @@ void doUI()
     setStyleLight();
 
     ImGuiIO& io = ImGui::GetIO();
-    auto& style = ImGui::GetStyle();
+    ImGuiStyle& style = ImGui::GetStyle();
     const i32 menuBarHeight = io.FontDefault->FontSize + style.FramePadding.y * 2.0;
 
     bool openGoto = false;
@@ -204,7 +253,7 @@ void doUI()
 
         const char* tabs[] = {
             "Inspector",
-            "Template",
+            "Structure",
             "Output"
         };
 
@@ -213,7 +262,8 @@ void doUI()
         ImGui::Tabs("Inspector_tabs", tabs, IM_ARRAYSIZE(tabs), &selectedTab);
         ImGui::PopStyleVar(1);
 
-        ImGui::BeginChild("#tab_content", ImVec2(0, 0));
+        ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(8, 8));
+        ImGui::BeginChild("#tab_content", ImVec2(0, 0), false, ImGuiWindowFlags_AlwaysUseWindowPadding);
 
         switch(selectedTab) {
             case 0:
@@ -221,7 +271,7 @@ void doUI()
                                  dataPanels.selectionState);
                 break;
             case 1:
-                toolsDoTemplate();
+                toolsDoTemplate(&brickWall);
                 break;
             case 2:
                 ImGui::Text("tab2 selected");
@@ -229,6 +279,7 @@ void doUI()
         }
 
         ImGui::EndChild();
+        ImGui::PopStyleVar(1);
 
     ImGui::SplitVEnd();
 
