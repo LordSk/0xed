@@ -101,4 +101,6 @@ struct DataPanels
 
     template<typename T>
     void doFormatPanel(const char* label, const i32 startLine, const char* format);
+
+    void doBrickPanel(const char* label, const i32 startLine);
 };

@@ -7,7 +7,7 @@
 
 #define POPUP_BRICK_ADD_ERROR "Error adding brick"
 
-constexpr i32 g_typeSize[BrickType::_COUNT] = {
+constexpr i32 g_typeSize[BrickType__COUNT] = {
     sizeof(char),
     sizeof(wchar_t),
 
@@ -29,35 +29,49 @@ constexpr i32 g_typeSize[BrickType::_COUNT] = {
     1
 };
 
-const char* g_typeStr[BrickType::_COUNT] = {
-    "Char",
-    "Wide char",
+const char* g_typeStr[BrickType__COUNT] = {
+    "char",
+    "wchar",
 
-    "Int8",
-    "Uint8",
-    "Int16",
-    "Uint16",
-    "Int32",
-    "Uint32",
-    "Int64",
-    "Uint64",
+    "int8",
+    "uint8",
+    "int16",
+    "uint16",
+    "int32",
+    "uint32",
+    "int64",
+    "uint64",
 
-    "Float32",
-    "Float64",
+    "float32",
+    "float64",
 
-    "Offset32",
-    "Offset64",
+    "offset32",
+    "offset64",
 
     "User structure",
 };
 
-bool BrickWall::addBrick(Brick b)
+BrickWall::BrickWall()
 {
-    assert((i32)b.type >= 0 && b.type < BrickType::_COUNT);
+    typeCache.reserve(32);
+    _rebuildTypeCache();
+}
 
-    if(b.size % g_typeSize[(i32)b.type] != 0) {
-        return false;
+void BrickWall::_rebuildTypeCache()
+{
+    typeCache.clear();
+    for(i32 i = 0; i < (i32)BrickType_USER_STRUCT; i++) {
+        typeCache.push({ g_typeStr[i], g_typeSize[i] });
     }
+    for(i32 i = 0; i < structs.count(); i++) {
+        typeCache.push({ structs[i].name, structs[i]._size });
+    }
+}
+
+bool BrickWall::insertBrick(Brick b)
+{
+    assert((i32)b.type >= 0 && b.type < typeCache.count());
+    assert(b.size % typeCache[b.type].size == 0);
 
     const i32 count = bricks.count();
     i32 where = -1;
@@ -72,7 +86,7 @@ bool BrickWall::addBrick(Brick b)
 
     for(i32 i = 0; i < count; ++i) {
         const Brick& b1 = bricks[i];
-        if(b1.start + b1.size < b.start) {
+        if(b1.start >= b.start + b.size) {
             where = i;
             break;
         }
@@ -87,6 +101,26 @@ bool BrickWall::addBrick(Brick b)
     return true;
 }
 
+bool BrickWall::insertBrickStruct(const char* name, intptr_t where, i32 count, const BrickStruct& bstruct)
+{
+    Brick b;
+
+    if(name[0] == 0) {
+        b.name = "not_named";
+    }
+    else {
+        b.name = name;
+    }
+
+    assert(&bstruct >= structs.data() && &bstruct < structs.data() + structs.count());
+    b.type = (BrickType)(BrickType_USER_STRUCT + (&bstruct - structs.data())); // TODO: use id instead?
+    b.size = bstruct._size * count;
+    b.start = where;
+    b.userStruct = &bstruct;
+    b.color = bstruct.color;
+    return insertBrick(b);
+}
+
 const Brick* BrickWall::getBrick(intptr_t offset)
 {
     const i32 count = bricks.count();
@@ -99,7 +133,7 @@ const Brick* BrickWall::getBrick(intptr_t offset)
     return nullptr;
 }
 
-BrickStruct* BrickWall::addStruct(const char* name, u32 color)
+BrickStruct* BrickWall::newStructDef(const char* name, u32 color)
 {
     BrickStruct brickStruct;
     const i32 len = strlen(name);
@@ -115,48 +149,109 @@ BrickStruct* BrickWall::addStruct(const char* name, u32 color)
 void ui_brickPopup(const char* popupId, intptr_t selStart, i64 selLength, BrickWall* wall)
 {
     static i32 popupType = 0;
+    static i32 popupArraySize = -1;
     static f32 popupBrickColor[3] = {1};
+    static char popupBrickName[32] = {0};
+    static bool popupOverrideSelLimit = false;
+
+    constexpr auto popupResetDefault = []() {
+        popupType = 0;
+        popupArraySize = -1;
+        popupOverrideSelLimit = false;
+    };
+
+    const BrickWall::TypeCache* typeCache = wall->typeCache.data();
+    const i32 typeCacheCount = wall->typeCache.count();
 
     bool popupBrickErrorOpen = false;
 
     if(ImGui::BeginPopupModal(popupId, NULL, ImGuiWindowFlags_AlwaysAutoResize)) {
-        ImGui::Text("Brick {start: 0x%llx, length: %lld}", selStart, selLength);
-        ImGui::Text("Array size: %d", selLength / g_typeSize[popupType]);
+        ImGui::Text("Start: 0x%llx, size: %lld", selStart, selLength);
         ImGui::Separator();
 
-        ImGui::Combo("Type", (int*)&popupType, g_typeStr, IM_ARRAYSIZE(g_typeStr)-1,
-                     IM_ARRAYSIZE(g_typeStr)-1);
+        ImGui::Checkbox("Override selection limit", &popupOverrideSelLimit);
+
+        // name
+        ImGui::InputText("Name", popupBrickName, sizeof(popupBrickName));
+
+        // type
+        if(ImGui::BeginCombo("Type", typeCache[popupType].name.str)) {
+            for(i32 t = 0; t < typeCacheCount; t++) {
+                if(!popupOverrideSelLimit && typeCache[t].size > selLength) continue;
+
+                bool is_selected = t == popupType;
+                if(ImGui::Selectable(typeCache[t].name.str, is_selected)) {
+                    popupType = t;
+                    popupArraySize = -1; // reset array size
+                }
+                if(is_selected) {
+                    ImGui::SetItemDefaultFocus();
+                }
+            }
+            ImGui::EndCombo();
+        }
+
+        // array size
+        const i32 maxArraySize = selLength / typeCache[popupType].size;
+        if(popupArraySize == -1) {
+            popupArraySize = maxArraySize;
+        }
+        if(popupOverrideSelLimit) {
+            ImGui::InputInt("Array size", &popupArraySize);
+        }
+        else {
+            ImGui::SliderInt("Array size", &popupArraySize, 1, maxArraySize);
+        }
 
         ImGuiColorEditFlags flags = ImGuiColorEditFlags_RGB|ImGuiColorEditFlags_PickerHueBar;
         ImGui::ColorPicker3("Color", popupBrickColor, flags);
 
+
         if(ImGui::Button("OK", ImVec2(120,0))) {
+            assert(popupArraySize > 0);
+
             // add brick
-            const i32 typeSize = g_typeSize[popupType];
-            Brick b;
-            b.start = selStart;
-            b.size = (selLength / typeSize) * typeSize;
-            b.color = ImGui::ColorConvertFloat4ToU32(ImVec4(popupBrickColor[0], popupBrickColor[1],
-                    popupBrickColor[2], 1.0));
-            bool r = wall->addBrick(b);
-            if(!r) {
-                LOG("ERROR> could not add brick {type: %d, start: 0x%llx, length: %lld}",
-                    b.type, b.start, b.size);
-                popupBrickErrorOpen = true;
+            const i64 typeSize = typeCache[popupType].size;
+
+            if(popupType >= (i32)BrickType_USER_STRUCT) {
+                bool r = wall->insertBrickStruct(popupBrickName, selStart, popupArraySize,
+                                                 wall->structs[popupType - BrickType_USER_STRUCT]);
+                if(!r) {
+                    LOG("ERROR> could not add brick struct {type: %d, start: 0x%llx, length: %lld}",
+                        popupType, selStart, typeSize);
+                    popupBrickErrorOpen = true; // TODO: unfify error popup message
+                }
+            }
+            else {
+                Brick b;
+
+                if(popupBrickName[0] == 0) {
+                    b.name.set("not_named");
+                }
+                else {
+                    b.name.set(popupBrickName);
+                }
+
+                b.start = selStart;
+                b.size = popupArraySize * typeSize;
+                b.color = ImGui::ColorConvertFloat4ToU32(ImVec4(popupBrickColor[0], popupBrickColor[1],
+                        popupBrickColor[2], 1.0));
+                b.type = (BrickType)popupType;
+
+                bool r = wall->insertBrick(b);
+                if(!r) {
+                    LOG("ERROR> could not add brick {type: %d, start: 0x%llx, length: %lld}",
+                        b.type, b.start, b.size);
+                    popupBrickErrorOpen = true;
+                }
             }
 
-            // reset popup color
-            popupBrickColor[0] = 1;
-            popupBrickColor[1] = 0;
-            popupBrickColor[2] = 0;
+            popupResetDefault();
             ImGui::CloseCurrentPopup();
         }
         ImGui::SameLine();
         if(ImGui::Button("Cancel", ImVec2(120,0))) {
-            // reset popup color
-            popupBrickColor[0] = 1;
-            popupBrickColor[1] = 0;
-            popupBrickColor[2] = 0;
+            popupResetDefault();
             ImGui::CloseCurrentPopup();
         }
         ImGui::EndPopup();
@@ -178,73 +273,7 @@ void ui_brickPopup(const char* popupId, intptr_t selStart, i64 selLength, BrickW
     ImGui::PopStyleColor(1);
 }
 
-void ui_popupBrickStruct(const char* popupId, intptr_t selStart, BrickWall* wall)
-{
-    static i32 popupType = 0;
-    static f32 popupBrickColor[3] = {1};
-
-    bool popupBrickErrorOpen = false;
-
-    if(ImGui::BeginPopupModal(popupId, NULL, ImGuiWindowFlags_AlwaysAutoResize)) {
-        ImGui::Text("Brick {start: 0x%llx, length: %lld}", selStart, selLength);
-        ImGui::Text("Array size: %d", selLength / g_typeSize[popupType]);
-        ImGui::Separator();
-
-        ImGui::Combo("Type", (int*)&popupType, g_typeStr, IM_ARRAYSIZE(g_typeStr)-1,
-                     IM_ARRAYSIZE(g_typeStr)-1);
-
-        ImGuiColorEditFlags flags = ImGuiColorEditFlags_RGB|ImGuiColorEditFlags_PickerHueBar;
-        ImGui::ColorPicker3("Color", popupBrickColor, flags);
-
-        if(ImGui::Button("OK", ImVec2(120,0))) {
-            // add brick
-            const i32 typeSize = g_typeSize[popupType];
-            Brick b;
-            b.start = selStart;
-            b.size = (selLength / typeSize) * typeSize;
-            b.color = ImGui::ColorConvertFloat4ToU32(ImVec4(popupBrickColor[0], popupBrickColor[1],
-                    popupBrickColor[2], 1.0));
-            bool r = wall->addBrick(b);
-            if(!r) {
-                LOG("ERROR> could not add brick {type: %d, start: 0x%llx, length: %lld}",
-                    b.type, b.start, b.size);
-                popupBrickErrorOpen = true;
-            }
-
-            // reset popup color
-            popupBrickColor[0] = 1;
-            popupBrickColor[1] = 0;
-            popupBrickColor[2] = 0;
-            ImGui::CloseCurrentPopup();
-        }
-        ImGui::SameLine();
-        if(ImGui::Button("Cancel", ImVec2(120,0))) {
-            // reset popup color
-            popupBrickColor[0] = 1;
-            popupBrickColor[1] = 0;
-            popupBrickColor[2] = 0;
-            ImGui::CloseCurrentPopup();
-        }
-        ImGui::EndPopup();
-    }
-
-    if(popupBrickErrorOpen) {
-        ImGui::OpenPopup(POPUP_BRICK_ADD_ERROR);
-        popupBrickErrorOpen = false;
-    }
-
-    ImGui::PushStyleColor(ImGuiCol_PopupBg, 0xff3a3aff);
-    if(ImGui::BeginPopupModal(POPUP_BRICK_ADD_ERROR, NULL, ImGuiWindowFlags_AlwaysAutoResize)) {
-        ImGui::TextUnformatted("Can't overlap bricks");
-        if(ImGui::Button("Ok", ImVec2(180,0))) {
-            ImGui::CloseCurrentPopup();
-        }
-        ImGui::EndPopup();
-    }
-    ImGui::PopStyleColor(1);
-}
-
-void ui_oneBrick(const Brick& brick, f32 width)
+void ui_oneBrick(const Brick& brick, f32 width, const Array<BrickWall::TypeCache>& typeCache)
 {
     const ImGuiStyle& style = ImGui::GetStyle();
     ImGuiWindow* window = ImGui::GetCurrentWindow();
@@ -257,13 +286,13 @@ void ui_oneBrick(const Brick& brick, f32 width)
 
     char typeStr[64];
     i32 typeStrLen = 0;
-    i32 arrayCount = brick.size/g_typeSize[(i32)brick.type];
+    i32 arrayCount = brick.size/typeCache[brick.type].size;
 
     if(arrayCount > 1) {
-        typeStrLen = sprintf(typeStr, "%s[%d]", g_typeStr[(i32)brick.type], arrayCount);
+        typeStrLen = sprintf(typeStr, "%s[%d]", typeCache[brick.type].name.str, arrayCount);
     }
     else {
-        typeStrLen = sprintf(typeStr, "%s", g_typeStr[(i32)brick.type]);
+        typeStrLen = sprintf(typeStr, "%s", typeCache[brick.type].name.str);
     }
 
     f32 colAvg = colorAvgChannel(brick.color);
@@ -289,7 +318,8 @@ inline f32 uiGetBrickHeight()
     return ImGui::GetTextLineHeightWithSpacing();
 }
 
-bool ui_brickStruct(const BrickStruct& brickStruct, f32 width, bool8* expanded)
+bool ui_brickStruct(const BrickStruct& brickStruct, f32 width, bool8* expanded,
+                    const Array<BrickWall::TypeCache>& typeCache)
 {
     ImGuiContext& g = *GImGui;
     const ImGuiStyle& style = ImGui::GetStyle();
@@ -378,7 +408,7 @@ bool ui_brickStruct(const BrickStruct& brickStruct, f32 width, bool8* expanded)
         const Brick* bricks = brickStruct.bricks.data();
         for(i32 i = 0; i < brickCount; ++i) {
             const Brick& b = bricks[i];
-            ui_oneBrick(b, width - 10);
+            ui_oneBrick(b, width - 10, typeCache);
         }
 
         window = ImGui::GetCurrentWindow();
@@ -417,7 +447,7 @@ void ui_brickStructList(BrickWall* brickWall)
     ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(1, 1));
 
     for(i32 s = 0; s < structCount; ++s) {
-        if(ui_brickStruct(structs[s], 300, &expanded[s])) {
+        if(ui_brickStruct(structs[s], 300, &expanded[s], brickWall->typeCache)) {
             selectedStructId = s;
         }
     }
@@ -439,7 +469,7 @@ void ui_brickStructList(BrickWall* brickWall)
         ImGui::PopItemWidth();
 
         if(ImGui::Button("Add", ImVec2(100, 0))) {
-            brickWall->addStruct(bsName, ImGui::ColorConvertFloat4ToU32(ImVec4(bsColor[0],
+            brickWall->newStructDef(bsName, ImGui::ColorConvertFloat4ToU32(ImVec4(bsColor[0],
                        bsColor[1], bsColor[2], 1.0)));
         }
     }
@@ -475,5 +505,16 @@ void ui_brickStructList(BrickWall* brickWall)
                 selectedStruct.computeSize();
             }
         }
+    }
+}
+
+void ui_brickWall(BrickWall* brickWall)
+{
+    const i32 brickCount = brickWall->bricks.count();
+    const Brick* bricks = brickWall->bricks.data();
+
+    for(i32 i = 0; i < brickCount; ++i) {
+        const Brick& b = bricks[i];
+        ui_oneBrick(b, 200, brickWall->typeCache);
     }
 }

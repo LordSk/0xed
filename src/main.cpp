@@ -64,24 +64,24 @@ bool init()
         dataPanels.setFileBuffer(curFileBuff.data, curFileBuff.size);
     }
 
-    BrickStruct* bs = brickWall.addStruct("PakHeader", 0xffff0080);
+    BrickStruct* bs = brickWall.newStructDef("PakHeader", 0xffff0080);
 
     Brick member;
-    member.type = BrickType::CHAR;
+    member.type = BrickType_CHAR;
     member.size = 3;
     member.color = 0xff0000ff;
     member.name.set("fileTypeStr");
     bs->bricks.push(member);
 
     member = {};
-    member.type = BrickType::UINT8;
+    member.type = BrickType_UINT8;
     member.size = 1;
     member.color = 0xff00ffff;
     member.name.set("version");
     bs->bricks.push(member);
 
     member = {};
-    member.type = BrickType::INT32;
+    member.type = BrickType_INT32;
     member.size = 4;
     member.color = 0xffffff00;
     member.name.set("entryCount");
@@ -89,30 +89,32 @@ bool init()
 
     bs->computeSize();
 
-    bs = brickWall.addStruct("FileDesc", 0xffc5ff7f);
+    bs = brickWall.newStructDef("FileDesc", 0xffc5ff7f);
 
     member = {};
-    member.type = BrickType::INT32;
+    member.type = BrickType_INT32;
     member.size = 4;
     member.color = 0xff7c7c7c;
     member.name.set("type");
     bs->bricks.push(member);
 
     member = {};
-    member.type = BrickType::INT32;
+    member.type = BrickType_INT32;
     member.size = 4;
     member.color = 0xff8414bc;
     member.name.set("offset");
     bs->bricks.push(member);
 
     member = {};
-    member.type = BrickType::INT32;
+    member.type = BrickType_INT32;
     member.size = 4;
     member.color = 0xffbc141d;
     member.name.set("size");
     bs->bricks.push(member);
 
     bs->computeSize();
+
+    brickWall._rebuildTypeCache();
 
     return true;
 }
@@ -253,7 +255,8 @@ void doUI()
 
         const char* tabs[] = {
             "Inspector",
-            "Structure",
+            "Bricks",
+            "Structures",
             "Output"
         };
 
@@ -271,9 +274,12 @@ void doUI()
                                  dataPanels.selectionState);
                 break;
             case 1:
-                toolsDoTemplate(&brickWall);
+                ui_brickWall(&brickWall);
                 break;
             case 2:
+                toolsDoTemplate(&brickWall);
+                break;
+            case 3:
                 ImGui::Text("tab2 selected");
                 break;
         }

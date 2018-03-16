@@ -106,8 +106,9 @@ void DataPanels::processMouseInput(ImRect winRect)
     }
 }
 
-void DataPanels::selectionProcessMouseInput(const i32 panelId, ImVec2 mousePos, ImRect rect, const i32 columnWidth_,
-                                            const i32 rowHeight_, const i32 startLine, const i32 hoverLen)
+void DataPanels::selectionProcessMouseInput(const i32 panelId, ImVec2 mousePos, ImRect rect,
+                                            const i32 columnWidth_, const i32 rowHeight_,
+                                            const i32 startLine, const i32 hoverLen)
 {
     const auto& io = ImGui::GetIO();
     ImVec2 relMousePos = mousePos - rect.Min;
@@ -185,7 +186,7 @@ DataPanels::DataPanels()
     memset(panelType, 0, sizeof(panelType));
     panelType[0] = PT_HEX;
     panelType[1] = PT_ASCII;
-    //panelType[2] = PT_INT32;
+    panelType[2] = PT_BRICKS;
 }
 
 void DataPanels::setFileBuffer(u8* buff, i64 buffSize)
@@ -229,6 +230,7 @@ void DataPanels::calculatePanelWidth()
     for(i32 p = 0; p < panelCount; ++p) {
         switch(panelType[p]) {
             case PT_HEX:
+            case PT_BRICKS:
                 panelRectWidth[p] = columnCount * columnWidth;
                 break;
             case PT_ASCII:
@@ -299,7 +301,7 @@ void DataPanels::doUi()
     }
 
     // TODO: remove this limitation
-    assert(columnCount <= 16);
+    //assert(columnCount <= 16);
 
     calculatePanelWidth();
 
@@ -396,6 +398,9 @@ void DataPanels::doUi()
                 break;
             case PT_FLOAT64:
                 doFormatPanel<f64>("#f64_panel", scrollCurrentLine, "%g");
+                break;
+            case PT_BRICKS:
+                doBrickPanel("#bricks_panel", scrollCurrentLine);
                 break;
             default:
                 assert(0);
@@ -558,55 +563,48 @@ void DataPanels::doAsciiPanel(const char* label, const i32 startLine, ColorDispl
 
         const bool isHovered = selectionInHoverRange(dataOff);
         const bool isSelected = selectionInSelectionRange(dataOff);
-        ImU32 textColor = ImGui::GetColorU32(ImGuiCol_Text);
+
+        ImU32 frameColor = ImGui::GetColorU32(ImGuiCol_FrameBg);
+        f32 greyOne = (f32)c / 0x19 * 0.2 + 0.8;
+
+        if(colorDisplay == ColorDisplay::BRICK_COLOR) {
+            assert(brickWall);
+            const Brick* b = brickWall->getBrick(dataOff);
+            if(b) {
+                frameColor = b->color;
+            }
+            else if((u8)c < 0x20) {
+                frameColor = ImGui::ColorConvertFloat4ToU32(ImVec4(greyOne, greyOne, greyOne, 1));
+            }
+        }
+        else if((u8)c < 0x20 && colorDisplay != ColorDisplay::PLAIN) {
+            frameColor = ImGui::ColorConvertFloat4ToU32(ImVec4(greyOne, greyOne, greyOne, 1));
+        }
+
         if(isSelected) {
-            textColor = selectedTextColor;
+            frameColor = selectedFrameColor;
+        }
+        else if(isHovered) {
+            frameColor = hoverFrameColor;
         }
 
-        ImGui::PushStyleColor(ImGuiCol_Text, textColor);
+        ImGui::RenderFrame(bb.Min, bb.Max, frameColor, false);
 
-        if((u8)c < 0x20 && colorDisplay != ColorDisplay::PLAIN) {
-            f32 greyOne = (f32)c / 0x19 * 0.2 + 0.8;
-            ImU32 frameColor = ImGui::ColorConvertFloat4ToU32(ImVec4(greyOne, greyOne, greyOne, 1));
+        if((u8)c > 0x19) {
+            ImU32 textColor = ImGui::GetColorU32(ImGuiCol_Text);
             if(isSelected) {
-                frameColor = selectedFrameColor;
-            }
-            else if(isHovered) {
-                frameColor = hoverFrameColor;
+                textColor = selectedTextColor;
             }
 
-            ImGui::RenderFrame(bb.Min, bb.Max,
-                               frameColor,
-                               false);
-        }
-        else {
-            ImU32 frameColor = ImGui::GetColorU32(ImGuiCol_FrameBg);
-            if(colorDisplay == ColorDisplay::BRICK_COLOR) {
-                assert(brickWall);
-                const Brick* b = brickWall->getBrick(dataOff);
-                if(b) {
-                    frameColor = b->color;
-                }
-            }
-
-            if(isSelected) {
-                frameColor = selectedFrameColor;
-            }
-            else if(isHovered) {
-                frameColor = hoverFrameColor;
-            }
-
-            ImGui::RenderFrame(bb.Min, bb.Max,
-                               frameColor,
-                               false);
+            ImGui::PushStyleColor(ImGuiCol_Text, textColor);
 
             ImGui::RenderTextClipped(bb.Min,
                                      bb.Max,
                                      &c, (const char*)&c + 1, NULL,
                                      ImVec2(0.5, 0.5), &bb);
-        }
 
-        ImGui::PopStyleColor();
+            ImGui::PopStyleColor();
+        }
 
 
         if((i+1) & (columnCount-1)) ImGui::SameLine();
@@ -728,5 +726,99 @@ void DataPanels::doFormatPanel(const char* label, const i32 startLine, const cha
         ImRect bb(winPos.x, winPos.y + cellSize.y * l,
                   winPos.x + winSize.x, winPos.y + cellSize.y * l + 1);
         ImGui::RenderFrame(bb.Min, bb.Max, lineColor, false, 0);
+    }
+}
+
+void DataPanels::doBrickPanel(const char* label, const i32 startLine)
+{
+    assert(brickWall);
+    ImGuiWindow* window = ImGui::GetCurrentWindow();
+    ImRect panelRect = window->Rect();
+
+    const i32 lineCount = (panelRect.GetHeight() - columnHeaderHeight) / rowHeight;
+    const i32 itemCount = min(fileBufferSize - (i64)startLine * columnCount, lineCount * columnCount);
+
+    ImVec2 winPos = window->DC.CursorPos;
+    const ImGuiID id = window->GetID(label);
+    ImGui::ItemSize(panelRect, 0);
+    if(!ImGui::ItemAdd(panelRect, id))
+        return;
+
+    const ImVec2 cellSize(columnWidth, rowHeight);
+
+    // column header
+    ImRect colHeadBb(winPos, winPos + ImVec2(panelRect.GetWidth(), columnHeaderHeight));
+    const ImU32 headerColor = ImGui::ColorConvertFloat4ToU32(ImVec4(0.9, 0.9, 0.9, 1));
+    const ImU32 headerColorOdd = ImGui::ColorConvertFloat4ToU32(ImVec4(0.85, 0.85, 0.85, 1));
+    ImGui::RenderFrame(colHeadBb.Min, colHeadBb.Max, headerColor, false, 0);
+
+    for(i64 i = 0; i < columnCount; ++i) {
+        u32 hex = toHexStr(i);
+        const char* label = (const char*)&hex;
+        const ImVec2 label_size = ImGui::CalcTextSize(label, label+2);
+        const ImVec2 size = ImGui::CalcItemSize(ImVec2(columnWidth, columnHeaderHeight),
+                                                label_size.x, label_size.y);
+
+        ImVec2 cellPos(i * cellSize.x, 0);
+        cellPos += winPos;
+        const ImRect bb(cellPos, cellPos + size);
+
+        if(i & 1) {
+            ImGui::RenderFrame(bb.Min, bb.Max, headerColorOdd, false, 0);
+        }
+
+        ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.5, 0.5, 0.5, 1));
+        ImGui::RenderTextClipped(bb.Min, bb.Max, label, label+2,
+                          &label_size, ImVec2(0.5, 0.5), &bb);
+        ImGui::PopStyleColor();
+    }
+    winPos.y += columnHeaderHeight;
+
+    // hex table
+    const i64 startLineOff = (i64)startLine * columnCount;
+    for(i64 i = 0; i < itemCount; ++i) {
+        const i64 dataOffset = i + startLineOff;
+        const Brick* b = brickWall->getBrick(dataOffset);
+
+        if(b) {
+            //frameColor = b->color;
+        }
+        else {
+            u8 val = fileBuffer[dataOffset];
+            u32 hex = toHexStr(val);
+
+            ImU32 frameColor = 0xffffffff;
+            f32 geyScale = val/255.f * 0.7 + 0.3;
+            frameColor = ImGui::ColorConvertFloat4ToU32(ImVec4(geyScale, geyScale, geyScale, 1.0f));
+
+            constexpr f32 textColor = 0.0f;
+
+            const char* label = (const char*)&hex;
+            const ImVec2 label_size = ImGui::CalcTextSize(label, label+2);
+            const ImVec2 size = ImGui::CalcItemSize(cellSize, label_size.x, label_size.y);
+
+            i32 column = i & (columnCount - 1);
+            i32 line = i / columnCount;
+            ImVec2 cellPos(column * cellSize.x, line * cellSize.y);
+            cellPos += winPos;
+            const ImRect bb(cellPos, cellPos + size);
+
+            if(selectionInSelectionRange(dataOffset)) {
+                ImGui::RenderFrame(bb.Min, bb.Max, selectedFrameColor, false, 0);
+                ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1, 1, 1, 1));
+            }
+            else if(selectionInHoverRange(dataOffset)) {
+                ImGui::RenderFrame(bb.Min, bb.Max, hoverFrameColor, false, 0);
+                ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(textColor, textColor, textColor, 1));
+            }
+            else {
+                ImGui::RenderFrame(bb.Min, bb.Max, frameColor, false, 0);
+                ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(textColor, textColor, textColor, 1));
+            }
+
+            ImGui::RenderTextClipped(bb.Min, bb.Max, label, label+2,
+                              &label_size, ImVec2(0.5, 0.5), &bb);
+            ImGui::PopStyleColor();
+        }
     }
 }

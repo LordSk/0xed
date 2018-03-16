@@ -2,34 +2,40 @@
 #include "base.h"
 #include "utils.h"
 
-enum class BrickType: i32
+enum BrickType: i32
 {
-    CHAR = 0,
-    WIDE_CHAR,
+    BrickType_CHAR = 0,
+    BrickType_WIDE_CHAR,
 
-    INT8,
-    UINT8,
-    INT16,
-    UINT16,
-    INT32,
-    UINT32,
-    INT64,
-    UINT64,
+    BrickType_INT8,
+    BrickType_UINT8,
+    BrickType_INT16,
+    BrickType_UINT16,
+    BrickType_INT32,
+    BrickType_UINT32,
+    BrickType_INT64,
+    BrickType_UINT64,
 
-    FLOAT32,
-    FLOAT64,
+    BrickType_FLOAT32,
+    BrickType_FLOAT64,
 
-    OFFSET32,
-    OFFSET64,
+    BrickType_OFFSET32,
+    BrickType_OFFSET64,
 
-    USER_STRUCT,
-    _COUNT
+    BrickType_USER_STRUCT,
+    BrickType__COUNT
 };
 
 struct Str32
 {
     char str[32];
     i32 len = 0;
+
+    Str32() = default;
+
+    Str32(const char* _str) {
+        set(_str);
+    }
 
     void set(const char* _str) {
         len = strlen(_str);
@@ -41,11 +47,11 @@ struct Str32
 
 struct Brick
 {
-    struct BrickStruct* userStruct = nullptr;
+    const struct BrickStruct* userStruct = nullptr;
     intptr_t start = 0;
     i64 size = 0;
     u32 color;
-    BrickType type = BrickType::CHAR;
+    BrickType type = BrickType_CHAR;
     Str32 name;
 };
 
@@ -70,11 +76,22 @@ struct BrickWall
     Array<BrickStruct> structs;
     Array<Brick> bricks;
 
-    bool addBrick(Brick b);
+    struct TypeCache {
+        Str32 name;
+        i64 size;
+    };
+    Array<TypeCache> typeCache;
+
+    BrickWall();
+    void _rebuildTypeCache();
+
+    bool insertBrick(Brick b);
+    bool insertBrickStruct(const char* name, intptr_t where, i32 count, const BrickStruct& bstruct);
     const Brick* getBrick(intptr_t offset);
 
-    BrickStruct* addStruct(const char* name, u32 color);
+    BrickStruct* newStructDef(const char* name, u32 color);
 };
 
 void ui_brickPopup(const char* popupId, intptr_t selStart, i64 selLength, BrickWall* wall);
 void ui_brickStructList(BrickWall* brickWall);
+void ui_brickWall(BrickWall* brickWall);
