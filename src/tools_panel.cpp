@@ -172,3 +172,9 @@ void toolsDoTemplate(BrickWall* brickWall)
 {
     ui_brickStructList(brickWall);
 }
+
+void toolsDoOptions(i32* columnCount)
+{
+    ImGui::SliderInt("Columns", columnCount, 8, 128);
+    *columnCount = clamp(*columnCount, 8, 128);
+}

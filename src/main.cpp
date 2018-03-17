@@ -257,7 +257,7 @@ void doUI()
             "Inspector",
             "Bricks",
             "Structures",
-            "Output"
+            "Options"
         };
 
         static i32 selectedTab = 0;
@@ -280,7 +280,7 @@ void doUI()
                 toolsDoTemplate(&brickWall);
                 break;
             case 3:
-                ImGui::Text("tab2 selected");
+                toolsDoOptions(&dataPanels.columnCount);
                 break;
         }
 

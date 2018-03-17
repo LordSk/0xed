@@ -54,7 +54,7 @@ struct DataPanels
     i64 scrollCurrentLine = 0;
     struct BrickWall* brickWall = nullptr;
 
-    const i32 columnCount = 16; // NOTE: has to be power of 2
+    i32 columnCount = 16;
     const i32 columnWidth = 22;
     const i32 rowHeight = 22;
     const i32 columnHeaderHeight = 24;

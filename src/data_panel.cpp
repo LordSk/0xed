@@ -503,7 +503,7 @@ void DataPanels::doHexPanel(const char* label, const i32 startLine, ColorDisplay
         const ImVec2 label_size = ImGui::CalcTextSize(label, label+2);
         const ImVec2 size = ImGui::CalcItemSize(cellSize, label_size.x, label_size.y);
 
-        i32 column = i & (columnCount - 1);
+        i32 column = i % columnCount;
         i32 line = i / columnCount;
         ImVec2 cellPos(column * cellSize.x, line * cellSize.y);
         cellPos += winPos;
@@ -555,7 +555,7 @@ void DataPanels::doAsciiPanel(const char* label, const i32 startLine, ColorDispl
         const i64 dataOff = i + startLineOff;
         const char c = (char)fileBuffer[dataOff];
         i32 line = i / columnCount;
-        i32 column = i & (columnCount - 1);
+        i32 column = i % columnCount;
         ImRect bb(winPos.x + column * asciiCharWidth, winPos.y + line * rowHeight,
                   winPos.x + column * asciiCharWidth + asciiCharWidth,
                   winPos.y + line * rowHeight + rowHeight);
@@ -607,7 +607,7 @@ void DataPanels::doAsciiPanel(const char* label, const i32 startLine, ColorDispl
         }
 
 
-        if((i+1) & (columnCount-1)) ImGui::SameLine();
+        if((i+1) % columnCount) ImGui::SameLine();
     }
 
     ImGui::PopFont();
@@ -616,6 +616,11 @@ void DataPanels::doAsciiPanel(const char* label, const i32 startLine, ColorDispl
 template<typename T>
 void DataPanels::doFormatPanel(const char* label, const i32 startLine, const char* format)
 {
+    if(columnCount % sizeof(T)) {
+        ImGui::TextColored(ImVec4(0.8, 0, 0, 1), "\n\nColumn count is not divisible by %d", sizeof(T));
+        return;
+    }
+
     ImGuiWindow* window = ImGui::GetCurrentWindow();
     ImRect panelRect = window->Rect();
 
@@ -669,7 +674,7 @@ void DataPanels::doFormatPanel(const char* label, const i32 startLine, const cha
         const ImVec2 labelSize = ImGui::CalcTextSize(integerStr, NULL, true);
         ImVec2 size = ImGui::CalcItemSize(cellSize, labelSize.x, labelSize.y);
 
-        i32 col = i & (columnCount - 1);
+        i32 col = i % columnCount;
         i32 line = i / columnCount;
         ImVec2 cellPos(col * intColumnWidth, line * cellSize.y);
         ImRect bb(winPos + cellPos, winPos + cellPos + size);
@@ -797,7 +802,7 @@ void DataPanels::doBrickPanel(const char* label, const i32 startLine)
             const ImVec2 label_size = ImGui::CalcTextSize(label, label+2);
             const ImVec2 size = ImGui::CalcItemSize(cellSize, label_size.x, label_size.y);
 
-            i32 column = i & (columnCount - 1);
+            i32 column = i % columnCount;
             i32 line = i / columnCount;
             ImVec2 cellPos(column * cellSize.x, line * cellSize.y);
             cellPos += winPos;
