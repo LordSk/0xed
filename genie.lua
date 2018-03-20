@@ -45,6 +45,7 @@ solution "0xed solution"
 	includedirs {
 		"src",
 		SDL2_include,
+		easy_profiler_include,
 	}
 	
 	links {
@@ -62,6 +63,7 @@ solution "0xed solution"
 		"glu32",
 		"opengl32",
 		SDL2_lib,
+		easy_profiler_lib,
 	}
 	
 	flags {
@@ -81,6 +83,11 @@ solution "0xed solution"
 		"NK_INCLUDE_VERTEX_BUFFER_OUTPUT",
 		"NK_INCLUDE_FONT_BAKING",
 		--"NK_INCLUDE_DEFAULT_FONT"
+		"EASY_PROFILER_VERSION_MAJOR=1",
+		"EASY_PROFILER_VERSION_MINOR=3",
+		"EASY_PROFILER_VERSION_PATCH=0",
+		"EASY_DEFAULT_PORT=28077",
+		"BUILD_WITH_EASY_PROFILER=1"
 	}
 	
 	-- disable exception related warnings

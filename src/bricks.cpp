@@ -1,4 +1,5 @@
 #include "bricks.h"
+#include <easy/profiler.h>
 
 #define IMGUI_DEFINE_MATH_OPERATORS
 #include "imgui.h"
@@ -126,7 +127,7 @@ const Brick* BrickWall::getBrick(intptr_t offset)
     const i32 count = bricks.count();
     for(i32 i = 0; i < count; ++i) {
         const Brick& b1 = bricks[i];
-        if(b1.start <= offset && b1.start + b1.size > offset) {
+        if(offset >= b1.start && offset < b1.start + b1.size) {
             return &b1;
         }
     }
@@ -160,7 +161,7 @@ void ui_brickPopup(const char* popupId, intptr_t selStart, i64 selLength, BrickW
         popupOverrideSelLimit = false;
     };
 
-    const BrickWall::TypeCache* typeCache = wall->typeCache.data();
+    const BrickWall::TypeInfo* typeCache = wall->typeCache.data();
     const i32 typeCacheCount = wall->typeCache.count();
 
     bool popupBrickErrorOpen = false;
@@ -195,6 +196,7 @@ void ui_brickPopup(const char* popupId, intptr_t selStart, i64 selLength, BrickW
         const i32 maxArraySize = selLength / typeCache[popupType].size;
         if(popupArraySize == -1) {
             popupArraySize = maxArraySize;
+            if(popupArraySize <= 0) popupArraySize = 1;
         }
         if(popupOverrideSelLimit) {
             ImGui::InputInt("Array size", &popupArraySize);
@@ -273,7 +275,7 @@ void ui_brickPopup(const char* popupId, intptr_t selStart, i64 selLength, BrickW
     ImGui::PopStyleColor(1);
 }
 
-void ui_oneBrick(const Brick& brick, f32 width, const Array<BrickWall::TypeCache>& typeCache)
+void ui_oneBrick(const Brick& brick, f32 width, const Array<BrickWall::TypeInfo>& typeCache)
 {
     const ImGuiStyle& style = ImGui::GetStyle();
     ImGuiWindow* window = ImGui::GetCurrentWindow();
@@ -319,7 +321,7 @@ inline f32 uiGetBrickHeight()
 }
 
 bool ui_brickStruct(const BrickStruct& brickStruct, f32 width, bool8* expanded,
-                    const Array<BrickWall::TypeCache>& typeCache)
+                    const Array<BrickWall::TypeInfo>& typeCache)
 {
     ImGuiContext& g = *GImGui;
     const ImGuiStyle& style = ImGui::GetStyle();
@@ -508,13 +510,216 @@ void ui_brickStructList(BrickWall* brickWall)
     }
 }
 
-void ui_brickWall(BrickWall* brickWall)
+static bool doBrickNode(Brick brick, const Array<BrickWall::TypeInfo>& typeCache, const u8* fileData,
+                         i32 identLvl, i32 arrayIndex = -1)
 {
+    EASY_FUNCTION();
+
+    const i64 typeSize = typeCache[brick.type].size;
+    const char* typeName = typeCache[brick.type].name.str;
+    const i32 arrCount = brick.size / typeSize;
+
+    ImGuiContext& g = *GImGui;
+    const ImGuiStyle& style = ImGui::GetStyle();
+    ImGuiWindow* window = ImGui::GetCurrentWindow();
+    i64 trioIdData[3] = { brick.start, brick.size, brick.type };
+    const ImGuiID id = window->GetID((const char*)&trioIdData,
+                                     ((const char*)trioIdData) + sizeof(trioIdData));
+    ImGuiStorage* storage = window->DC.StateStorage;
+    ImVec2 pos = window->DC.CursorPos;
+    ImVec2 size = { ImGui::GetContentRegionAvail().x,
+                    ImGui::GetTextLineHeight() + style.FramePadding.y * 2 };
+    ImRect frameBb(pos, pos + size);
+
+    bool isOpen = false;
+    bool isLeaf = false;
+    if(arrCount > 1 || brick.type >= BrickType_USER_STRUCT) {
+        isOpen = storage->GetInt(id, 0);
+    }
+
+    ImGui::ItemSize(frameBb);
+    if(!isOpen && !ImGui::ItemAdd(frameBb, 0)) {
+        return false;
+    }
+
+    // TODO: hover in dataPanels when hovering node
+    bool held = false;
+    bool hovered = false;
+    bool previouslyHeld = (g.ActiveId == id);
+    ImGui::ButtonBehavior(frameBb, id, &hovered, &held);
+
+    if(held && !previouslyHeld) {
+        isOpen ^= 1;
+        storage->SetInt(id, (i32)isOpen);
+    }
+
+    char branchNameFmted[64];
+    if(arrayIndex != -1) {
+        i32 len = sprintf(branchNameFmted, "[%d]", arrayIndex);
+        assert(len < 32);
+        brick.name.set(branchNameFmted);
+    }
+
+    const char* branchName = brick.name.str;
+    if(arrCount > 1) {
+        i32 len = sprintf(branchNameFmted, "%s (%d)", brick.name.str, arrCount);
+        branchName = branchNameFmted;
+        assert(len < 64);
+
+        if(isOpen) {
+            for(i32 a = 0; a < arrCount; ++a) {
+                ImVec2 apos = window->DC.CursorPos;
+                ImRect abb(apos, apos + size);
+                if(ImGui::IsClippedEx(abb, 0, false)) { // premature culling
+                    ImGui::ItemSize(size);
+                }
+                else {
+                    Brick arrBrick = brick;
+                    arrBrick.start += a * typeSize;
+                    arrBrick.size = typeSize;
+                    doBrickNode(arrBrick, typeCache, fileData, identLvl + 1, a);
+                }
+            }
+        }
+    }
+    else if(brick.type >= BrickType_USER_STRUCT) {
+        if(isOpen) {
+            assert(brick.userStruct);
+            const BrickStruct& bs = *brick.userStruct;
+
+            const i32 subBrickCount = bs.bricks.count();
+            const Brick* subBricks = bs.bricks.data();
+            i64 offset = 0;
+            for(i32 j = 0; j < subBrickCount; ++j) {
+                Brick arrBrick = subBricks[j];
+                arrBrick.start = brick.start + offset;
+                offset += arrBrick.size;
+                doBrickNode(arrBrick, typeCache, fileData, identLvl + 1);
+            }
+        }
+    }
+    else {
+        isLeaf = true;
+    }
+
+    constexpr f32 arrowIconWidth = 20.0f;
+    u8 c1 = 0xff - identLvl * 0x15;
+    u32 frameColor = colorOne(c1);
+    u32 arrowColor = colorAddAllChannels(frameColor, -0x60);
+    u32 typeColor = colorAddAllChannels(frameColor, -0x80);
+
+    ImGui::RenderFrame(frameBb.Min, frameBb.Max, frameColor, hovered);
+
+    // TODO: special case for array of CHAR/WIDE_CHAR (strings)
+    if(isLeaf) {
+        // type
+        ImVec2 off = { style.FramePadding.x, 0 };
+        ImVec2 typeNameSize = ImGui::CalcTextSize(typeName);
+        ImGui::PushStyleColor(ImGuiCol_Text, typeColor);
+        ImGui::RenderTextClipped(frameBb.Min + off, frameBb.Max, typeName,
+                                 NULL, &typeNameSize, ImVec2(0.0, 0.5), &frameBb);
+        ImGui::PopStyleColor(1);
+
+        // name
+        off = { style.FramePadding.x * 2 + typeNameSize.x, 0 };
+        ImGui::RenderTextClipped(frameBb.Min + off, frameBb.Max, branchName,
+                                 NULL, NULL, ImVec2(0.0, 0.5), &frameBb);
+
+        const u8* data = fileData + brick.start;
+        const i64 dataSize = brick.size;
+        char dataBuff[64];
+        i32 dataBuffLen = 0;
+
+        switch(brick.type) {
+            case BrickType_CHAR:
+                dataBuffLen = sprintf(dataBuff, "%c", *(char*)data);
+                break;
+
+            case BrickType_INT8:
+                dataBuffLen = sprintf(dataBuff, "%d", *(i8*)data);
+                break;
+            case BrickType_INT16:
+                dataBuffLen = sprintf(dataBuff, "%d", *(i16*)data);
+                break;
+            case BrickType_INT32:
+                dataBuffLen = sprintf(dataBuff, "%d", *(i32*)data);
+                break;
+            case BrickType_INT64:
+                dataBuffLen = sprintf(dataBuff, "%lld", *(i64*)data);
+                break;
+
+            case BrickType_UINT8:
+                dataBuffLen = sprintf(dataBuff, "%u", *(u8*)data);
+                break;
+            case BrickType_UINT16:
+                dataBuffLen = sprintf(dataBuff, "%u", *(u16*)data);
+                break;
+            case BrickType_UINT32:
+                dataBuffLen = sprintf(dataBuff, "%u", *(u32*)data);
+                break;
+            case BrickType_UINT64:
+                dataBuffLen = sprintf(dataBuff, "%llu", *(u64*)data);
+                break;
+
+            case BrickType_OFFSET32:
+                dataBuffLen = sprintf(dataBuff, "%d", *(i32*)data);
+                break;
+            case BrickType_OFFSET64:
+                dataBuffLen = sprintf(dataBuff, "%lld", *(i64*)data);
+                break;
+
+            default:
+                assert(0);
+                break;
+        }
+
+        assert(dataBuffLen < 64);
+        dataBuff[dataBuffLen] = 0;
+
+        // value
+        ImGui::RenderTextClipped(frameBb.Min, frameBb.Max - ImVec2(style.FramePadding.x, 0),
+                                 dataBuff, dataBuff + dataBuffLen,
+                                 NULL, ImVec2(1.0, 0.5), &frameBb);
+    }
+    else {
+        // arrow
+        ImVec2 off = { style.FramePadding.x, style.FramePadding.y};
+        ImGui::PushStyleColor(ImGuiCol_Text, arrowColor);
+        ImGui::RenderTriangle(frameBb.Min + off, isOpen ? ImGuiDir_Down : ImGuiDir_Right, 1.0f);
+        ImGui::PopStyleColor(1);
+
+        off = ImVec2(style.FramePadding.x + arrowIconWidth, 0 );
+        ImGui::RenderTextClipped(frameBb.Min + off, frameBb.Max, branchName,
+                                 NULL, NULL, ImVec2(0.0, 0.5), &frameBb);
+        ImGui::RenderTextClipped(frameBb.Min, frameBb.Max - ImVec2(style.FramePadding.x, 0), typeName,
+                                 NULL, NULL, ImVec2(1.0, 0.5), &frameBb);
+    }
+
+    return false;
+}
+
+void ui_brickWall(BrickWall* brickWall, const u8* fileData)
+{
+    EASY_FUNCTION(profiler::colors::Yellow);
+
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
+    ImGui::BeginChild("#tab_brickwall", ImVec2(0, 0), false, ImGuiWindowFlags_AlwaysUseWindowPadding);
+
     const i32 brickCount = brickWall->bricks.count();
     const Brick* bricks = brickWall->bricks.data();
 
+    ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(0, 0));
+    ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(8, 4));
+
     for(i32 i = 0; i < brickCount; ++i) {
         const Brick& b = bricks[i];
-        ui_oneBrick(b, 200, brickWall->typeCache);
+        EASY_BLOCK("doBrickNode")
+        doBrickNode(b, brickWall->typeCache, fileData, 0);
+        EASY_END_BLOCK;
     }
+
+    ImGui::PopStyleVar(2);
+
+    ImGui::EndChild();
+    ImGui::PopStyleVar(1);
 }

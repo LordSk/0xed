@@ -69,6 +69,21 @@ struct BrickStruct
             _size += bricks[i].size;
         }
     }
+
+    inline const Brick* getBrick(intptr_t offset) const {
+        assert(_size);
+        offset = offset % _size;
+        const i32 count = bricks.count();
+        i64 cur = 0;
+        for(i32 i = 0; i < count; ++i) {
+            const Brick& b1 = bricks[i];
+            cur += b1.size;
+            if(offset < cur) {
+                return &b1;
+            }
+        }
+        return nullptr;
+    }
 };
 
 struct BrickWall
@@ -76,11 +91,11 @@ struct BrickWall
     Array<BrickStruct> structs;
     Array<Brick> bricks;
 
-    struct TypeCache {
+    struct TypeInfo {
         Str32 name;
         i64 size;
     };
-    Array<TypeCache> typeCache;
+    Array<TypeInfo> typeCache;
 
     BrickWall();
     void _rebuildTypeCache();
@@ -94,4 +109,4 @@ struct BrickWall
 
 void ui_brickPopup(const char* popupId, intptr_t selStart, i64 selLength, BrickWall* wall);
 void ui_brickStructList(BrickWall* brickWall);
-void ui_brickWall(BrickWall* brickWall);
+void ui_brickWall(BrickWall* brickWall, const u8* fileData);

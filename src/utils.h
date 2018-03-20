@@ -47,3 +47,8 @@ inline f32 colorAvgChannel(u32 color)
     f32 total = hoverR + hoverG + hoverB;
     return total / 3.0f;
 }
+
+inline u32 colorOne(u8 chan1)
+{
+    return 0xff000000 | (chan1 << 16) | (chan1 << 8) | chan1;
+}

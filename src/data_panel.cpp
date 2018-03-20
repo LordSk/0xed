@@ -19,8 +19,6 @@ constexpr char* panelComboItems[] = {
 
     "Float32",
     "Float64",
-
-    "Bricks"
 };
 
 // https://johnnylee-sde.github.io/Fast-unsigned-integer-to-hex-string/
@@ -186,7 +184,8 @@ DataPanels::DataPanels()
     memset(panelType, 0, sizeof(panelType));
     panelType[0] = PT_HEX;
     panelType[1] = PT_ASCII;
-    panelType[2] = PT_BRICKS;
+    panelType[2] = PT_HEX;
+    panelColorDisplay[2] = ColorDisplay::BRICK_COLOR;
 }
 
 void DataPanels::setFileBuffer(u8* buff, i64 buffSize)
@@ -230,7 +229,6 @@ void DataPanels::calculatePanelWidth()
     for(i32 p = 0; p < panelCount; ++p) {
         switch(panelType[p]) {
             case PT_HEX:
-            case PT_BRICKS:
                 panelRectWidth[p] = columnCount * columnWidth;
                 break;
             case PT_ASCII:
@@ -399,9 +397,6 @@ void DataPanels::doUi()
             case PT_FLOAT64:
                 doFormatPanel<f64>("#f64_panel", scrollCurrentLine, "%g");
                 break;
-            case PT_BRICKS:
-                doBrickPanel("#bricks_panel", scrollCurrentLine);
-                break;
             default:
                 assert(0);
                 break;
@@ -482,22 +477,8 @@ void DataPanels::doHexPanel(const char* label, const i32 startLine, ColorDisplay
         u32 hex = toHexStr(val);
 
         ImU32 frameColor = 0xffffffff;
+        ImU32 textColor = 0xff000000;
         f32 geyScale = val/255.f * 0.7 + 0.3;
-        if(colorDisplay == ColorDisplay::GRAY_SCALE) {
-            frameColor = ImGui::ColorConvertFloat4ToU32(ImVec4(geyScale, geyScale, geyScale, 1.0f));
-        }
-        else if(colorDisplay == ColorDisplay::BRICK_COLOR) {
-            assert(brickWall);
-            const Brick* b = brickWall->getBrick(dataOffset);
-            if(b) {
-                frameColor = b->color;
-            }
-            else {
-                frameColor = ImGui::ColorConvertFloat4ToU32(ImVec4(geyScale, geyScale, geyScale, 1.0f));
-            }
-        }
-
-        constexpr f32 textColor = 0.0f;
 
         const char* label = (const char*)&hex;
         const ImVec2 label_size = ImGui::CalcTextSize(label, label+2);
@@ -510,21 +491,38 @@ void DataPanels::doHexPanel(const char* label, const i32 startLine, ColorDisplay
         const ImRect bb(cellPos, cellPos + size);
 
         if(selectionInSelectionRange(dataOffset)) {
-            ImGui::RenderFrame(bb.Min, bb.Max, selectedFrameColor, false, 0);
-            ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1, 1, 1, 1));
+            frameColor = selectedFrameColor;
+            textColor = 0xffffffff;
         }
         else if(selectionInHoverRange(dataOffset)) {
-            ImGui::RenderFrame(bb.Min, bb.Max, hoverFrameColor, false, 0);
-            ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(textColor, textColor, textColor, 1));
+            frameColor = hoverFrameColor;
         }
         else {
-            ImGui::RenderFrame(bb.Min, bb.Max, frameColor, false, 0);
-            ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(textColor, textColor, textColor, 1));
+            if(colorDisplay == ColorDisplay::GRAY_SCALE) {
+                frameColor = ImGui::ColorConvertFloat4ToU32(ImVec4(geyScale, geyScale, geyScale, 1.0f));
+            }
+            else if(colorDisplay == ColorDisplay::BRICK_COLOR) {
+                assert(brickWall);
+                const Brick* b = brickWall->getBrick(dataOffset);
+                if(b) {
+                    if(b->userStruct) {
+                        const Brick* sub = b->userStruct->getBrick(dataOffset - b->start);
+                        assert(sub);
+                        textColor = sub->color;
+                    }
+                    frameColor = b->color;
+                }
+                else {
+                    frameColor = ImGui::ColorConvertFloat4ToU32(ImVec4(geyScale, geyScale, geyScale, 1.0f));
+                }
+            }
         }
 
+        ImGui::PushStyleColor(ImGuiCol_Text, textColor);
+        ImGui::RenderFrame(bb.Min, bb.Max, frameColor, false, 0);
         ImGui::RenderTextClipped(bb.Min, bb.Max, label, label+2,
                           &label_size, ImVec2(0.5, 0.5), &bb);
-        ImGui::PopStyleColor();
+        ImGui::PopStyleColor(1);
     }
 }
 
@@ -617,7 +615,7 @@ template<typename T>
 void DataPanels::doFormatPanel(const char* label, const i32 startLine, const char* format)
 {
     if(columnCount % sizeof(T)) {
-        ImGui::TextColored(ImVec4(0.8, 0, 0, 1), "\n\nColumn count is not divisible by %d", sizeof(T));
+        ImGui::TextColored(ImVec4(0.8, 0, 0, 1), "\nColumn count is not divisible by %d", sizeof(T));
         return;
     }
 
@@ -734,6 +732,7 @@ void DataPanels::doFormatPanel(const char* label, const i32 startLine, const cha
     }
 }
 
+#if 0
 void DataPanels::doBrickPanel(const char* label, const i32 startLine)
 {
     assert(brickWall);
@@ -827,3 +826,4 @@ void DataPanels::doBrickPanel(const char* label, const i32 startLine)
         }
     }
 }
+#endif

@@ -11,6 +11,8 @@
 #include "config.h"
 #include "utils.h"
 #include "bricks.h"
+#include <easy/profiler.h>
+#include <easy/reader.h>
 
 #define GL3W_IMPLEMENTATION
 #include "gl3w.h"
@@ -87,6 +89,13 @@ bool init()
     member.name.set("entryCount");
     bs->bricks.push(member);
 
+    member = {};
+    member.type = BrickType_UINT8;
+    member.size = 248;
+    member.color = 0xff808080;
+    member.name.set("empty");
+    bs->bricks.push(member);
+
     bs->computeSize();
 
     bs = brickWall.newStructDef("FileDesc", 0xffc5ff7f);
@@ -115,6 +124,24 @@ bool init()
     bs->computeSize();
 
     brickWall._rebuildTypeCache();
+
+    Brick b;
+    b.type = (BrickType)(BrickType_USER_STRUCT + 0); // PakHeader
+    b.name = "header";
+    b.start = 0;
+    b.size = brickWall.typeCache[b.type].size;
+    b.userStruct = &brickWall.structs[0];
+    b.color = b.userStruct->color;
+    brickWall.insertBrick(b);
+
+    b = {};
+    b.type = (BrickType)(BrickType_USER_STRUCT + 1); // FileDesc
+    b.name = "fileDesc";
+    b.start = brickWall.typeCache[BrickType_USER_STRUCT + 0].size; // right after header
+    b.size = brickWall.typeCache[b.type].size * 32096; // array[32096]
+    b.userStruct = &brickWall.structs[1];
+    b.color = b.userStruct->color;
+    brickWall.insertBrick(b);
 
     return true;
 }
@@ -155,6 +182,7 @@ i32 run()
 
 void update()
 {
+    EASY_FUNCTION(profiler::colors::Magenta);
     doUI();
 }
 
@@ -262,11 +290,9 @@ void doUI()
 
         static i32 selectedTab = 0;
         ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(15, 5));
+        ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(0, 0));
         ImGui::Tabs("Inspector_tabs", tabs, IM_ARRAYSIZE(tabs), &selectedTab);
         ImGui::PopStyleVar(1);
-
-        ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(8, 8));
-        ImGui::BeginChild("#tab_content", ImVec2(0, 0), false, ImGuiWindowFlags_AlwaysUseWindowPadding);
 
         switch(selectedTab) {
             case 0:
@@ -274,7 +300,7 @@ void doUI()
                                  dataPanels.selectionState);
                 break;
             case 1:
-                ui_brickWall(&brickWall);
+                ui_brickWall(&brickWall, curFileBuff.data);
                 break;
             case 2:
                 toolsDoTemplate(&brickWall);
@@ -284,8 +310,7 @@ void doUI()
                 break;
         }
 
-        ImGui::EndChild();
-        ImGui::PopStyleVar(1);
+        ImGui::PopStyleVar(1); // ItemSpacing
 
     ImGui::SplitVEnd();
 
@@ -329,6 +354,10 @@ int main()
 {
     SDL_SetMainReady();
 
+    EASY_PROFILER_ENABLE;
+    EASY_MAIN_THREAD;
+    profiler::startListen();
+
     i32 sdl = SDL_Init(SDL_INIT_VIDEO|SDL_INIT_TIMER|SDL_INIT_EVENTS);
     if(sdl != 0) {
         LOG("ERROR: could not init SDL2 (%s)", SDL_GetError());
@@ -343,5 +372,8 @@ int main()
     i32 r = app.run();
 
     SDL_Quit();
+
+    //profiler::stopListen();
+    profiler::dumpBlocksToFile("0XED_PROFILE.prof");
     return r;
 }
