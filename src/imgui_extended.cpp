@@ -158,13 +158,17 @@ void Tabs(const char* label, const char** names, const i32 count, i32* selected)
     }
 }
 
-void SplitVBeginLeft(const char* label, const ImRect& rect, f32* leftWidth, f32* rightWidth,
-                     const i32 separatorWidth)
+void SplitVBeginLeft(const char* label, f32* leftWidth, f32* rightWidth, const i32 separatorWidth)
 {
     assert(leftWidth || rightWidth);
 
-    ImVec2 size(separatorWidth, rect.GetHeight());
-    const f32 winWidth = rect.GetWidth();
+    PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(0, 0));
+
+    ImGuiWindow* window = GetCurrentWindow();
+    ImVec2 size(separatorWidth, window->Rect().GetHeight());
+
+    const f32 winWidth = window->Rect().GetWidth();
+
 
     f32 childLeftWidth = 100, childRightWidth = 100;
     if(leftWidth) {
@@ -176,21 +180,10 @@ void SplitVBeginLeft(const char* label, const ImRect& rect, f32* leftWidth, f32*
         childLeftWidth = winWidth - separatorWidth - childRightWidth;
     }
 
-    PushStyleVar(ImGuiStyleVar_WindowRounding, 0.0f);
-    PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
-    PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0);
-    SetNextWindowSize(rect.Max - rect.Min);
-    SetNextWindowPos(rect.Min);
-    Begin("##bg_separatorwindow", NULL, ImGuiWindowFlags_NoMove|ImGuiWindowFlags_NoResize|
-          ImGuiWindowFlags_NoTitleBar|ImGuiWindowFlags_NoBringToFrontOnFocus|
-          ImGuiWindowFlags_NoFocusOnAppearing);
-
-    BringWindowToBack(GetCurrentWindow());
-
-    ImVec2 pos = rect.Min + ImVec2(childLeftWidth, 0);
+    ImVec2 pos = window->Rect().Min + ImVec2(childLeftWidth, 0);
     ImRect bb(pos, pos + size);
 
-    const ImGuiID id = GetCurrentWindow()->GetID(leftWidth ? leftWidth : rightWidth);
+    const ImGuiID id = window->GetID(leftWidth ? leftWidth : rightWidth);
     bool held = false;
     bool hovered = false;
     ButtonBehavior(bb, id, &hovered, &held);
@@ -231,51 +224,38 @@ void SplitVBeginLeft(const char* label, const ImRect& rect, f32* leftWidth, f32*
         buttonColor = 0xffffc5a3;
         textColor = 0xff000000;
     }
-
     RenderFrame(bb.Min, bb.Max, buttonColor, true);
 
-    End();
-    PopStyleVar(3); // separator window end
-
-    PushStyleVar(ImGuiStyleVar_WindowRounding, 0.0f);
-    PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
-    PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0);
-    SetNextWindowSize(ImVec2(childLeftWidth, rect.GetHeight()));
-    SetNextWindowPos(rect.Min);
-    Begin(label, NULL, ImGuiWindowFlags_NoMove|ImGuiWindowFlags_NoResize|
-          ImGuiWindowFlags_NoTitleBar|ImGuiWindowFlags_NoBringToFrontOnFocus);
-
+    BeginChild(label, ImVec2(childLeftWidth, -1), false, ImGuiWindowFlags_AlwaysUseWindowPadding);
 }
 
-void SplitVBeginRight(const char* label, const ImRect& rect, f32* leftWidth, f32* rightWidth,
-                      const i32 separatorWidth)
+void SplitVBeginRight(const char* label, f32* leftWidth, f32* rightWidth, const i32 separatorWidth)
 {
     assert(leftWidth || rightWidth);
 
-    End();
-    PopStyleVar(3);
+    EndChild();
+
+    ImGuiWindow* window = GetCurrentWindow();
+    SameLine();
+    ItemSize(ImVec2(separatorWidth, window->Rect().GetHeight()));
+    SameLine();
+
 
     f32 childRightWidth = 100;
     if(leftWidth) {
-        childRightWidth = rect.GetWidth() - separatorWidth - *leftWidth;
+        childRightWidth = window->Rect().GetWidth() - separatorWidth - *leftWidth;
     }
     else {
         childRightWidth = *rightWidth;
     }
 
-    PushStyleVar(ImGuiStyleVar_WindowRounding, 0.0f);
-    PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
-    PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0);
-    SetNextWindowSize(ImVec2(childRightWidth, rect.GetHeight()));
-    SetNextWindowPos(rect.Min + ImVec2(rect.GetWidth() - childRightWidth, 0));
-    Begin(label, NULL, ImGuiWindowFlags_NoMove|ImGuiWindowFlags_NoResize|
-          ImGuiWindowFlags_NoTitleBar|ImGuiWindowFlags_NoBringToFrontOnFocus);
+    BeginChild(label, ImVec2(childRightWidth, -1), false, ImGuiWindowFlags_AlwaysUseWindowPadding);
 }
 
 void SplitVEnd()
 {
-    End();
-    PopStyleVar(3);
+    EndChild();
+    PopStyleVar(1);
 }
 
 bool IsAnyPopupOpen()

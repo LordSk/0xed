@@ -275,11 +275,20 @@ void doUI()
     // TODO: status bar?
     // MAIN FRAME BEGIN
     const ImRect winRect(0, menuBarHeight, win.winWidth, win.winHeight);
-    ImGui::SplitVBeginLeft("Mainframe_left", winRect, nullptr, &toolsPanelWidth);
+    ImGui::SetNextWindowPos(winRect.Min);
+    ImGui::SetNextWindowSize(winRect.Max - winRect.Min);
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0);
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0,0));
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0);
+    ImGui::Begin("Mainframe", NULL, ImGuiWindowFlags_NoTitleBar|ImGuiWindowFlags_NoResize|
+                 ImGuiWindowFlags_NoMove|ImGuiWindowFlags_NoScrollbar|
+                 ImGuiWindowFlags_NoBringToFrontOnFocus);
+
+    ImGui::SplitVBeginLeft("Mainframe_left", nullptr, &toolsPanelWidth);
 
         dataPanels.doUi();
 
-    ImGui::SplitVBeginRight("Mainframe_right", winRect, nullptr, &toolsPanelWidth);
+    ImGui::SplitVBeginRight("Mainframe_right", nullptr, &toolsPanelWidth);
 
         const char* tabs[] = {
             "Inspector",
@@ -341,7 +350,10 @@ void doUI()
 
     ui_brickPopup(POPUP_BRICK_ADD, popupBrickSelStart, popupBrickSelLength, &brickWall);
 
-    ImGui::ShowDemoWindow();
+    ImGui::End();
+    ImGui::PopStyleVar(3);
+
+    //ImGui::ShowDemoWindow();
 }
 
 };

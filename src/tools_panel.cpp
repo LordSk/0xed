@@ -42,7 +42,8 @@ void toolsDoInspector(const u8* fileBuffer, const i64 fileBufferSize, const Sele
     constexpr f32 tableLineHeight = 24;
 
     // ---- TYPES ----
-    ImGui::BeginChild("#inspector_left", ImVec2(150, typeCount * tableLineHeight));
+    ImGui::BeginChild("#inspector_left", ImVec2(150, typeCount * tableLineHeight), false,
+                      ImGuiWindowFlags_AlwaysUseWindowPadding);
 
         ImU32 frameColor = 0xffeeeeee;
         ImU32 frameColorOdd = 0xffdddddd;
@@ -60,7 +61,8 @@ void toolsDoInspector(const u8* fileBuffer, const i64 fileBufferSize, const Sele
     ImGui::SameLine();
 
     // ---- VALUES ----
-    ImGui::BeginChild("#inspector_right", ImVec2(0, typeCount * 24));
+    ImGui::BeginChild("#inspector_right", ImVec2(0, typeCount * 24), false,
+                      ImGuiWindowFlags_AlwaysUseWindowPadding);
 
         frameColor = 0xffffffff;
         frameColorOdd = 0xfff0f0f0;
