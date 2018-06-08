@@ -1,0 +1,13 @@
+// a comment
+
+struct PakHeader
+{
+    char[3] fileTypeStr;
+    uint8 version;
+    int32 entryCount;
+    uint8[248] empty;
+}
+
+PakHeader header;
+f32 test_f32;
+f64 test_f64;

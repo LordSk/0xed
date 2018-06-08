@@ -1,7 +1,12 @@
 0xed TODO list
 
 # Block Template System
-- First implement small type blocks (i32, byte, char[], etc...)
-- Coloration of blocks inside panels
-- Arrays of said blocks
-- Structure of blocks (block type strutureT ?)
+[x] First implement small type blocks (i32, byte, char[], etc...)
+[x] Coloration of blocks inside panels
+[x] Arrays of said blocks
+[x] Structure of blocks (block type strutureT ?)
+
+# Script to generate bricks
+[ ] Simple script (simple brick, structure brick, arrays)
+[ ] Do local variables and if/else
+[ ] One brick_wall per script

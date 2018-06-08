@@ -441,7 +441,9 @@ void ui_brickStructList(BrickWall* brickWall)
     static bool8 expanded[1024];
 
     ImRect winRect = ImGui::GetCurrentWindow()->Rect();
-    ImGui::BeginChild("#struct_list", ImVec2(-1, winRect.GetHeight() * 0.3));
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(5,5));
+    ImGui::BeginChild("#struct_list", ImVec2(-1, winRect.GetHeight() * 0.3), false,
+                      ImGuiWindowFlags_AlwaysUseWindowPadding);
 
     BrickStruct* structs = brickWall->structs.data();
     const i32 structCount = brickWall->structs.count();
@@ -457,8 +459,7 @@ void ui_brickStructList(BrickWall* brickWall)
     ImGui::PopStyleVar(1); // ItemSpacing
 
     ImGui::EndChild();
-
-    ImGui::Separator();
+    ImGui::PopStyleVar(1); // ImGuiStyleVar_WindowPadding
 
     if(ImGui::CollapsingHeader("Add structure")) {
         static char bsName[32] = {0};

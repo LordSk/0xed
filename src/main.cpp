@@ -11,6 +11,7 @@
 #include "config.h"
 #include "utils.h"
 #include "bricks.h"
+#include "script.h"
 #include <easy/profiler.h>
 #include <easy/reader.h>
 
@@ -40,6 +41,8 @@ bool popupBrickWantOpen = false;
 intptr_t popupBrickSelStart;
 i64 popupBrickSelLength;
 
+Script script;
+
 bool init()
 {
     loadConfigFile(CONFIG_FILENAME, &config);
@@ -65,6 +68,8 @@ bool init()
     if(openFileReadAll("C:\\Prog\\Projets\\sacred_remake\\sacred_data\\mixed.pak", &curFileBuff)) {
         dataPanels.setFileBuffer(curFileBuff.data, curFileBuff.size);
     }
+
+    script.openAndParse("../test_script.0");
 
     BrickStruct* bs = brickWall.newStructDef("PakHeader", 0xffff0080);
 
@@ -293,7 +298,7 @@ void doUI()
         const char* tabs[] = {
             "Inspector",
             "Bricks",
-            "Structures",
+            "Scripts",
             "Options"
         };
 
@@ -312,7 +317,7 @@ void doUI()
                 ui_brickWall(&brickWall, curFileBuff.data);
                 break;
             case 2:
-                toolsDoTemplate(&brickWall);
+                //toolsDoScripts();
                 break;
             case 3:
                 toolsDoOptions(&dataPanels.columnCount);
@@ -322,6 +327,9 @@ void doUI()
         ImGui::PopStyleVar(1); // ItemSpacing
 
     ImGui::SplitVEnd();
+
+    ImGui::End();
+    ImGui::PopStyleVar(3);
 
     static i32 gotoOffset = 0;
     if(openGoto) {
@@ -349,10 +357,6 @@ void doUI()
     }
 
     ui_brickPopup(POPUP_BRICK_ADD, popupBrickSelStart, popupBrickSelLength, &brickWall);
-
-    ImGui::End();
-    ImGui::PopStyleVar(3);
-
     //ImGui::ShowDemoWindow();
 }
 
