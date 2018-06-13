@@ -662,6 +662,13 @@ static bool doBrickNode(Brick brick, const Array<BrickWall::TypeInfo>& typeCache
                 dataBuffLen = sprintf(dataBuff, "%llu", *(u64*)data);
                 break;
 
+            case BrickType_FLOAT32:
+                dataBuffLen = sprintf(dataBuff, "%f", *(f32*)data);
+                break;
+            case BrickType_FLOAT64:
+                dataBuffLen = sprintf(dataBuff, "%f", *(f64*)data);
+                break;
+
             case BrickType_OFFSET32:
                 dataBuffLen = sprintf(dataBuff, "%d", *(i32*)data);
                 break;

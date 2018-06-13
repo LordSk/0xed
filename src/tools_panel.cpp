@@ -1,6 +1,7 @@
 #include "tools_panel.h"
 #include "imgui_extended.h"
 #include "bricks.h"
+#include "script.h"
 
 void toolsDoInspector(const u8* fileBuffer, const i64 fileBufferSize, const SelectionState& selection)
 {
@@ -179,4 +180,13 @@ void toolsDoOptions(i32* columnCount)
 {
     ImGui::SliderInt("Columns", columnCount, 8, 128);
     *columnCount = clamp(*columnCount, 8, 128);
+}
+
+void toolsDoScript(Script* script, BrickWall* brickWall)
+{
+    if(ImGui::Button("Execute")) {
+        if(!script->execute(brickWall)) {
+            LOG("Script> ERROR failed to fully execute script");
+        }
+    }
 }

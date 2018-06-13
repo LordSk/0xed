@@ -199,7 +199,7 @@ enum class BaseType: i32 {
     _COUNT
 };
 
-const char* BaseTypeStr[] = {
+const char* BaseTypeStr[(i32)BaseType::_COUNT] = {
     "",
 
     "char",
@@ -219,12 +219,54 @@ const char* BaseTypeStr[] = {
     "float64"
 };
 
+const i32 BaseTypeSize[(i32)BaseType::_COUNT] = {
+    0,
+
+    1,
+    2,
+
+    1,
+    2,
+    4,
+    8,
+
+    1,
+    2,
+    4,
+    8,
+
+    4,
+    8
+};
+
+const i32 BaseTypeBrickType[(i32)BaseType::_COUNT] = {
+    0,
+
+    BrickType_CHAR,
+    BrickType_WIDE_CHAR,
+
+    BrickType_INT8,
+    BrickType_INT16,
+    BrickType_INT32,
+    BrickType_INT64,
+
+    BrickType_UINT8,
+    BrickType_UINT16,
+    BrickType_UINT32,
+    BrickType_UINT64,
+
+    BrickType_FLOAT32,
+    BrickType_FLOAT64
+};
+
 struct ScriptVar
 {
     BaseType baseType;
     u32 structType;
     u32 nameHash;
     i32 line; // of declaraction;
+    i32 arrayCount;
+    i32 nameLen;
     char name[64];
 };
 
@@ -232,13 +274,18 @@ struct ScriptStruct
 {
     char name[64];
     u32 nameHash;
+    i32 size;
     ScriptVar members[128];
 };
 
 Array<ScriptStruct> g_userDefinedStructs;
 
-bool parseVariableDeclaration(Script& script, Cursor* pCursor)
+bool parseVariableDeclaration(ScriptVar* var, Cursor* pCursor)
 {
+    // TODO: handle 'local' case
+
+    *var = {};
+
     Token token = getToken(pCursor);
 
     if(token.type != TokenType::NAME) {
@@ -246,8 +293,13 @@ bool parseVariableDeclaration(Script& script, Cursor* pCursor)
         return false;
     }
 
-    char varType[128];
-    char varName[128];
+    assert(token.len < 64);
+
+    var->arrayCount = 1;
+    var->line = pCursor->line;
+
+    char varType[64];
+    char varName[64];
     memmove(varType, token.start, token.len);
     varType[token.len] = 0;
 
@@ -256,6 +308,8 @@ bool parseVariableDeclaration(Script& script, Cursor* pCursor)
     for(i32 i = 1; i < (i32)BaseType::_COUNT; ++i) {
         if(strComp(varType, BaseTypeStr[i])) {
             found = true;
+            var->baseType = (BaseType)i;
+            var->structType = 0;
             break;
         }
     }
@@ -267,6 +321,8 @@ bool parseVariableDeclaration(Script& script, Cursor* pCursor)
         for(i32 i = 0; i < count; ++i) {
             if(typeHash == g_userDefinedStructs[i].nameHash) {
                 found = true;
+                var->baseType = BaseType::_INVALID;
+                var->structType = typeHash;
                 break;
             }
         }
@@ -278,6 +334,8 @@ bool parseVariableDeclaration(Script& script, Cursor* pCursor)
 
     token = getToken(pCursor);
 
+    i32 varArrayCount = 1;
+
     if(token.type == TokenType::OPEN_BRACKET) {
         token = getToken(pCursor);
 
@@ -287,11 +345,18 @@ bool parseVariableDeclaration(Script& script, Cursor* pCursor)
             return false;
         }
 
+        assert(token.len < 32);
+        char intStr[32];
+        memmove(intStr, token.start, token.len);
+        intStr[token.len] = 0;
+
         token = getToken(pCursor);
         if(token.type != TokenType::CLOSE_BRACKET) {
             LOG("ParsingError> expected ']' (line: %d)", pCursor->line);
             return false;
         }
+
+        sscanf(intStr, "%d", &varArrayCount);
 
         token = getToken(pCursor);
     }
@@ -303,7 +368,10 @@ bool parseVariableDeclaration(Script& script, Cursor* pCursor)
 
     }
 
+    assert(token.len < 64);
+
     // variable name
+    i32 varNameLen = token.len;
     memmove(varName, token.start, token.len);
     varName[token.len] = 0;
 
@@ -316,7 +384,12 @@ bool parseVariableDeclaration(Script& script, Cursor* pCursor)
         return false;
     }
 
-    //LOG("%s %s;", varType, varName);
+    LOG("%s[%d] %s;", varType, varArrayCount, varName);
+
+    memmove(var->name, varName, varNameLen);
+    var->arrayCount = varArrayCount;
+    var->nameHash = hash32(varName, varNameLen);
+    var->nameLen = varNameLen;
 
     return true;
 }
@@ -353,7 +426,8 @@ bool parseStructDeclaration(Script& script, Cursor* pCursor)
     // TODO: handle empty struct (throw error)
 
     // parse members
-    while(parseVariableDeclaration(script, pCursor)) {
+    ScriptVar member;
+    while(parseVariableDeclaration(&member, pCursor)) {
         Cursor curCopy = *pCursor;
         token = getToken(&curCopy);
 
@@ -382,7 +456,28 @@ bool parseExpression(Script& script, Cursor* pCursor)
         return parseStructDeclaration(script, pCursor);
     }
     else if(token.type == TokenType::NAME) {
-        return parseVariableDeclaration(script, pCursor);
+        ScriptVar var;
+        if(parseVariableDeclaration(&var, pCursor)) {
+            // base type brick
+            if(var.baseType != BaseType::_INVALID) {
+                Instruction inst;
+                inst.type = InstType::PLACE_BRICK;
+
+                i32 size = BaseTypeSize[(i32)var.baseType] * var.arrayCount;
+                i32 typeId = BaseTypeBrickType[(i32)var.baseType];
+
+                inst.args[0] = size;
+                inst.args[1] = script._pushBytecodeData(var.name, var.nameLen);
+                inst.args[2] = var.nameLen;
+                inst.args[3] = typeId;
+                inst.args[4] = 0xffffffff;
+
+                script.bytecode.push(inst);
+            }
+
+            return true;
+        }
+        return false;
     }
     else if(token.type == TokenType::END_OF_FILE) {
         *pCursor = curCopy;
@@ -392,12 +487,28 @@ bool parseExpression(Script& script, Cursor* pCursor)
     return false;
 }
 
+void Script::release()
+{
+    bytecodeDataSize = 0;
+    if(bytecodeData) {
+        free(bytecodeData);
+        bytecodeData = nullptr;
+    }
+}
+
 bool Script::openAndCompile(const char* path)
 {
+    release();
+
     if(!openFileReadAll(path, &file)) {
         return false;
     }
     defer(free(file.data));
+
+    bytecode.clear();
+    bytecodeDataSize = 2048; // 2 Ko
+    bytecodeData = (u8*)malloc(bytecodeDataSize);
+    bytecodeDataCur = 0;
 
     g_userDefinedStructs.clear();
 
@@ -420,4 +531,55 @@ bool Script::openAndCompile(const char* path)
 
     LOG("File parsed and compiled (%s)", path);
     return true;
+}
+
+bool Script::execute(BrickWall* wall)
+{
+    *wall = {}; // reset wall
+
+    intptr_t bufferOffset = 0;
+    const i32 instCount = bytecode.count();
+
+    for(i32 i = 0; i < instCount; ++i) {
+        const Instruction& inst = bytecode[i];
+
+        switch(inst.type) {
+            case InstType::PLACE_BRICK: {
+                LOG("Inst> PLACE_BRICK(%d, %.*s, %d, %x)",
+                        (i32)inst.args[0],
+                        (i32)inst.args[2],
+                        (const char*)bytecodeData + (i32)inst.args[1],
+                        (i32)inst.args[3],
+                        (i32)inst.args[4]);
+
+                Brick b;
+                b.start = bufferOffset;
+                b.size = (i64)inst.args[0];
+                b.type = (BrickType)inst.args[3];
+                assert(b.type >= BrickType_CHAR && b.type < BrickType__COUNT);
+                b.name.set((const char*)bytecodeData + (i32)inst.args[1], (i32)inst.args[2]);
+                b.userStruct = nullptr;
+                bufferOffset += b.size;
+
+                if(!wall->insertBrick(b)) {
+                    return false;
+                }
+            } break;
+        }
+    }
+
+    return true;
+}
+
+u32 Script::_pushBytecodeData(void* data, u32 dataSize)
+{
+    if(bytecodeDataCur + dataSize >= bytecodeDataSize) {
+        bytecodeDataSize = max(bytecodeDataSize * 2, bytecodeDataSize + dataSize);
+        bytecodeData = (u8*)realloc(bytecodeData, bytecodeDataSize);
+    }
+
+    memmove(bytecodeData + bytecodeDataCur, data, dataSize);
+    u32 offset = bytecodeDataCur;
+    bytecodeDataCur += dataSize;
+    return offset;
 }

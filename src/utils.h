@@ -62,3 +62,32 @@ inline u32 hash32(const void* data, const u32 dataLen)
     }
     return h;
 }
+
+template<i32 STR_LEN>
+struct StrT
+{
+    char str[STR_LEN];
+    i32 len = 0;
+
+    StrT() = default;
+
+    StrT(const char* _str) {
+        set(_str);
+    }
+
+    void set(const char* _str) {
+        len = strlen(_str);
+        assert(len < STR_LEN);
+        memmove(str, _str, len);
+        str[len] = 0;
+    }
+
+    void set(const char* _str, i32 _len) {
+        assert(_len < STR_LEN);
+        memmove(str, _str, _len);
+        str[_len] = 0;
+        len = _len;
+    }
+};
+
+typedef StrT<32> Str32;

@@ -26,25 +26,6 @@ enum BrickType: i32
     BrickType__COUNT
 };
 
-struct Str32
-{
-    char str[32];
-    i32 len = 0;
-
-    Str32() = default;
-
-    Str32(const char* _str) {
-        set(_str);
-    }
-
-    void set(const char* _str) {
-        len = strlen(_str);
-        assert(len < 32);
-        memmove(str, _str, len);
-        str[len] = 0;
-    }
-};
-
 struct Brick
 {
     const struct BrickStruct* userStruct = nullptr;

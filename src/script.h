@@ -5,21 +5,29 @@
 enum class InstType: i32 {
     _INVALID = 0,
     PLACE_BRICK,
-    STRUCT_BEGIN,
-    STRUCT_END,
-    STRUCT_ADD_BRICK,
+    BRICK_STRUCT_BEGIN,
+    BRICK_STRUCT_END
 };
 
 struct Instruction
 {
     InstType type = InstType::_INVALID;
-    void* args[2];
+    intptr_t args[5];
 };
 
 struct Script
 {
     FileBuffer file;
-    Array<Instruction> code;
+    u8* bytecodeData = nullptr;
+    u32 bytecodeDataCur = 0;
+    u32 bytecodeDataSize = 0;
+    Array<Instruction> bytecode;
+
+    ~Script() { release(); }
+    void release();
 
     bool openAndCompile(const char* path);
+    bool execute(struct BrickWall* wall);
+
+    u32 _pushBytecodeData(void* data, u32 dataSize);
 };

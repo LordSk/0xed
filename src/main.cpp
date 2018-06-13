@@ -317,7 +317,7 @@ void doUI()
                 ui_brickWall(&brickWall, curFileBuff.data);
                 break;
             case 2:
-                //toolsDoScripts();
+                toolsDoScript(&script, &brickWall);
                 break;
             case 3:
                 toolsDoOptions(&dataPanels.columnCount);
