@@ -69,7 +69,7 @@ bool init()
         dataPanels.setFileBuffer(curFileBuff.data, curFileBuff.size);
     }
 
-    script.openAndParse("../test_script.0");
+    script.openAndCompile("../test_script.0");
 
     BrickStruct* bs = brickWall.newStructDef("PakHeader", 0xffff0080);
 

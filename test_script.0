@@ -9,5 +9,5 @@ struct PakHeader
 }
 
 PakHeader header;
-f32 test_f32;
-f64 test_f64;
+float32 test_f32;
+float64 test_f64;
