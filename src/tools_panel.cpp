@@ -173,7 +173,7 @@ void toolsDoInspector(const u8* fileBuffer, const i64 fileBufferSize, const Sele
 
 void toolsDoTemplate(BrickWall* brickWall)
 {
-    ui_brickStructList(brickWall);
+    //ui_brickStructList(brickWall);
 }
 
 void toolsDoOptions(i32* columnCount)

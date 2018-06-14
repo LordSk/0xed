@@ -47,7 +47,7 @@ bool init()
 {
     loadConfigFile(CONFIG_FILENAME, &config);
 
-    if(!win.init(WINDOW_BASE_TITLE, WINDOW_WIDTH, WINDOW_HEIGHT,
+    if(!win.init(WINDOW_BASE_TITLE, config.windowWidth, config.windowHeight,
                  config.windowMaximized, "0xed_imgui.ini")) {
         return false;
     }
@@ -70,83 +70,7 @@ bool init()
     }
 
     script.openAndCompile("../test_script.0");
-
-    BrickStruct* bs = brickWall.newStructDef("PakHeader", 0xffff0080);
-
-    Brick member;
-    member.type = BrickType_CHAR;
-    member.size = 3;
-    member.color = 0xff0000ff;
-    member.name.set("fileTypeStr");
-    bs->bricks.push(member);
-
-    member = {};
-    member.type = BrickType_UINT8;
-    member.size = 1;
-    member.color = 0xff00ffff;
-    member.name.set("version");
-    bs->bricks.push(member);
-
-    member = {};
-    member.type = BrickType_INT32;
-    member.size = 4;
-    member.color = 0xffffff00;
-    member.name.set("entryCount");
-    bs->bricks.push(member);
-
-    member = {};
-    member.type = BrickType_UINT8;
-    member.size = 248;
-    member.color = 0xff808080;
-    member.name.set("empty");
-    bs->bricks.push(member);
-
-    bs->computeSize();
-
-    bs = brickWall.newStructDef("FileDesc", 0xffc5ff7f);
-
-    member = {};
-    member.type = BrickType_INT32;
-    member.size = 4;
-    member.color = 0xff7c7c7c;
-    member.name.set("type");
-    bs->bricks.push(member);
-
-    member = {};
-    member.type = BrickType_INT32;
-    member.size = 4;
-    member.color = 0xff8414bc;
-    member.name.set("offset");
-    bs->bricks.push(member);
-
-    member = {};
-    member.type = BrickType_INT32;
-    member.size = 4;
-    member.color = 0xffbc141d;
-    member.name.set("size");
-    bs->bricks.push(member);
-
-    bs->computeSize();
-
-    brickWall._rebuildTypeCache();
-
-    Brick b;
-    b.type = (BrickType)(BrickType_USER_STRUCT + 0); // PakHeader
-    b.name = "header";
-    b.start = 0;
-    b.size = brickWall.typeCache[b.type].size;
-    b.userStruct = &brickWall.structs[0];
-    b.color = b.userStruct->color;
-    brickWall.insertBrick(b);
-
-    b = {};
-    b.type = (BrickType)(BrickType_USER_STRUCT + 1); // FileDesc
-    b.name = "fileDesc";
-    b.start = brickWall.typeCache[BrickType_USER_STRUCT + 0].size; // right after header
-    b.size = brickWall.typeCache[b.type].size * 32096; // array[32096]
-    b.userStruct = &brickWall.structs[1];
-    b.color = b.userStruct->color;
-    brickWall.insertBrick(b);
+    script.execute(&brickWall);
 
     return true;
 }

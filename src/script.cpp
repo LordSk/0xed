@@ -240,7 +240,7 @@ const i32 BaseTypeSize[(i32)BaseType::_COUNT] = {
 };
 
 const i32 BaseTypeBrickType[(i32)BaseType::_COUNT] = {
-    0,
+    -1,
 
     BrickType_CHAR,
     BrickType_WIDE_CHAR,
@@ -262,7 +262,7 @@ const i32 BaseTypeBrickType[(i32)BaseType::_COUNT] = {
 struct ScriptVar
 {
     BaseType baseType;
-    u32 structType;
+    u32 structTypeHash;
     u32 nameHash;
     i32 line; // of declaraction;
     i32 arrayCount;
@@ -273,8 +273,10 @@ struct ScriptVar
 struct ScriptStruct
 {
     char name[64];
+    i32 nameLen;
     u32 nameHash;
     i32 size;
+    i32 memberCount;
     ScriptVar members[128];
 };
 
@@ -309,7 +311,7 @@ bool parseVariableDeclaration(ScriptVar* var, Cursor* pCursor)
         if(strComp(varType, BaseTypeStr[i])) {
             found = true;
             var->baseType = (BaseType)i;
-            var->structType = 0;
+            var->structTypeHash = 0;
             break;
         }
     }
@@ -322,7 +324,7 @@ bool parseVariableDeclaration(ScriptVar* var, Cursor* pCursor)
             if(typeHash == g_userDefinedStructs[i].nameHash) {
                 found = true;
                 var->baseType = BaseType::_INVALID;
-                var->structType = typeHash;
+                var->structTypeHash = typeHash;
                 break;
             }
         }
@@ -394,9 +396,10 @@ bool parseVariableDeclaration(ScriptVar* var, Cursor* pCursor)
     return true;
 }
 
-bool parseStructDeclaration(Script& script, Cursor* pCursor)
+bool parseStructDeclaration(ScriptStruct* ss, Cursor* pCursor)
 {
-    ScriptStruct ss;
+    *ss = {};
+
     Token token = getToken(pCursor);
 
     if(token.type != TokenType::KW_STRUCT) {
@@ -412,22 +415,26 @@ bool parseStructDeclaration(Script& script, Cursor* pCursor)
     }
 
     assert(token.len < 64);
-    memmove(ss.name, token.start, token.len);
-    ss.name[token.len] = 0;
-    ss.nameHash = hash32(ss.name, token.len);
+    memmove(ss->name, token.start, token.len);
+    ss->name[token.len] = 0;
+    ss->nameLen = token.len;
+    ss->nameHash = hash32(ss->name, token.len);
 
     token = getToken(pCursor);
 
     if(token.type != TokenType::OPEN_BRACE) {
-        LOG("ParsingError> expected { after 'struct %s' (line: %d)", ss.name, pCursor->line);
+        LOG("ParsingError> expected { after 'struct %s' (line: %d)", ss->name, pCursor->line);
         return false;
     }
 
     // TODO: handle empty struct (throw error)
 
     // parse members
+    ss->memberCount = 0;
     ScriptVar member;
     while(parseVariableDeclaration(&member, pCursor)) {
+        ss->members[ss->memberCount++] = member;
+
         Cursor curCopy = *pCursor;
         token = getToken(&curCopy);
 
@@ -438,39 +445,165 @@ bool parseStructDeclaration(Script& script, Cursor* pCursor)
     }
 
     if(pCursor->lastToken.type != TokenType::CLOSE_BRACE) {
-        LOG("ParsingError> expected } after 'struct %s {...' (line: %d)", ss.name, pCursor->line);
+        LOG("ParsingError> expected } after 'struct %s {...' (line: %d)", ss->name, pCursor->line);
         return false;
     }
-
-    g_userDefinedStructs.push(ss);
 
     return true;
 }
 
+#if 0
+void pushCreateBrickStructInstructions(const ScriptStruct& ss, Script& script)
+{
+    Instruction inst;
+    inst.type = InstType::BRICK_STRUCT_BEGIN;
+    inst.args[0] = script._pushBytecodeData(ss.name, ss.nameLen);
+    inst.args[1] = ss.nameLen;
+
+    script.bytecode.push(inst);
+
+    // TODO: place_brick on members (recursively in user structs cases)
+    const i32 memberCount = ss.memberCount;
+    for(i32 m = 0; m < memberCount; ++m) {
+        const ScriptVar& var = ss.members[m];
+
+        if(var.baseType != BaseType::_INVALID) {
+            Instruction inst;
+            inst.type = InstType::PLACE_BRICK;
+
+            i32 size = BaseTypeSize[(i32)var.baseType] * var.arrayCount;
+            i32 typeId = BaseTypeBrickType[(i32)var.baseType];
+
+            inst.args[0] = size;
+            inst.args[1] = script._pushBytecodeData(var.name, var.nameLen);
+            inst.args[2] = var.nameLen;
+            inst.args[3] = typeId;
+            inst.args[4] = 0xff0000ff;
+
+            script.bytecode.push(inst);
+        }
+        else {
+            assert(var.structType);
+            ScriptStruct* memSs = nullptr;
+
+            const i32 userDefinedStructCount = g_userDefinedStructs.count();
+            for(i32 s = 0; s < userDefinedStructCount; ++s) {
+                if(g_userDefinedStructs[s].nameHash == var.structType) {
+                    memSs = &g_userDefinedStructs[s];
+                    break;
+                }
+            }
+
+            assert(memSs);
+            pushBrickStructAddMembersInstructions(*memSs, script);
+        }
+    }
+
+    inst = {};
+    inst.type = InstType::BRICK_STRUCT_END;
+    script.bytecode.push(inst);
+}
+
+void pushBrickStructAddMembersInstructions(const ScriptStruct& ss, Script& script)
+{
+    const i32 memberCount = ss.memberCount;
+    for(i32 m = 0; m < memberCount; ++m) {
+        const ScriptVar& var = ss.members[m];
+
+        if(var.baseType != BaseType::_INVALID) {
+            Instruction inst;
+            inst.type = InstType::PLACE_BRICK;
+
+            i32 size = BaseTypeSize[(i32)var.baseType] * var.arrayCount;
+            i32 typeId = BaseTypeBrickType[(i32)var.baseType];
+
+            inst.args[0] = size;
+            inst.args[1] = script._pushBytecodeData(var.name, var.nameLen);
+            inst.args[2] = var.nameLen;
+            inst.args[3] = typeId;
+            inst.args[4] = 0xff0000ff;
+
+            script.bytecode.push(inst);
+        }
+        else {
+            assert(var.structType);
+            ScriptStruct* memSs = nullptr;
+
+            const i32 userDefinedStructCount = g_userDefinedStructs.count();
+            for(i32 s = 0; s < userDefinedStructCount; ++s) {
+                if(g_userDefinedStructs[s].nameHash == var.structType) {
+                    memSs = &g_userDefinedStructs[s];
+                    break;
+                }
+            }
+
+            assert(memSs);
+            pushBrickStructAddMembersInstructions(*memSs, script);
+        }
+    }
+}
+#endif
 bool parseExpression(Script& script, Cursor* pCursor)
 {
     Cursor curCopy = *pCursor;
     Token token = getToken(&curCopy);
 
     if(token.type == TokenType::KW_STRUCT) {
-        return parseStructDeclaration(script, pCursor);
+        ScriptStruct ss;
+
+        if(parseStructDeclaration(&ss, pCursor)) {
+            g_userDefinedStructs.push(ss);
+
+            Instruction inst;
+            inst.type = InstType::BRICK_STRUCT_BEGIN;
+            inst.args[0] = script._pushBytecodeData(ss.name, ss.nameLen);
+            inst.args[1] = ss.nameLen;
+
+            script.bytecode.push(inst);
+
+            // TODO: members
+            const i32 memberCount = ss.memberCount;
+            for(i32 m = 0; m < memberCount; ++m) {
+                const ScriptVar& member = ss.members[m];
+
+                inst = {};
+                inst.type = InstType::BRICK_STRUCT_ADD_MEMBER;
+
+                inst.args[0] = script._pushBytecodeData(member.name, member.nameLen);
+                inst.args[1] = member.nameLen;
+                inst.args[2] = member.arrayCount;
+                inst.args[3] = BaseTypeBrickType[(i32)member.baseType];
+                inst.args[4] = member.structTypeHash;
+                inst.args[5] = 0xff0000ff;
+
+                script.bytecode.push(inst);
+            }
+
+            inst = {};
+            inst.type = InstType::BRICK_STRUCT_END;
+
+            script.bytecode.push(inst);
+
+            return true;
+        }
+        return false;
     }
     else if(token.type == TokenType::NAME) {
         ScriptVar var;
+
         if(parseVariableDeclaration(&var, pCursor)) {
             // base type brick
             if(var.baseType != BaseType::_INVALID) {
                 Instruction inst;
                 inst.type = InstType::PLACE_BRICK;
 
-                i32 size = BaseTypeSize[(i32)var.baseType] * var.arrayCount;
                 i32 typeId = BaseTypeBrickType[(i32)var.baseType];
 
-                inst.args[0] = size;
+                inst.args[0] = var.arrayCount;
                 inst.args[1] = script._pushBytecodeData(var.name, var.nameLen);
                 inst.args[2] = var.nameLen;
                 inst.args[3] = typeId;
-                inst.args[4] = 0xffffffff;
+                inst.args[4] = 0xff0000ff;
 
                 script.bytecode.push(inst);
             }
@@ -540,6 +673,9 @@ bool Script::execute(BrickWall* wall)
     intptr_t bufferOffset = 0;
     const i32 instCount = bytecode.count();
 
+    BrickStruct currentBrickStruct;
+    bool insideStructDeclaration = false;
+
     for(i32 i = 0; i < instCount; ++i) {
         const Instruction& inst = bytecode[i];
 
@@ -552,18 +688,65 @@ bool Script::execute(BrickWall* wall)
                         (i32)inst.args[3],
                         (i32)inst.args[4]);
 
-                Brick b;
+                Brick b = makeBasicBrick((const char*)bytecodeData + (i32)inst.args[1], (i32)inst.args[2],
+                        (BrickType)inst.args[3], (i32)inst.args[0], (u32)inst.args[4]);
                 b.start = bufferOffset;
-                b.size = (i64)inst.args[0];
-                b.type = (BrickType)inst.args[3];
-                assert(b.type >= BrickType_CHAR && b.type < BrickType__COUNT);
-                b.name.set((const char*)bytecodeData + (i32)inst.args[1], (i32)inst.args[2]);
-                b.userStruct = nullptr;
                 bufferOffset += b.size;
 
                 if(!wall->insertBrick(b)) {
                     return false;
                 }
+            } break;
+
+            case InstType::BRICK_STRUCT_BEGIN: {
+                assert(!insideStructDeclaration); // cannot declare structs inside of structs
+
+                currentBrickStruct = {};
+                insideStructDeclaration = true;
+
+                LOG("Inst> BRICK_STRUCT_BEGIN(%.*s)",
+                        (i32)inst.args[1],
+                        (const char*)bytecodeData + (i32)(i32)inst.args[0]);
+
+            } break;
+
+            case InstType::BRICK_STRUCT_END: {
+                assert(insideStructDeclaration); // END without BEGIN
+
+                LOG("Inst> BRICK_STRUCT_END()");
+                insideStructDeclaration = false;
+
+                wall->structs.push(currentBrickStruct);
+            } break;
+
+            case InstType::BRICK_STRUCT_ADD_MEMBER: {
+                assert(insideStructDeclaration); // add member during struct declaration only
+
+                const char* name = (const char*)bytecodeData + (i32)(i32)inst.args[0];
+                const i32 nameLen = (i32)inst.args[1];
+                const i32 arrayCount = inst.args[2];
+                const BrickType brickType = (BrickType)inst.args[3];
+                const u32 structHash = (u32)inst.args[4];
+                const u32 color = (u32)inst.args[5];
+
+                LOG("Inst> BRICK_STRUCT_ADD_MEMBER(%.*s, arrayCount=%d, baseType=%d, struct=%x, color=%x)",
+                        nameLen,
+                        name,
+                        arrayCount,
+                        brickType,
+                        structHash,
+                        color);
+
+                Brick b;
+                if(structHash == 0) {
+                    b = makeBasicBrick(name, nameLen, brickType, arrayCount, color);
+                }
+                else {
+                    assert(0); // implement
+                }
+
+                currentBrickStruct.bricks.push(b);
+
             } break;
         }
     }
@@ -571,7 +754,7 @@ bool Script::execute(BrickWall* wall)
     return true;
 }
 
-u32 Script::_pushBytecodeData(void* data, u32 dataSize)
+u32 Script::_pushBytecodeData(const void* data, u32 dataSize)
 {
     if(bytecodeDataCur + dataSize >= bytecodeDataSize) {
         bytecodeDataSize = max(bytecodeDataSize * 2, bytecodeDataSize + dataSize);

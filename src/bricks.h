@@ -33,12 +33,14 @@ struct Brick
     i64 size = 0;
     u32 color;
     BrickType type = BrickType_CHAR;
-    Str32 name;
+    Str64 name;
 };
+
+Brick makeBasicBrick(const char* name_, i32 nameLen_, BrickType type_, i32 arrayCount, u32 color_);
 
 struct BrickStruct
 {
-    Str32 name;
+    Str64 name;
     i64 _size = 0;
     u32 color;
     Array<Brick> bricks;
@@ -73,7 +75,7 @@ struct BrickWall
     Array<Brick> bricks;
 
     struct TypeInfo {
-        Str32 name;
+        Str64 name;
         i64 size;
     };
     Array<TypeInfo> typeCache;

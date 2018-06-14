@@ -91,3 +91,4 @@ struct StrT
 };
 
 typedef StrT<32> Str32;
+typedef StrT<64> Str64;

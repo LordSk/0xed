@@ -52,6 +52,17 @@ const char* g_typeStr[BrickType__COUNT] = {
     "User structure",
 };
 
+Brick makeBasicBrick(const char* name_, i32 nameLen_, BrickType type_, i32 arrayCount, u32 color_)
+{
+    assert(type_ >= BrickType_CHAR && type_ < BrickType__COUNT);
+    Brick b;
+    b.name.set(name_, nameLen_);
+    b.type = type_;
+    b.size = g_typeSize[type_] * arrayCount;
+    b.color = color_;
+    return b;
+}
+
 BrickWall::BrickWall()
 {
     typeCache.reserve(32);
@@ -663,10 +674,10 @@ static bool doBrickNode(Brick brick, const Array<BrickWall::TypeInfo>& typeCache
                 break;
 
             case BrickType_FLOAT32:
-                dataBuffLen = sprintf(dataBuff, "%f", *(f32*)data);
+                dataBuffLen = sprintf(dataBuff, "%g", *(f32*)data);
                 break;
             case BrickType_FLOAT64:
-                dataBuffLen = sprintf(dataBuff, "%f", *(f64*)data);
+                dataBuffLen = sprintf(dataBuff, "%g", *(f64*)data);
                 break;
 
             case BrickType_OFFSET32:

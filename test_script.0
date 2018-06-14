@@ -10,4 +10,4 @@ struct PakHeader
 
 PakHeader header;
 float32 test_f32;
-float64 test_f64;
+float64[42] test_f64;
