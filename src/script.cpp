@@ -558,6 +558,7 @@ bool parseExpression(Script& script, Cursor* pCursor)
             inst.type = InstType::BRICK_STRUCT_BEGIN;
             inst.args[0] = script._pushBytecodeData(ss.name, ss.nameLen);
             inst.args[1] = ss.nameLen;
+            inst.args[2] = 0xff000000 | (ss.nameHash & 0x00ffffff); // TODO: support user colors
 
             script.bytecode.push(inst);
 
@@ -574,7 +575,7 @@ bool parseExpression(Script& script, Cursor* pCursor)
                 inst.args[2] = member.arrayCount;
                 inst.args[3] = BaseTypeBrickType[(i32)member.baseType];
                 inst.args[4] = member.structTypeHash;
-                inst.args[5] = 0xff0000ff;
+                inst.args[5] = 0xff000000 | (member.nameHash & 0x00ffffff); // TODO: support user colors
 
                 script.bytecode.push(inst);
             }
@@ -603,7 +604,21 @@ bool parseExpression(Script& script, Cursor* pCursor)
                 inst.args[1] = script._pushBytecodeData(var.name, var.nameLen);
                 inst.args[2] = var.nameLen;
                 inst.args[3] = typeId;
-                inst.args[4] = 0xff0000ff;
+                inst.args[4] = 0xff000000 | (var.nameHash & 0x00ffffff); // TODO: support user colors
+
+                script.bytecode.push(inst);
+            }
+            else {
+                assert(var.structTypeHash);
+
+                Instruction inst;
+                inst.type = InstType::PLACE_BRICK_STRUCT;
+
+                inst.args[0] = var.arrayCount;
+                inst.args[1] = script._pushBytecodeData(var.name, var.nameLen);
+                inst.args[2] = var.nameLen;
+                inst.args[3] = var.structTypeHash;
+                inst.args[4] = 0xff000000 | (var.nameHash & 0x00ffffff); // TODO: support user colors
 
                 script.bytecode.push(inst);
             }
@@ -681,21 +696,61 @@ bool Script::execute(BrickWall* wall)
 
         switch(inst.type) {
             case InstType::PLACE_BRICK: {
-                LOG("Inst> PLACE_BRICK(%d, %.*s, %d, %x)",
-                        (i32)inst.args[0],
-                        (i32)inst.args[2],
-                        (const char*)bytecodeData + (i32)inst.args[1],
-                        (i32)inst.args[3],
-                        (i32)inst.args[4]);
+                const char* name = (const char*)bytecodeData + (i32)(i32)inst.args[1];
+                const i32 nameLen = (i32)inst.args[2];
+                const i32 arrayCount = inst.args[0];
+                const BrickType brickType = (BrickType)inst.args[3];
+                const u32 color = (u32)inst.args[4];
 
-                Brick b = makeBasicBrick((const char*)bytecodeData + (i32)inst.args[1], (i32)inst.args[2],
-                        (BrickType)inst.args[3], (i32)inst.args[0], (u32)inst.args[4]);
+                LOG("Inst> PLACE_BRICK(%.*s, type=%d, arrayCount=%d, color=%x)",
+                        nameLen,
+                        name,
+                        brickType,
+                        arrayCount,
+                        color);
+
+                Brick b = makeBasicBrick(name, nameLen, brickType, arrayCount, color);
                 b.start = bufferOffset;
                 bufferOffset += b.size;
 
                 if(!wall->insertBrick(b)) {
+                    LOG("Script> could not insert '%.*s'", nameLen, name);
                     return false;
                 }
+            } break;
+
+            case InstType::PLACE_BRICK_STRUCT: {
+                const char* name = (const char*)bytecodeData + (i32)(i32)inst.args[1];
+                const i32 nameLen = (i32)inst.args[2];
+                const i32 arrayCount = inst.args[0];
+                const u32 structHash = (u32)inst.args[3];
+                const u32 color = (u32)inst.args[4];
+
+                LOG("Inst> PLACE_BRICK_STRUCT(%.*s, arrayCount=%d, struct=%x, color=%x)",
+                        nameLen,
+                        name,
+                        arrayCount,
+                        structHash,
+                        color);
+
+                const i32 structCount = wall->structs.count();
+                const BrickStruct* brickStructs = wall->structs.data();
+                const BrickStruct* found = nullptr;
+
+                for(i32 b = 0; b < structCount; ++b) {
+                    if(brickStructs[b].nameHash == structHash) {
+                        found = &brickStructs[b];
+                    }
+                }
+                assert(found); // tried to place a non existing struct
+                assert(found->_size > 0); // did not finalize struct?
+                bool r = wall->insertBrickStruct(name, nameLen, bufferOffset, arrayCount, *found);
+                if(!r) {
+                    LOG("Script> could not insert '%s %.*s'", found->name.str, nameLen, name);
+                    return false;
+                }
+                bufferOffset += found->_size * arrayCount;
+
             } break;
 
             case InstType::BRICK_STRUCT_BEGIN: {
@@ -704,9 +759,17 @@ bool Script::execute(BrickWall* wall)
                 currentBrickStruct = {};
                 insideStructDeclaration = true;
 
-                LOG("Inst> BRICK_STRUCT_BEGIN(%.*s)",
-                        (i32)inst.args[1],
-                        (const char*)bytecodeData + (i32)(i32)inst.args[0]);
+                const char* name = (const char*)bytecodeData + (i32)(i32)inst.args[0];
+                const i32 nameLen = (i32)inst.args[1];
+                const u32 color = (u32)inst.args[2];
+
+                LOG("Inst> BRICK_STRUCT_BEGIN(%.*s, color=%x)",
+                        nameLen,
+                        name,
+                        color);
+
+                currentBrickStruct.name.set(name, nameLen);
+                currentBrickStruct.color = color;
 
             } break;
 
@@ -716,7 +779,9 @@ bool Script::execute(BrickWall* wall)
                 LOG("Inst> BRICK_STRUCT_END()");
                 insideStructDeclaration = false;
 
+                currentBrickStruct.finalize();
                 wall->structs.push(currentBrickStruct);
+                wall->_rebuildTypeCache();
             } break;
 
             case InstType::BRICK_STRUCT_ADD_MEMBER: {
@@ -751,6 +816,7 @@ bool Script::execute(BrickWall* wall)
         }
     }
 
+    wall->finalize();
     return true;
 }
 

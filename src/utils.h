@@ -55,6 +55,7 @@ inline u32 colorOne(u8 chan1)
 
 inline u32 hash32(const void* data, const u32 dataLen)
 {
+    assert(dataLen > 0);
     u32 h = 0x811c9dc5;
     for(u32 i = 0; i < dataLen; ++i) {
         h = h ^ ((u8*)data)[i];

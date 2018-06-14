@@ -70,7 +70,9 @@ bool init()
     }
 
     script.openAndCompile("../test_script.0");
-    script.execute(&brickWall);
+    if(!script.execute(&brickWall)) {
+        return false;
+    }
 
     return true;
 }

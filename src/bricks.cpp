@@ -80,7 +80,17 @@ void BrickWall::_rebuildTypeCache()
     }
 }
 
-bool BrickWall::insertBrick(Brick b)
+void BrickWall::finalize()
+{
+    const i32 count = bricks.count();
+    for(i32 i = 0; i < count; ++i) {
+        if(bricks[i].userStruct) {
+            bricks[i].userStruct = &structs[(intptr_t)(bricks[i].userStruct) - 1];
+        }
+    }
+}
+
+bool BrickWall::insertBrick(const Brick& b)
 {
     assert((i32)b.type >= 0 && b.type < typeCache.count());
     assert(b.size % typeCache[b.type].size == 0);
@@ -113,7 +123,8 @@ bool BrickWall::insertBrick(Brick b)
     return true;
 }
 
-bool BrickWall::insertBrickStruct(const char* name, intptr_t where, i32 count, const BrickStruct& bstruct)
+bool BrickWall::insertBrickStruct(const char* name, i32 nameLen, intptr_t where, i32 arrayCount,
+                                  const BrickStruct& bstruct)
 {
     Brick b;
 
@@ -121,14 +132,14 @@ bool BrickWall::insertBrickStruct(const char* name, intptr_t where, i32 count, c
         b.name = "not_named";
     }
     else {
-        b.name = name;
+        b.name.set(name, nameLen);
     }
 
     assert(&bstruct >= structs.data() && &bstruct < structs.data() + structs.count());
     b.type = (BrickType)(BrickType_USER_STRUCT + (&bstruct - structs.data())); // TODO: use id instead?
-    b.size = bstruct._size * count;
+    b.size = bstruct._size * arrayCount;
     b.start = where;
-    b.userStruct = &bstruct;
+    b.userStruct = (BrickStruct*)((intptr_t)(&bstruct - structs.data()) + 1);
     b.color = bstruct.color;
     return insertBrick(b);
 }
@@ -148,11 +159,7 @@ const Brick* BrickWall::getBrick(intptr_t offset)
 BrickStruct* BrickWall::newStructDef(const char* name, u32 color)
 {
     BrickStruct brickStruct;
-    const i32 len = strlen(name);
-    brickStruct.name.len = len;
-    assert(len < 32);
-    memmove(brickStruct.name.str, name, sizeof(brickStruct.name.str[0]) * len);
-    brickStruct.name.str[len] = 0;
+    brickStruct.name.set(name);
     brickStruct._size = 0;
     brickStruct.color = color;
     return &structs.push(brickStruct);
@@ -227,7 +234,8 @@ void ui_brickPopup(const char* popupId, intptr_t selStart, i64 selLength, BrickW
             const i64 typeSize = typeCache[popupType].size;
 
             if(popupType >= (i32)BrickType_USER_STRUCT) {
-                bool r = wall->insertBrickStruct(popupBrickName, selStart, popupArraySize,
+                i32 len = popupBrickName[0] == 0 ? 0 : strlen(popupBrickName);
+                bool r = wall->insertBrickStruct(popupBrickName, len, selStart, popupArraySize,
                                                  wall->structs[popupType - BrickType_USER_STRUCT]);
                 if(!r) {
                     LOG("ERROR> could not add brick struct {type: %d, start: 0x%llx, length: %lld}",
@@ -516,7 +524,7 @@ void ui_brickStructList(BrickWall* brickWall)
                 memColor[2], 1.0));
                 b.name.set(memName);
                 selectedStruct.bricks.push(b);
-                selectedStruct.computeSize();
+                selectedStruct.finalize();
             }
         }
     }

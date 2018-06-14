@@ -28,7 +28,7 @@ enum BrickType: i32
 
 struct Brick
 {
-    const struct BrickStruct* userStruct = nullptr;
+    const struct BrickStruct* userStruct = nullptr; // is ID before wall.finalize()
     intptr_t start = 0;
     i64 size = 0;
     u32 color;
@@ -41,11 +41,13 @@ Brick makeBasicBrick(const char* name_, i32 nameLen_, BrickType type_, i32 array
 struct BrickStruct
 {
     Str64 name;
+    u32 nameHash;
     i64 _size = 0;
     u32 color;
     Array<Brick> bricks;
 
-    inline void computeSize() {
+    inline void finalize() {
+        nameHash = hash32(name.str, name.len);
         _size = 0;
         const i32 brickCount = bricks.count();
         for(i32 i = 0; i < brickCount; ++i) {
@@ -82,9 +84,11 @@ struct BrickWall
 
     BrickWall();
     void _rebuildTypeCache();
+    void finalize();
 
-    bool insertBrick(Brick b);
-    bool insertBrickStruct(const char* name, intptr_t where, i32 count, const BrickStruct& bstruct);
+    bool insertBrick(const Brick& b);
+    bool insertBrickStruct(const char* name, i32 nameLen, intptr_t where, i32 arrayCount,
+                           const BrickStruct& bstruct);
     const Brick* getBrick(intptr_t offset);
 
     BrickStruct* newStructDef(const char* name, u32 color);
