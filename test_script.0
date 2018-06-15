@@ -1,8 +1,13 @@
 // a comment
 
+struct Str3
+{
+    char[3] data;
+}
+
 struct PakHeader
 {
-    char[3] fileTypeStr;
+    Str3 fileTypeStr;
     uint8 version;
     int32 entryCount;
     uint8[248] empty;

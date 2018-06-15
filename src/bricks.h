@@ -36,7 +36,9 @@ struct Brick
     Str64 name;
 };
 
-Brick makeBasicBrick(const char* name_, i32 nameLen_, BrickType type_, i32 arrayCount, u32 color_);
+Brick makeBrickBasic(const char* name_, i32 nameLen_, BrickType type_, i32 arrayCount, u32 color_);
+Brick makeBrickOfStruct(const char* name_, i32 nameLen_, struct BrickStruct* structID_, i64 structSize_,
+                        i32 arrayCount, u32 color_);
 
 struct BrickStruct
 {

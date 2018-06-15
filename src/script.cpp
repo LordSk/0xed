@@ -709,7 +709,7 @@ bool Script::execute(BrickWall* wall)
                         arrayCount,
                         color);
 
-                Brick b = makeBasicBrick(name, nameLen, brickType, arrayCount, color);
+                Brick b = makeBrickBasic(name, nameLen, brickType, arrayCount, color);
                 b.start = bufferOffset;
                 bufferOffset += b.size;
 
@@ -740,6 +740,7 @@ bool Script::execute(BrickWall* wall)
                 for(i32 b = 0; b < structCount; ++b) {
                     if(brickStructs[b].nameHash == structHash) {
                         found = &brickStructs[b];
+                        break;
                     }
                 }
                 assert(found); // tried to place a non existing struct
@@ -804,10 +805,25 @@ bool Script::execute(BrickWall* wall)
 
                 Brick b;
                 if(structHash == 0) {
-                    b = makeBasicBrick(name, nameLen, brickType, arrayCount, color);
+                    b = makeBrickBasic(name, nameLen, brickType, arrayCount, color);
                 }
                 else {
-                    assert(0); // implement
+                    const i32 structCount = wall->structs.count();
+                    const BrickStruct* brickStructs = wall->structs.data();
+                    const BrickStruct* found = nullptr;
+
+                    for(i32 b = 0; b < structCount; ++b) {
+                        if(brickStructs[b].nameHash == structHash) {
+                            found = &brickStructs[b];
+                            break;
+                        }
+                    }
+                    assert(found); // tried to place a non existing struct
+                    assert(found->_size > 0); // did not finalize struct?
+
+                    b = makeBrickOfStruct(name, nameLen,
+                                          (BrickStruct*)((intptr_t)(found - brickStructs) + 1),
+                                          found->_size, arrayCount, color);
                 }
 
                 currentBrickStruct.bricks.push(b);

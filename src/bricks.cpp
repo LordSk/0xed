@@ -52,13 +52,26 @@ const char* g_typeStr[BrickType__COUNT] = {
     "User structure",
 };
 
-Brick makeBasicBrick(const char* name_, i32 nameLen_, BrickType type_, i32 arrayCount, u32 color_)
+Brick makeBrickBasic(const char* name_, i32 nameLen_, BrickType type_, i32 arrayCount, u32 color_)
 {
     assert(type_ >= BrickType_CHAR && type_ < BrickType__COUNT);
     Brick b;
     b.name.set(name_, nameLen_);
     b.type = type_;
     b.size = g_typeSize[type_] * arrayCount;
+    b.color = color_;
+    return b;
+}
+
+Brick makeBrickOfStruct(const char* name_, i32 nameLen_, BrickStruct* structID_, i64 structSize_,
+                        i32 arrayCount, u32 color_)
+{
+    assert(structID_); // ID starts at 1
+    Brick b;
+    b.name.set(name_, nameLen_);
+    b.type = (BrickType)(BrickType_USER_STRUCT + (intptr_t)structID_ - 1);
+    b.userStruct = structID_;
+    b.size = structSize_ * arrayCount;
     b.color = color_;
     return b;
 }
@@ -82,10 +95,24 @@ void BrickWall::_rebuildTypeCache()
 
 void BrickWall::finalize()
 {
-    const i32 count = bricks.count();
-    for(i32 i = 0; i < count; ++i) {
+    // turn structs IDs (index starts at 1) to pointers
+    const i32 brickCount = bricks.count();
+    for(i32 i = 0; i < brickCount; ++i) {
         if(bricks[i].userStruct) {
             bricks[i].userStruct = &structs[(intptr_t)(bricks[i].userStruct) - 1];
+        }
+    }
+
+    const i32 structCount = structs.count();
+    for(i32 i = 0; i < structCount; ++i) {
+        BrickStruct& s = structs[i];
+
+        const i32 sBrickCount = s.bricks.count();
+        for(i32 j = 0; j < sBrickCount; ++j) {
+            Brick& b = s.bricks[j];
+            if(b.userStruct) {
+                b.userStruct = &structs[(intptr_t)(b.userStruct) - 1];
+            }
         }
     }
 }
