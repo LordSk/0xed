@@ -66,10 +66,9 @@ Brick makeBrickBasic(const char* name_, i32 nameLen_, BrickType type_, i32 array
 Brick makeBrickOfStruct(const char* name_, i32 nameLen_, BrickStruct* structID_, i64 structSize_,
                         i32 arrayCount, u32 color_)
 {
-    assert(structID_); // ID starts at 1
     Brick b;
     b.name.set(name_, nameLen_);
-    b.type = (BrickType)(BrickType_USER_STRUCT + (intptr_t)structID_ - 1);
+    b.type = (BrickType)(BrickType_USER_STRUCT + (intptr_t)structID_);
     b.userStruct = structID_;
     b.size = structSize_ * arrayCount;
     b.color = color_;
@@ -98,8 +97,8 @@ void BrickWall::finalize()
     // turn structs IDs (index starts at 1) to pointers
     const i32 brickCount = bricks.count();
     for(i32 i = 0; i < brickCount; ++i) {
-        if(bricks[i].userStruct) {
-            bricks[i].userStruct = &structs[(intptr_t)(bricks[i].userStruct) - 1];
+        if(bricks[i].type >= BrickType_USER_STRUCT) {
+            bricks[i].userStruct = &structs[(intptr_t)(bricks[i].userStruct)];
         }
     }
 
@@ -110,8 +109,8 @@ void BrickWall::finalize()
         const i32 sBrickCount = s.bricks.count();
         for(i32 j = 0; j < sBrickCount; ++j) {
             Brick& b = s.bricks[j];
-            if(b.userStruct) {
-                b.userStruct = &structs[(intptr_t)(b.userStruct) - 1];
+            if(b.type >= BrickType_USER_STRUCT) {
+                b.userStruct = &structs[(intptr_t)(b.userStruct)];
             }
         }
     }
@@ -166,7 +165,7 @@ bool BrickWall::insertBrickStruct(const char* name, i32 nameLen, intptr_t where,
     b.type = (BrickType)(BrickType_USER_STRUCT + (&bstruct - structs.data())); // TODO: use id instead?
     b.size = bstruct._size * arrayCount;
     b.start = where;
-    b.userStruct = (BrickStruct*)((intptr_t)(&bstruct - structs.data()) + 1);
+    b.userStruct = (BrickStruct*)((intptr_t)(&bstruct - structs.data()));
     b.color = bstruct.color;
     return insertBrick(b);
 }

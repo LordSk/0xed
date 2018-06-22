@@ -39,6 +39,7 @@ __privDefer<F> __defer_func(F f) {
 // ----------------------------------------------------
 
 #define LOG(fmt, ...) (printf(fmt"\n", __VA_ARGS__), fflush(stdout))
+#define LOG_NNL(fmt, ...) (printf(fmt, __VA_ARGS__), fflush(stdout))
 
 #ifndef min
     #define min(a, b) ((a) < (b) ? (a) : (b))
@@ -48,9 +49,19 @@ __privDefer<F> __defer_func(F f) {
 #endif
 
 template<typename T>
-T clamp(T val, T valmin, T valmax)
+inline T clamp(T val, T valmin, T valmax)
 {
     if(val < valmin) return valmin;
     if(val > valmax) return valmax;
     return val;
 }
+
+template<typename T>
+inline void swap(T* t1, T* t2)
+{
+    T temp = *t1;
+    *t1 = *t2;
+    *t2 = temp;
+}
+
+#define arr_count(a) (sizeof(a)/sizeof(a[0]))

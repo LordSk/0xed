@@ -69,7 +69,9 @@ bool init()
         dataPanels.setFileBuffer(curFileBuff.data, curFileBuff.size);
     }
 
-    script.openAndCompile("../test_script.0");
+    if(!script.openAndCompile("../test_script.0")) {
+        return false;
+    }
     if(!script.execute(&brickWall)) {
         return false;
     }

@@ -1,18 +1,20 @@
 // a comment
 
-struct Str3
-{
-    char[3] data;
-}
-
 struct PakHeader
 {
-    Str3 fileTypeStr;
+    char[3] fileTypeStr;
     uint8 version;
     int32 entryCount;
     uint8[248] empty;
 }
 
+struct FileDesc
+{
+    int32 id;
+    int32 offset;
+    int32 size;
+}
+
 PakHeader header;
-float32 test_f32;
-float64[42] test_f64;
+FileDesc[header.entryCount + 1 * 5] fileDescs;
+int32 test;
