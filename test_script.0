@@ -15,6 +15,13 @@ struct FileDesc
     int32 size;
 }
 
+{
+    {
+        int64 test64;
+    }
+    float64 ftex564;
+}
+
 PakHeader header;
 FileDesc[header.entryCount * 2] fileDescs;
 int32 test;

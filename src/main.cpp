@@ -45,6 +45,12 @@ Script script;
 
 bool init()
 {
+    // TODO: remove this
+    if(!script.openAndCompile("../test_script.0")) {
+        return false;
+    }
+    return false;
+
     loadConfigFile(CONFIG_FILENAME, &config);
 
     if(!win.init(WINDOW_BASE_TITLE, config.windowWidth, config.windowHeight,
@@ -69,9 +75,6 @@ bool init()
         dataPanels.setFileBuffer(curFileBuff.data, curFileBuff.size);
     }
 
-    if(!script.openAndCompile("../test_script.0")) {
-        return false;
-    }
     if(!script.execute(&brickWall)) {
         return false;
     }

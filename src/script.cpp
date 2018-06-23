@@ -315,7 +315,7 @@ enum class ASTNodeType: i32 {
     TYPE,
     INT_LITERAL,
 
-    BLOCK_BEGIN,
+    BLOCK,
     BLOCK_END,
     ARRAY_ACCESS,
     STRUCT_ACCESS,
@@ -456,6 +456,59 @@ ASTNode* astExpression(Cursor* pCursor, TokenType expectedEndType = TokenType::S
                 return firstNode;
             } break;
 
+            case TokenType::CLOSE_BRACE: {
+                LOG("ParsingError> empty block or unexpected '}' (line: %d)", pCursor->line);
+                return nullptr;
+            } break;
+
+            case TokenType::OPEN_BRACE: {
+                ASTNode* block = newNode(token, ASTNodeType::BLOCK);
+                ASTNode* firstExpr = astExpression(pCursor);
+                if(!firstExpr) {
+                    LOG("ParsingError> error parsing expression (line: %d)", pCursor->line);
+                    return nullptr;
+                }
+                block->param1 = firstExpr;
+
+                bool endBlock = false;
+
+                Cursor copy = *pCursor;
+                Token t = getToken(&copy);
+                if(t.type == TokenType::CLOSE_BRACE) {
+                    endBlock = true; // CLOSE_BRACE token gets "eaten" by getToken below
+                    expectedEndType = TokenType::CLOSE_BRACE;
+                }
+                else if(t.type == TokenType::END_OF_FILE) {
+                    LOG("ParsingError> block (line: %d) not closed", block->token.line);
+                    return nullptr;
+                }
+
+                ASTNode* curExpr = firstExpr;
+                while(!endBlock) {
+                    ASTNode* newExpr = astExpression(pCursor);
+                    if(!newExpr) {
+                        LOG("ParsingError> error parsing expression (line: %d)", pCursor->line);
+                        return nullptr;
+                    }
+                    curExpr->next = newExpr;
+                    while(newExpr->next) newExpr = newExpr->next;
+                    curExpr = newExpr;
+
+                    Cursor copy = *pCursor;
+                    Token t = getToken(&copy);
+                    if(t.type == TokenType::CLOSE_BRACE) {
+                        endBlock = true; // CLOSE_BRACE token gets "eaten" by getToken below
+                        expectedEndType = TokenType::CLOSE_BRACE;
+                    }
+                    else if(t.type == TokenType::END_OF_FILE) {
+                        LOG("ParsingError> block (line: %d) not closed", block->token.line);
+                        return nullptr;
+                    }
+                }
+
+                lastNode = block;
+            } break;
+
             case TokenType::NAME: {
                 ASTNode* node = newNode(token, ASTNodeType::NAME);
                 if(lastNode) {
@@ -506,7 +559,6 @@ ASTNode* astExpression(Cursor* pCursor, TokenType expectedEndType = TokenType::S
             firstNode = lastNode;
         }
     }
-#if 1
 
     bool sorting = true;
 
@@ -631,7 +683,24 @@ ASTNode* astExpression(Cursor* pCursor, TokenType expectedEndType = TokenType::S
         }
     }
 
-#endif
+    ASTNode* secNode = firstNode->next;
+    if(!secNode) {
+        return firstNode;
+    }
+
+    // detect variable declarations patterns
+    if((firstNode->type == ASTNodeType::NAME && secNode->type == ASTNodeType::NAME) ||
+        firstNode->type == ASTNodeType::ARRAY_ACCESS && secNode->type == ASTNodeType::NAME) {
+        // variable declaration
+        ASTNode* varDecl = newNode(firstNode->token, ASTNodeType::VAR_DECL);
+        varDecl->param1 = firstNode;
+        varDecl->param2 = secNode;
+        varDecl->next = secNode->next;
+        firstNode->next = nullptr;
+        secNode->next = nullptr;
+        firstNode = varDecl;
+    }
+
     return firstNode;
 }
 
