@@ -16,5 +16,5 @@ struct FileDesc
 }
 
 PakHeader header;
-FileDesc[header.entryCount + 1 * 5] fileDescs;
+FileDesc[header.entryCount * 2] fileDescs;
 int32 test;

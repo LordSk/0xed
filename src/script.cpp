@@ -332,18 +332,18 @@ enum class ASTNodeType: i32 {
 const char* ASTNodeTypeStr[] = {
     "_INVALID",
 
-    "STRUCT_DECL",
-    "VAR_DECL",
-    "NAME",
-    "TYPE",
-    "INT_LITERAL",
+    "StructDecl",
+    "VarDecl",
+    "Name",
+    "Type",
+    "IntLitteral",
 
-    "BLOCK_BEGIN",
+    "Block",
     "BLOCK_END",
-    "ARRAY_ACCESS",
-    "STRUCT_ACCESS",
-    "OP_MATH",
-    "SCRIPT_END",
+    "ArrayAccess",
+    "StructAccess",
+    "OpMath",
+    "ScriptEnd",
 };
 
 struct ASTNode
@@ -377,315 +377,39 @@ inline ASTNode* newNode(Token token_, ASTNodeType type)
     return r;
 }
 
+#define KNRM  "\x1B[0m"
+#define KRED  "\x1B[31m"
+#define KGRN  "\x1B[32m"
+#define KYEL  "\x1B[33m"
+#define KBLU  "\x1B[34m"
+#define KMAG  "\x1B[35m"
+#define KCYN  "\x1B[36m"
+#define KWHT  "\x1B[37m"
+
 void printNode(ASTNode* node)
 {
-    LOG_NNL("[%s: '%.*s']{", ASTNodeTypeStr[(i32)node->type], node->token.len, node->token.start);
+    LOG_NNL(KMAG "%s" KNRM "(%.*s) {", ASTNodeTypeStr[(i32)node->type], node->token.len, node->token.start);
 
     if(node->param1) {
-        LOG_NNL("-<1[");
+        LOG_NNL(KYEL "1[" KNRM);
         printNode(node->param1);
-        LOG_NNL("]1> ");
+        LOG_NNL(KYEL "] " KNRM);
     }
 
     if(node->param2) {
-        LOG_NNL("-<2[");
+        LOG_NNL(KCYN "2[" KNRM);
         printNode(node->param2);
-        LOG_NNL("]2> ");
+        LOG_NNL(KCYN "] " KNRM);
     }
 
     LOG_NNL("}");
 
     if(node->next) {
-        LOG_NNL("->\n");
+        LOG_NNL(" ->\n");
         printNode(node->next);
     }
 }
 
-#if 0
-bool parseVariableDeclaration(ScriptVar* var, Cursor* pCursor)
-{
-    // TODO: handle 'local' case
-    *var = {};
-
-    Token token = getToken(pCursor);
-
-    if(token.type != TokenType::NAME) {
-        LOG("ParsingError> expected variable type (line: %d)", pCursor->line);
-        return false;
-    }
-
-    g_lastNode = newNode(token, g_lastNode);
-
-    assert(token.len < 64);
-
-    var->arrayCount = 1;
-    var->line = pCursor->line;
-
-    char varType[64];
-    char varName[64];
-    memmove(varType, token.start, token.len);
-    varType[token.len] = 0;
-
-    // validate type
-    bool found = false;
-    for(i32 i = 1; i < (i32)BaseType::_COUNT; ++i) {
-        if(strComp(varType, BaseTypeStr[i])) {
-            found = true;
-            var->baseType = (BaseType)i;
-            var->structTypeHash = 0;
-            break;
-        }
-    }
-
-    if(!found) {
-        const u32 typeHash = hash32(varType, token.len);
-        const i32 count = g_userDefinedStructs.count();
-
-        for(i32 i = 0; i < count; ++i) {
-            if(typeHash == g_userDefinedStructs[i].nameHash) {
-                found = true;
-                var->baseType = BaseType::_INVALID;
-                var->structTypeHash = typeHash;
-                break;
-            }
-        }
-
-        if(!found) {
-            LOG("ParsingError> '%s' undefined type (line: %d)", varType, pCursor->line);
-        }
-    }
-
-    token = getToken(pCursor);
-
-    i32 varArrayCount = 1;
-
-    if(token.type == TokenType::OPEN_BRACKET) {
-        g_lastNode = newNode(token, g_lastNode);
-
-        token = getToken(pCursor);
-
-        // TODO: evaluate expression (ex: header.entryCount)
-        if(token.type != TokenType::INTEGER) {
-            LOG("ParsingError> expected integer after '[' (line: %d)", pCursor->line);
-            return false;
-        }
-
-        g_lastNode = newNode(token, g_lastNode);
-
-        assert(token.len < 32);
-        char intStr[32];
-        memmove(intStr, token.start, token.len);
-        intStr[token.len] = 0;
-
-        token = getToken(pCursor);
-        if(token.type != TokenType::CLOSE_BRACKET) {
-            LOG("ParsingError> expected ']' (line: %d)", pCursor->line);
-            return false;
-        }
-
-        g_lastNode = newNode(token, g_lastNode);
-
-        sscanf(intStr, "%d", &varArrayCount);
-        if(varArrayCount < 0) {
-            LOG("ParsingError> array count can't be < 0 (line: %d)", pCursor->line);
-            return false;
-        }
-
-        token = getToken(pCursor);
-    }
-
-    if(token.type != TokenType::NAME) {
-        LOG("ParsingError> expected either '[' or a variable name after type '%s' (line: %d)",
-            varType, pCursor->line);
-        return false;
-
-    }
-
-    g_lastNode = newNode(token, g_lastNode);
-
-    assert(token.len < 64);
-
-    // variable name
-    i32 varNameLen = token.len;
-    memmove(varName, token.start, token.len);
-    varName[token.len] = 0;
-
-    token = getToken(pCursor);
-
-    // TODO: parse initialization
-    if(token.type != TokenType::SEMICOLON) {
-        LOG("ParsingError> expected ';' to end variable declaration (%s) (line: %d)",
-            varName, pCursor->line);
-        return false;
-    }
-
-    g_lastNode = newNode(token, g_lastNode);
-
-    //LOG("%s[%d] %s;", varType, varArrayCount, varName);
-
-    memmove(var->name, varName, varNameLen);
-    var->arrayCount = varArrayCount;
-    var->nameHash = hash32(varName, varNameLen);
-    var->nameLen = varNameLen;
-
-    return true;
-}
-
-bool parseStructDeclaration(ScriptStruct* ss, Cursor* pCursor)
-{
-    *ss = {};
-
-    Token token = getToken(pCursor);
-
-    if(token.type != TokenType::KW_STRUCT) {
-        LOG("ParsingError> expected 'struct' (line: %d)", pCursor->line);
-        return false;
-    }
-
-    g_lastNode = newNode(token, g_lastNode);
-
-    token = getToken(pCursor);
-
-    if(token.type != TokenType::NAME) {
-        LOG("ParsingError> expected a name after 'struct' (line: %d)", pCursor->line);
-        return false;
-    }
-
-    g_lastNode = newNode(token, g_lastNode);
-
-    assert(token.len < 64);
-    memmove(ss->name, token.start, token.len);
-    ss->name[token.len] = 0;
-    ss->nameLen = token.len;
-    ss->nameHash = hash32(ss->name, token.len);
-
-    token = getToken(pCursor);
-
-    if(token.type != TokenType::OPEN_BRACE) {
-        LOG("ParsingError> expected { after 'struct %s' (line: %d)", ss->name, pCursor->line);
-        return false;
-    }
-
-    g_lastNode = newNode(token, g_lastNode);
-
-    // TODO: handle empty struct (throw error)
-
-    // parse members
-    ss->memberCount = 0;
-    ScriptVar member;
-    while(parseVariableDeclaration(&member, pCursor)) {
-        ss->members[ss->memberCount++] = member;
-
-        Cursor curCopy = *pCursor;
-        token = getToken(&curCopy);
-
-        if(token.type == TokenType::CLOSE_BRACE) {
-            *pCursor = curCopy;
-            break;
-        }
-    }
-
-    if(pCursor->lastToken.type != TokenType::CLOSE_BRACE) {
-        LOG("ParsingError> expected } after 'struct %s {...' (line: %d)", ss->name, pCursor->line);
-        return false;
-    }
-
-    g_lastNode = newNode(token, g_lastNode);
-
-    return true;
-}
-bool parseExpression(Script& script, Cursor* pCursor)
-{
-    Cursor curCopy = *pCursor;
-    Token token = getToken(&curCopy);
-
-    if(token.type == TokenType::KW_STRUCT) {
-        ScriptStruct ss;
-
-        if(parseStructDeclaration(&ss, pCursor)) {
-            g_userDefinedStructs.push(ss);
-
-            Instruction inst;
-            inst.type = InstType::BRICK_STRUCT_BEGIN;
-            inst.args[0] = script._pushBytecodeData(ss.name, ss.nameLen);
-            inst.args[1] = ss.nameLen;
-            inst.args[2] = 0xff000000 | (ss.nameHash & 0x00ffffff); // TODO: support user colors
-
-            script.bytecode.push(inst);
-
-            // TODO: members
-            const i32 memberCount = ss.memberCount;
-            for(i32 m = 0; m < memberCount; ++m) {
-                const ScriptVar& member = ss.members[m];
-
-                inst = {};
-                inst.type = InstType::BRICK_STRUCT_ADD_MEMBER;
-
-                inst.args[0] = script._pushBytecodeData(member.name, member.nameLen);
-                inst.args[1] = member.nameLen;
-                inst.args[2] = member.arrayCount;
-                inst.args[3] = BaseTypeBrickType[(i32)member.baseType];
-                inst.args[4] = member.structTypeHash;
-                inst.args[5] = 0xff000000 | (member.nameHash & 0x00ffffff); // TODO: support user colors
-
-                script.bytecode.push(inst);
-            }
-
-            inst = {};
-            inst.type = InstType::BRICK_STRUCT_END;
-
-            script.bytecode.push(inst);
-
-            return true;
-        }
-        return false;
-    }
-    else if(token.type == TokenType::NAME) {
-        ScriptVar var;
-
-        if(parseVariableDeclaration(&var, pCursor)) {
-            // base type brick
-            if(var.baseType != BaseType::_INVALID) {
-                Instruction inst;
-                inst.type = InstType::PLACE_BRICK;
-
-                i32 typeId = BaseTypeBrickType[(i32)var.baseType];
-
-                inst.args[0] = var.arrayCount;
-                inst.args[1] = script._pushBytecodeData(var.name, var.nameLen);
-                inst.args[2] = var.nameLen;
-                inst.args[3] = typeId;
-                inst.args[4] = 0xff000000 | (var.nameHash & 0x00ffffff); // TODO: support user colors
-
-                script.bytecode.push(inst);
-            }
-            else {
-                assert(var.structTypeHash);
-
-                Instruction inst;
-                inst.type = InstType::PLACE_BRICK_STRUCT;
-
-                inst.args[0] = var.arrayCount;
-                inst.args[1] = script._pushBytecodeData(var.name, var.nameLen);
-                inst.args[2] = var.nameLen;
-                inst.args[3] = var.structTypeHash;
-                inst.args[4] = 0xff000000 | (var.nameHash & 0x00ffffff); // TODO: support user colors
-
-                script.bytecode.push(inst);
-            }
-
-            return true;
-        }
-        return false;
-    }
-    else if(token.type == TokenType::END_OF_FILE) {
-        *pCursor = curCopy;
-        return true;
-    }
-
-    return false;
-}
-#endif
 ASTNode* astStructDeclaration(Token token, Cursor* pCursor);
 
 ASTNode* astExpression(Cursor* pCursor, TokenType expectedEndType = TokenType::SEMICOLON)
@@ -720,7 +444,7 @@ ASTNode* astExpression(Cursor* pCursor, TokenType expectedEndType = TokenType::S
                     LOG("ParsingError> error parsing expression (line: %d)", pCursor->line);
                     return nullptr;
                 }
-                lastNode->param1 = expr;
+                lastNode->param2 = expr;
             } break;
 
             case TokenType::SEMICOLON: {
@@ -734,6 +458,14 @@ ASTNode* astExpression(Cursor* pCursor, TokenType expectedEndType = TokenType::S
 
             case TokenType::NAME: {
                 ASTNode* node = newNode(token, ASTNodeType::NAME);
+                if(lastNode) {
+                    lastNode->next = node;
+                }
+                lastNode = node;
+            } break;
+
+            case TokenType::INTEGER: {
+                ASTNode* node = newNode(token, ASTNodeType::INT_LITERAL);
                 if(lastNode) {
                     lastNode->next = node;
                 }
@@ -796,6 +528,10 @@ ASTNode* astExpression(Cursor* pCursor, TokenType expectedEndType = TokenType::S
             }
 
             switch(n->type) {
+                case ASTNodeType::ARRAY_ACCESS:
+                    nodePrecedence = 11;
+                    break;
+
                 case ASTNodeType::STRUCT_ACCESS:
                     nodePrecedence = 10;
                     break;
@@ -831,6 +567,23 @@ ASTNode* astExpression(Cursor* pCursor, TokenType expectedEndType = TokenType::S
             sorting = true;
 
             switch(mpNode->type) {
+                case ASTNodeType::ARRAY_ACCESS: {
+                    ASTNode* varArrAccess = mpPrevNode;
+
+                    LOG("PrecedenceSort> ARRAY_ACCESS prev:[%s: '%.*s']",
+                        ASTNodeTypeStr[(i32)mpPrevNode->type], mpPrevNode->token.len,
+                        mpPrevNode->token.start);
+
+                    swap(&varArrAccess->token,  &mpNode->token);
+                    swap(&varArrAccess->type,   &mpNode->type);
+                    swap(&varArrAccess->param1, &mpNode->param1);
+                    swap(&varArrAccess->param2, &mpNode->param2);
+
+                    varArrAccess->param1 = mpNode;
+                    varArrAccess->next = mpNode->next;
+                    mpNode->next = nullptr;
+                } break;
+
                 case ASTNodeType::STRUCT_ACCESS: {
                     ASTNode* varStruct = mpNode;
                     ASTNode* varMember = mpNode->next;
@@ -882,69 +635,6 @@ ASTNode* astExpression(Cursor* pCursor, TokenType expectedEndType = TokenType::S
     return firstNode;
 }
 
-ASTNode* astVariableDeclarationSimple(Cursor* pCursor)
-{
-    ASTNode* nodeVar = newNode({}, ASTNodeType::VAR_DECL);
-    Token token = getToken(pCursor);
-
-    if(token.type != TokenType::NAME) {
-        LOG("ParsingError> expected variable type (line: %d)", pCursor->line);
-        return nullptr;
-    }
-
-    nodeVar->param1 = newNode(token, ASTNodeType::TYPE);
-
-    Token varType = token;
-    assert(token.len < 64);
-
-    token = getToken(pCursor);
-    if(token.type == TokenType::OPEN_BRACKET) {
-        token = getToken(pCursor);
-
-        // TODO: evaluate expression (ex: header.entryCount)
-        if(token.type != TokenType::INTEGER) {
-            LOG("ParsingError> expected integer after '[' (line: %d)", pCursor->line);
-            return nullptr;
-        }
-
-        nodeVar->param1->param1 = newNode(token, ASTNodeType::INT_LITERAL);
-
-        assert(token.len < 32);
-
-        token = getToken(pCursor);
-        if(token.type != TokenType::CLOSE_BRACKET) {
-            LOG("ParsingError> expected ']' (line: %d)", pCursor->line);
-            return false;
-        }
-
-        token = getToken(pCursor);
-    }
-
-    Token varName = token;
-
-    if(token.type != TokenType::NAME) {
-        LOG("ParsingError> expected either '[' or a variable name after type '%.*s' (line: %d)",
-            varType.len, varType.start, pCursor->line);
-        return nullptr;
-
-    }
-    assert(token.len < 64);
-
-    ASTNode* nameNode = newNode(token, ASTNodeType::NAME);
-    nodeVar->param2 = nameNode;
-
-    token = getToken(pCursor);
-
-    // TODO: parse initialization
-    if(token.type != TokenType::SEMICOLON) {
-        LOG("ParsingError> expected ';' to end variable declaration (%.*s) (line: %d)",
-            varName.len, varType.start, pCursor->line);
-        return nullptr;
-    }
-
-    return nodeVar;
-}
-
 ASTNode* astStructDeclaration(Token structKwToken, Cursor* pCursor)
 {
     ASTNode* structNode = &g_ast.push({structKwToken, ASTNodeType::STRUCT_DECL, nullptr, nullptr});
@@ -967,7 +657,7 @@ ASTNode* astStructDeclaration(Token structKwToken, Cursor* pCursor)
         return nullptr;
     }
 
-    ASTNode* memberNode = astVariableDeclarationSimple(pCursor);
+    ASTNode* memberNode = astExpression(pCursor);
     if(!memberNode) {
         LOG("ParsingError> struct %.*s declaration is empty or malformed (line: %d)",
             structName.len, structName.start, pCursor->line);
@@ -975,13 +665,15 @@ ASTNode* astStructDeclaration(Token structKwToken, Cursor* pCursor)
     }
 
     structNode->param2 = memberNode;
+    while(memberNode->next) memberNode = memberNode->next;
     ASTNode* last = memberNode;
 
     // TODO: handle empty struct (throw error)
 
     // parse members
-    while(memberNode = astVariableDeclarationSimple(pCursor)) {
+    while(memberNode = astExpression(pCursor)) {
         last->next = memberNode;
+        while(memberNode->next) memberNode = memberNode->next;
         last = memberNode;
 
         Cursor curCopy = *pCursor;
