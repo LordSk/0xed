@@ -26,6 +26,9 @@ enum class TokenType: i32 {
     INTEGER,
 
     KW_STRUCT,
+    KW_IF,
+    KW_ELSE,
+    KW_WHILE,
 
     END_OF_FILE
 };
@@ -55,6 +58,9 @@ constexpr char* TokenTypeStr[] = {
     "INTEGER",
 
     "KW_STRUCT",
+    "KW_IF",
+    "KW_ELSE",
+    "KW_WHILE",
 
     "END_OF_FILE"
 };
@@ -163,6 +169,7 @@ Token getToken(Cursor* pCursor)
         case '+': token.type = TokenType::PLUS; break;
         case '*': token.type = TokenType::STAR; break;
         case '.': token.type = TokenType::POINT; break;
+        case '=': token.type = TokenType::EQUAL; break;
         case '<': token.type = TokenType::LESS_THAN; break;
         case '>': token.type = TokenType::MORE_THAN; break;
 
@@ -170,6 +177,33 @@ Token getToken(Cursor* pCursor)
             if(strComp(cursor.ptr, "struct") && !isNameChar(cursor.ptr[6])) {
                 token.type = TokenType::KW_STRUCT;
                 token.len = 6;
+                break;
+            }
+            // fall through
+        }
+
+        case 'i': {
+            if(strComp(cursor.ptr, "if") && !isNameChar(cursor.ptr[2])) {
+                token.type = TokenType::KW_IF;
+                token.len = 2;
+                break;
+            }
+            // fall through
+        }
+
+        case 'e': {
+            if(strComp(cursor.ptr, "else") && !isNameChar(cursor.ptr[5])) {
+                token.type = TokenType::KW_ELSE;
+                token.len = 4;
+                break;
+            }
+            // fall through
+        }
+
+        case 'w': {
+            if(strComp(cursor.ptr, "while") && !isNameChar(cursor.ptr[6])) {
+                token.type = TokenType::KW_WHILE;
+                token.len = 5;
                 break;
             }
             // fall through
@@ -305,23 +339,32 @@ struct ScriptStruct
     ScriptVar members[128];
 };
 
+struct ASTNodeType
+{
+    enum Enum: i32 {
+        _INVALID = 0,
 
-enum class ASTNodeType: i32 {
-    _INVALID = 0,
+        IF,
+        ELSE,
+        WHILE,
+        STRUCT_DECL,
+        VAR_DECL,
+        NAME,
+        TYPE,
+        INT_LITERAL,
 
-    STRUCT_DECL,
-    VAR_DECL,
-    NAME,
-    TYPE,
-    INT_LITERAL,
-
-    BLOCK,
-    BLOCK_END,
-    ARRAY_ACCESS,
-    STRUCT_ACCESS,
-    OP_MATH,
-    SCRIPT_END,
+        BLOCK,
+        BLOCK_END,
+        ARRAY_ACCESS,
+        PARENTHESIS_EXPR,
+        STRUCT_ACCESS,
+        OP_MATH,
+        OP_COMPARE,
+        OP_ASSIGN,
+        SCRIPT_END,
+    };
 };
+
 
 // STRUCT_DECL: 1 param
 // VAR_DECL: 2 params (type, var)
@@ -332,6 +375,9 @@ enum class ASTNodeType: i32 {
 const char* ASTNodeTypeStr[] = {
     "_INVALID",
 
+    "If",
+    "Else",
+    "While",
     "StructDecl",
     "VarDecl",
     "Name",
@@ -341,15 +387,18 @@ const char* ASTNodeTypeStr[] = {
     "Block",
     "BLOCK_END",
     "ArrayAccess",
+    "ParenthesisExpr",
     "StructAccess",
     "OpMath",
+    "OpCompare",
+    "OpAssign",
     "ScriptEnd",
 };
 
 struct ASTNode
 {
     Token token;
-    ASTNodeType type;
+    ASTNodeType::Enum type;
     ASTNode* next;
     ASTNode* param1;
     ASTNode* param2;
@@ -360,7 +409,7 @@ List<ASTNode> g_ast;
 ASTNode* g_firstNode;
 ASTNode* g_scopeLast;
 
-inline ASTNode* newNodeNext(Token token_, ASTNodeType type, ASTNode* parent)
+inline ASTNode* newNodeNext(Token token_, ASTNodeType::Enum type, ASTNode* parent)
 {
     ASTNode n = { token_, type, nullptr, nullptr, nullptr };
     ASTNode* r = &(g_ast.push(n));
@@ -370,7 +419,7 @@ inline ASTNode* newNodeNext(Token token_, ASTNodeType type, ASTNode* parent)
     return r;
 }
 
-inline ASTNode* newNode(Token token_, ASTNodeType type)
+inline ASTNode* newNode(Token token_, ASTNodeType::Enum type)
 {
     ASTNode n = { token_, type, nullptr, nullptr, nullptr };
     ASTNode* r = &(g_ast.push(n));
@@ -388,7 +437,8 @@ inline ASTNode* newNode(Token token_, ASTNodeType type)
 
 void printNode(ASTNode* node)
 {
-    LOG_NNL(KMAG "%s" KNRM "(%.*s) {", ASTNodeTypeStr[(i32)node->type], node->token.len, node->token.start);
+    LOG_NNL(KMAG "%s" KNRM "(%.*s)" KMAG " {" KNRM, ASTNodeTypeStr[(i32)node->type],
+            node->token.len, node->token.start);
 
     if(node->param1) {
         LOG_NNL(KYEL "1[" KNRM);
@@ -402,7 +452,7 @@ void printNode(ASTNode* node)
         LOG_NNL(KCYN "] " KNRM);
     }
 
-    LOG_NNL("}");
+    LOG_NNL(KGRN "} %s" KNRM, ASTNodeTypeStr[(i32)node->type]);
 
     if(node->next) {
         LOG_NNL(" ->\n");
@@ -506,7 +556,71 @@ ASTNode* astExpression(Cursor* pCursor, TokenType expectedEndType = TokenType::S
                     }
                 }
 
+                if(lastNode) {
+                    lastNode->next = block;
+                }
                 lastNode = block;
+            } break;
+
+            case TokenType::OPEN_PARENTHESIS: {
+                ASTNode* paren = newNode(token, ASTNodeType::PARENTHESIS_EXPR);
+                if(lastNode) {
+                    lastNode->next = paren;
+                }
+                lastNode = paren;
+
+                ASTNode* newExpr = astExpression(pCursor, TokenType::CLOSE_PARENTHESIS);
+                if(!newExpr) {
+                    LOG("ParsingError> error parsing expression (line: %d)", pCursor->line);
+                    return nullptr;
+                }
+
+                paren->param1 = newExpr;
+            } break;
+
+            case TokenType::KW_IF: {
+                ASTNode* node = newNode(token, ASTNodeType::IF);
+                if(lastNode) {
+                    lastNode->next = node;
+                }
+                lastNode = node;
+            } break;
+
+            case TokenType::KW_ELSE: {
+                ASTNode* node = newNode(token, ASTNodeType::ELSE);
+                if(lastNode) {
+                    lastNode->next = node;
+                }
+                lastNode = node;
+            } break;
+
+            case TokenType::KW_WHILE: {
+                ASTNode* node = newNode(token, ASTNodeType::WHILE);
+                if(lastNode) {
+                    lastNode->next = node;
+                }
+                lastNode = node;
+            } break;
+
+            case TokenType::EQUAL: {
+                Cursor copy = *pCursor;
+                Token t = getToken(&copy);
+                if(t.type == TokenType::EQUAL) {
+                    *pCursor = copy;
+
+                    ASTNode* node = newNode(token, ASTNodeType::OP_COMPARE);
+                    if(lastNode) {
+                        lastNode->next = node;
+                    }
+                    lastNode = node;
+                }
+                else {
+                    ASTNode* node = newNode(token, ASTNodeType::OP_ASSIGN);
+                    if(lastNode) {
+                        lastNode->next = node;
+                    }
+                    lastNode = node;
+                }
             } break;
 
             case TokenType::NAME: {
@@ -581,24 +695,33 @@ ASTNode* astExpression(Cursor* pCursor, TokenType expectedEndType = TokenType::S
 
             switch(n->type) {
                 case ASTNodeType::ARRAY_ACCESS:
-                    nodePrecedence = 11;
+                    nodePrecedence = 12;
                     break;
 
                 case ASTNodeType::STRUCT_ACCESS:
-                    nodePrecedence = 10;
+                    nodePrecedence = 11;
                     break;
+
+                case ASTNodeType::OP_ASSIGN: {
+                    nodePrecedence = 10;
+                } break;
+
+                case ASTNodeType::OP_COMPARE: {
+                    nodePrecedence = 9;
+                } break;
+
                 case ASTNodeType::OP_MATH: {
                     switch(n->token.type) {
                         // multiply / divide
                         case TokenType::STAR:
                         case TokenType::SLASH:
-                            nodePrecedence = 9;
+                            nodePrecedence = 8;
                             break;
 
                         // plus / minus
                         case TokenType::PLUS:
                         case TokenType::MINUS:
-                            nodePrecedence = 8;
+                            nodePrecedence = 7;
                             break;
                     }
                 } break;
@@ -656,6 +779,50 @@ ASTNode* astExpression(Cursor* pCursor, TokenType expectedEndType = TokenType::S
 
                     varStruct->next = nullptr;
                     varMember->next = nullptr;
+                } break;
+
+                case ASTNodeType::OP_ASSIGN: {
+                    ASTNode* leftExpr = mpNode;
+                    ASTNode* rightExpr = mpNode->next;
+                    assert(rightExpr);
+
+                    LOG("PrecedenceSort> OP_ASSIGN prev:[%s: '%.*s'] -> next:[%s: '%.*s']",
+                        ASTNodeTypeStr[(i32)mpPrevNode->type], mpPrevNode->token.len, mpPrevNode->token.start,
+                        ASTNodeTypeStr[(i32)rightExpr->type], rightExpr->token.len, rightExpr->token.start);
+
+                    swap(&leftExpr->token,  &mpPrevNode->token);
+                    swap(&leftExpr->type,   &mpPrevNode->type);
+                    swap(&leftExpr->param1, &mpPrevNode->param1);
+                    swap(&leftExpr->param2, &mpPrevNode->param2);
+
+                    mpPrevNode->param1 = leftExpr;
+                    mpPrevNode->param2 = rightExpr;
+                    mpPrevNode->next = rightExpr->next;
+
+                    leftExpr->next = nullptr;
+                    rightExpr->next = nullptr;
+                } break;
+
+                case ASTNodeType::OP_COMPARE: {
+                    ASTNode* leftExpr = mpNode;
+                    ASTNode* rightExpr = mpNode->next;
+                    assert(rightExpr);
+
+                    LOG("PrecedenceSort> OP_COMPARE prev:[%s: '%.*s'] -> next:[%s: '%.*s']",
+                        ASTNodeTypeStr[(i32)mpPrevNode->type], mpPrevNode->token.len, mpPrevNode->token.start,
+                        ASTNodeTypeStr[(i32)rightExpr->type], rightExpr->token.len, rightExpr->token.start);
+
+                    swap(&leftExpr->token,  &mpPrevNode->token);
+                    swap(&leftExpr->type,   &mpPrevNode->type);
+                    swap(&leftExpr->param1, &mpPrevNode->param1);
+                    swap(&leftExpr->param2, &mpPrevNode->param2);
+
+                    mpPrevNode->param1 = leftExpr;
+                    mpPrevNode->param2 = rightExpr;
+                    mpPrevNode->next = rightExpr->next;
+
+                    leftExpr->next = nullptr;
+                    rightExpr->next = nullptr;
                 } break;
 
                 case ASTNodeType::OP_MATH: {
