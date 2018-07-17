@@ -339,33 +339,6 @@ struct ScriptStruct
     ScriptVar members[128];
 };
 
-struct ASTNodeType
-{
-    enum Enum: i32 {
-        _INVALID = 0,
-
-        IF,
-        ELSE,
-        WHILE,
-        STRUCT_DECL,
-        VAR_DECL,
-        NAME,
-        TYPE,
-        INT_LITERAL,
-
-        BLOCK,
-        BLOCK_END,
-        ARRAY_ACCESS,
-        PARENTHESIS_EXPR,
-        STRUCT_ACCESS,
-        OP_MATH,
-        OP_COMPARE,
-        OP_ASSIGN,
-        SCRIPT_END,
-    };
-};
-
-
 // STRUCT_DECL: 1 param
 // VAR_DECL: 2 params (type, var)
 // STRUCT_ACCESS: 2 params (struct, memberName)
@@ -395,6 +368,32 @@ const char* ASTNodeTypeStr[] = {
     "ScriptEnd",
 };
 
+struct ASTNodeType
+{
+    enum Enum: i32 {
+        _INVALID = 0,
+
+        IF,
+        ELSE,
+        WHILE,
+        STRUCT_DECL,
+        VAR_DECL,
+        NAME,
+        TYPE,
+        INT_LITERAL,
+
+        BLOCK,
+        BLOCK_END,
+        ARRAY_ACCESS,
+        PARENTHESIS_EXPR,
+        STRUCT_ACCESS,
+        OP_MATH,
+        OP_COMPARE,
+        OP_ASSIGN,
+        SCRIPT_END,
+    };
+};
+
 struct ASTNode
 {
     Token token;
@@ -404,7 +403,27 @@ struct ASTNode
     ASTNode* param2;
 };
 
-Array<ScriptStruct> g_userDefinedStructs;
+struct ExecStr
+{
+    i32 len;
+    char buff[1];
+};
+
+template<typename T>
+struct ExecArr
+{
+    i32 count;
+    T data[1];
+};
+
+constexpr char* ExecNodeTypeStr[] =
+{
+    "_INVALID",
+    "STRUCT_DECL",
+    "VAR_DECL",
+    "BLOCK"
+};
+
 List<ASTNode> g_ast;
 ASTNode* g_firstNode;
 ASTNode* g_scopeLast;
@@ -435,20 +454,20 @@ inline ASTNode* newNode(Token token_, ASTNodeType::Enum type)
 #define KCYN  "\x1B[36m"
 #define KWHT  "\x1B[37m"
 
-void printNode(ASTNode* node)
+void printAstNode(ASTNode* node)
 {
     LOG_NNL(KMAG "%s" KNRM "(%.*s)" KMAG " {" KNRM, ASTNodeTypeStr[(i32)node->type],
             node->token.len, node->token.start);
 
     if(node->param1) {
         LOG_NNL(KYEL "1[" KNRM);
-        printNode(node->param1);
+        printAstNode(node->param1);
         LOG_NNL(KYEL "] " KNRM);
     }
 
     if(node->param2) {
         LOG_NNL(KCYN "2[" KNRM);
-        printNode(node->param2);
+        printAstNode(node->param2);
         LOG_NNL(KCYN "] " KNRM);
     }
 
@@ -456,11 +475,9 @@ void printNode(ASTNode* node)
 
     if(node->next) {
         LOG_NNL(" ->\n");
-        printNode(node->next);
+        printAstNode(node->next);
     }
 }
-
-ASTNode* astStructDeclaration(Token token, Cursor* pCursor);
 
 ASTNode* astExpression(Cursor* pCursor, TokenType expectedEndType = TokenType::SEMICOLON)
 {
@@ -473,9 +490,7 @@ ASTNode* astExpression(Cursor* pCursor, TokenType expectedEndType = TokenType::S
         LOG("ParsingError> empty expression (line: %d)", pCursor->line);
         return nullptr;
     }
-    if(token.type == TokenType::KW_STRUCT) {
-        return astStructDeclaration(token, pCursor);
-    }
+
 
     ASTNode* firstNode = nullptr;
     ASTNode* lastNode = nullptr;
@@ -533,7 +548,9 @@ ASTNode* astExpression(Cursor* pCursor, TokenType expectedEndType = TokenType::S
                     return nullptr;
                 }
 
+                while(firstExpr->next) firstExpr = firstExpr->next;
                 ASTNode* curExpr = firstExpr;
+
                 while(!endBlock) {
                     ASTNode* newExpr = astExpression(pCursor);
                     if(!newExpr) {
@@ -576,6 +593,26 @@ ASTNode* astExpression(Cursor* pCursor, TokenType expectedEndType = TokenType::S
                 }
 
                 paren->param1 = newExpr;
+            } break;
+
+            case TokenType::KW_STRUCT: {
+                ASTNode* structNode = newNode(token, ASTNodeType::STRUCT_DECL);
+
+                Cursor copy = *pCursor;
+                Token tokenName = getToken(&copy);
+                if(tokenName.type != TokenType::NAME) {
+                    LOG("ParsingError> expected name after 'struct' (line: %d)", pCursor->line);
+                    return nullptr;
+                }
+
+                *pCursor = copy;
+                ASTNode* name = newNode(tokenName, ASTNodeType::NAME);
+                structNode->param1 = name;
+
+                if(lastNode) {
+                    lastNode->next = structNode;
+                }
+                lastNode = structNode;
             } break;
 
             case TokenType::KW_IF: {
@@ -855,134 +892,178 @@ ASTNode* astExpression(Cursor* pCursor, TokenType expectedEndType = TokenType::S
         return firstNode;
     }
 
-    // detect variable declarations patterns
-    if((firstNode->type == ASTNodeType::NAME && secNode->type == ASTNodeType::NAME) ||
-        firstNode->type == ASTNodeType::ARRAY_ACCESS && secNode->type == ASTNodeType::NAME) {
-        // variable declaration
-        ASTNode* varDecl = newNode(firstNode->token, ASTNodeType::VAR_DECL);
-        varDecl->param1 = firstNode;
-        varDecl->param2 = secNode;
-        varDecl->next = secNode->next;
-        firstNode->next = nullptr;
-        secNode->next = nullptr;
-        firstNode = varDecl;
-    }
-
     return firstNode;
 }
 
-ASTNode* astStructDeclaration(Token structKwToken, Cursor* pCursor)
+void printExecNode(ExecNode* node)
 {
-    ASTNode* structNode = &g_ast.push({structKwToken, ASTNodeType::STRUCT_DECL, nullptr, nullptr});
+    LOG_NNL(KMAG "%s {" KNRM, ExecNodeTypeStr[(i32)node->type]);
 
-    Token token = getToken(pCursor);
+    switch(node->type) {
+        case ExecNodeType::BLOCK: {
+            ExecNode* expr = (ExecNode*)node->params[0];
+            while(expr) {
+                printExecNode(expr);
+                expr = expr->next;
+            }
+        } break;
 
-    if(token.type != TokenType::NAME) {
-        LOG("ParsingError> expected a name after 'struct' (line: %d)", pCursor->line);
-        return nullptr;
+        case ExecNodeType::VAR_DECL: {
+            const ExecStr& type = *(ExecStr*)node->params[0];
+            const i32 arrayCount = (intptr_t)node->params[1];
+            const ExecStr& name = *(ExecStr*)node->params[2];
+            LOG_NNL("%.*s[%d] %.*s", type.len, type.buff, arrayCount, name.len, name.buff);
+        } break;
+
+        case ExecNodeType::STRUCT_DECL: {
+            const ExecStr& name = *(ExecStr*)node->params[0];
+            LOG_NNL("%.*s ", name.len, name.buff);
+            printExecNode((ExecNode*)node->params[1]);
+        } break;
     }
 
-    Token structName = token;
-    structNode->param1 = newNode(token, ASTNodeType::NAME);
+    LOG_NNL(KGRN "} %s" KNRM, ExecNodeTypeStr[(i32)node->type]);
 
-    token = getToken(pCursor);
-
-    if(token.type != TokenType::OPEN_BRACE) {
-        LOG("ParsingError> expected { after 'struct %.*s' (line: %d)",
-            structName.len, structName.start, pCursor->line);
-        return nullptr;
+    if(node->next) {
+        LOG_NNL(" ->\n");
+        printExecNode(node->next);
     }
-
-    ASTNode* memberNode = astExpression(pCursor);
-    if(!memberNode) {
-        LOG("ParsingError> struct %.*s declaration is empty or malformed (line: %d)",
-            structName.len, structName.start, pCursor->line);
-        return nullptr;
-    }
-
-    structNode->param2 = memberNode;
-    while(memberNode->next) memberNode = memberNode->next;
-    ASTNode* last = memberNode;
-
-    // TODO: handle empty struct (throw error)
-
-    // parse members
-    while(memberNode = astExpression(pCursor)) {
-        last->next = memberNode;
-        while(memberNode->next) memberNode = memberNode->next;
-        last = memberNode;
-
-        Cursor curCopy = *pCursor;
-        token = getToken(&curCopy);
-
-        if(token.type == TokenType::CLOSE_BRACE) {
-            *pCursor = curCopy;
-            break;
-        }
-    }
-
-    if(pCursor->lastToken.type != TokenType::CLOSE_BRACE) {
-        LOG("ParsingError> expected } after 'struct %.*s {...' (line: %d)",
-            structName.len, structName.start, pCursor->line);
-        return nullptr;
-    }
-
-    return structNode;
 }
 
-#if 0
-// make AST
-bool parseExpression(Script& script, Cursor* pCursor)
+ExecNode *Script::_execVarDecl(ASTNode* astNode, ASTNode** nextAstNode)
 {
-    Array<ASTNode*> scopeStack;
-    scopeStack.push(g_firstNode);
-    g_scopeLast = scopeStack.last();
+    ASTNode* nextAst = astNode->next;
 
-    bool parsing = true;
-
-    while(parsing) {
-        Token token = getToken(pCursor);
-
-        switch(token.type) {
-            case TokenType::KW_STRUCT: {
-                g_scopeLast = newNodeNext(token, ASTNodeType::STRUCT, g_scopeLast);
-                astStructDeclaration(pCursor);
-            } break;
-
-            case TokenType::OPEN_BRACE: {
-                g_scopeLast = newNodeNext(token, ASTNodeType::BLOCK_BEGIN, g_scopeLast);
-                scopeStack.push(g_scopeLast);
-                g_scopeLast = scopeStack.last();
-            } break;
-
-            case TokenType::CLOSE_BRACE: {
-                assert(scopeStack.count() > 1);
-                g_scopeLast = newNodeNext(token, ASTNodeType::BLOCK_END, g_scopeLast);
-                scopeStack.pop();
-                g_scopeLast = scopeStack.last();
-            } break;
-
-            case TokenType::END_OF_FILE: {
-                parsing = false;
-            } break;
-
-            default: {
-                g_scopeLast->next = astExpression(pCursor, TokenType::SEMICOLON);
-                g_scopeLast = g_scopeLast->next;
-            } break;
+    if(nextAst &&
+       ((astNode->type == ASTNodeType::NAME && nextAst->type == ASTNodeType::NAME) ||
+        astNode->type == ASTNodeType::ARRAY_ACCESS && nextAst->type == ASTNodeType::NAME)) {
+        Token tkType;
+        Token tkName = nextAst->token;
+        i32 arrayCount = 1;
+        if(astNode->type == ASTNodeType::ARRAY_ACCESS) {
+            assert(astNode->param1);
+            assert(astNode->param1->type == ASTNodeType::NAME);
+            assert(astNode->param2);
+            // TODO: evaluate expression here
+            assert(astNode->param2->type == ASTNodeType::INT_LITERAL);
+            tkType = astNode->param1->token;
+            sscanf(astNode->param2->token.start, "%d", &arrayCount);
         }
+        else {
+            tkType = astNode->token;
+        }
+
+        // variable declaration
+        ExecNode varDecl;
+        varDecl.type = ExecNodeType::VAR_DECL;
+        // type
+        varDecl.params[0] = (void*)(intptr_t)_pushExecDataStr(tkType.len, tkType.start);
+        // array count
+        varDecl.params[1] = (void*)(intptr_t)arrayCount;
+        // name
+        varDecl.params[2] = (void*)(intptr_t)_pushExecDataStr(tkName.len, tkName.start);
+
+        *nextAstNode = nextAst->next;
+        return _pushExecNode(varDecl);
     }
 
-    return true;
+    return nullptr;
 }
-#endif
+
+ExecNode *Script::_execStructDecl(ASTNode* astNode, ASTNode** nextAstNode)
+{
+    ASTNode* nextAst = astNode->next;
+
+    if(nextAst &&
+        astNode->type == ASTNodeType::STRUCT_DECL &&
+        nextAst->type == ASTNodeType::BLOCK) {
+        assert(astNode->param1);
+        assert(astNode->param1->type == ASTNodeType::NAME);
+        Token tkName = astNode->param1->token;
+
+        ExecNode* block = _execBlock(nextAst, nextAstNode);
+        if(!block) {
+            LOG("ERROR> could not parse block (line: %d)", nextAst->token.line);
+            return nullptr;
+        }
+
+        // struct declaration
+        ExecNode structDecl;
+        structDecl.type = ExecNodeType::STRUCT_DECL;
+        // name
+        structDecl.params[0] = (void*)(intptr_t)_pushExecDataStr(tkName.len, tkName.start);
+        // members block
+        structDecl.params[1] = block;
+
+        *nextAstNode = nextAst->next;
+        return _pushExecNode(structDecl);
+    }
+
+    return nullptr;
+}
+
+ExecNode *Script::_execBlock(ASTNode* astNode, ASTNode** nextAstNode)
+{
+    if(astNode->type != ASTNodeType::BLOCK) {
+        return nullptr;
+    }
+
+    ExecNode block;
+    block.type = ExecNodeType::BLOCK;
+    assert(astNode->param1);
+    astNode = astNode->param1;
+
+    ASTNode* thisAstNext;
+    ExecNode* newExpr = _execExpression(astNode, &thisAstNext);
+    if(!newExpr) {
+        LOG("ERROR> can't parse expression (line: %d)", astNode->token.line);
+        return nullptr;
+    }
+
+    block.params[0] = newExpr;
+
+    ExecNode* curExpr = newExpr;
+    while(thisAstNext) {
+        astNode = thisAstNext;
+        newExpr = _execExpression(astNode, &thisAstNext);
+        if(!newExpr) {
+            LOG("ERROR> can't parse expression (line: %d)", astNode->token.line);
+            return nullptr;
+        }
+        curExpr->next = newExpr;
+        curExpr = newExpr;
+    }
+
+    *nextAstNode = thisAstNext;
+    return _pushExecNode(block);
+}
+
+ExecNode *Script::_execExpression(ASTNode* astNode, ASTNode** nextAstNode)
+{
+    ExecNode* varDecl = _execVarDecl(astNode, nextAstNode);
+    if(varDecl) {
+        return varDecl;
+    }
+
+    ExecNode* structDecl = _execStructDecl(astNode, nextAstNode);
+    if(structDecl) {
+        return structDecl;
+    }
+
+    ExecNode* block = _execBlock(astNode, nextAstNode);
+    if(block) {
+        return block;
+    }
+
+    return nullptr;
+}
 
 void Script::release()
 {
-    bytecodeDataSize = 0;
-    if(bytecodeData) {
-        free(bytecodeData);
-        bytecodeData = nullptr;
+    execDataSize = 0;
+    if(execData) {
+        free(execData);
+        execData = nullptr;
     }
 }
 
@@ -995,12 +1076,10 @@ bool Script::openAndCompile(const char* path)
     }
     defer(free(file.data));
 
-    bytecode.clear();
-    bytecodeDataSize = 2048; // 2 Ko
-    bytecodeData = (u8*)malloc(bytecodeDataSize);
-    bytecodeDataCur = 0;
+    execDataSize = 2048; // 2 Ko
+    execData = (u8*)malloc(execDataSize);
+    execDataCur = 0;
 
-    g_userDefinedStructs.clear();
     g_ast.clear();
     g_firstNode = newNodeNext(Token{}, ASTNodeType::_INVALID, nullptr); // first node;
     g_scopeLast = g_firstNode;
@@ -1024,17 +1103,64 @@ bool Script::openAndCompile(const char* path)
         if(cursor.lastToken.type == TokenType::END_OF_FILE) {
             parsing = false;
         }
-        /*else {
-            LOG("token: type=%s, len=%d, str='%.*s'",
-                TokenTypeStr[(i32)token.type], token.len, token.len, token.start);
-        }*/
     }
 
-    LOG("File parsed and compiled (%s)", path);
+    LOG("File parsed successfully (%s)", path);
+
+    g_firstNode = g_firstNode->next;
 
     LOG("AST ----------");
-    printNode(g_firstNode->next);
+    printAstNode(g_firstNode);
     LOG("\n--------------");
+
+
+    execNodeList.clear();
+    execTree = _pushExecNode(ExecNode{ ExecNodeType::_INVALID }); // first node
+    ExecNode* lastExecNode = execTree;
+
+    ASTNode* curAst = g_firstNode;
+    while(curAst && curAst->type != ASTNodeType::SCRIPT_END) {
+        ASTNode* nextAst;
+        ExecNode* expr = _execExpression(curAst, &nextAst);
+        if(!expr) {
+            LOG("ERROR> can't parse expression (line: %d)", curAst->token.line);
+            return nullptr;
+        }
+
+        lastExecNode->next = expr;
+        lastExecNode = lastExecNode->next;
+        curAst = nextAst;
+    }
+
+    // fix exec data pointers
+    const i32 bucketCount = execNodeList.buckets.count();
+    List<ExecNode>::Bucket* buckets = execNodeList.buckets.data();
+
+    for(i32 b = 0; b < bucketCount; b++) {
+        const i32 itemCount = buckets[b].count;
+        ExecNode* items = buckets[b].buffer;
+
+        for(i32 i = 0; i < itemCount; i++) {
+            ExecNode& n = items[i];
+            switch(n.type) {
+                case ExecNodeType::VAR_DECL: {
+                    n.params[0] = execData + (intptr_t)n.params[0]; // type
+                    n.params[2] = execData + (intptr_t)n.params[2]; // name
+                } break;
+
+                case ExecNodeType::STRUCT_DECL: {
+                    n.params[0] = execData + (intptr_t)n.params[0]; // name
+                } break;
+            }
+        }
+    }
+
+    LOG("File compiled successfully (%s)", path);
+
+    LOG("Execution tree -");
+    printExecNode(execTree->next);
+    LOG("\n--------------");
+
     return true;
 }
 
@@ -1043,166 +1169,61 @@ bool Script::execute(BrickWall* wall)
     return false;
     *wall = {}; // reset wall
 
-    intptr_t bufferOffset = 0;
-    const i32 instCount = bytecode.count();
 
-    BrickStruct currentBrickStruct;
-    bool insideStructDeclaration = false;
-
-    for(i32 i = 0; i < instCount; ++i) {
-        const Instruction& inst = bytecode[i];
-
-        switch(inst.type) {
-            case InstType::PLACE_BRICK: {
-                const char* name = (const char*)bytecodeData + (i32)(i32)inst.args[1];
-                const i32 nameLen = (i32)inst.args[2];
-                const i32 arrayCount = inst.args[0];
-                const BrickType brickType = (BrickType)inst.args[3];
-                const u32 color = (u32)inst.args[4];
-
-                LOG("Inst> PLACE_BRICK(%.*s, type=%d, arrayCount=%d, color=%x)",
-                        nameLen,
-                        name,
-                        brickType,
-                        arrayCount,
-                        color);
-
-                Brick b = makeBrickBasic(name, nameLen, brickType, arrayCount, color);
-                b.start = bufferOffset;
-                bufferOffset += b.size;
-
-                if(!wall->insertBrick(b)) {
-                    LOG("Script> could not insert '%.*s'", nameLen, name);
-                    return false;
-                }
-            } break;
-
-            case InstType::PLACE_BRICK_STRUCT: {
-                const char* name = (const char*)bytecodeData + (i32)(i32)inst.args[1];
-                const i32 nameLen = (i32)inst.args[2];
-                const i32 arrayCount = inst.args[0];
-                const u32 structHash = (u32)inst.args[3];
-                const u32 color = (u32)inst.args[4];
-
-                LOG("Inst> PLACE_BRICK_STRUCT(%.*s, arrayCount=%d, struct=%x, color=%x)",
-                        nameLen,
-                        name,
-                        arrayCount,
-                        structHash,
-                        color);
-
-                const i32 structCount = wall->structs.count();
-                const BrickStruct* brickStructs = wall->structs.data();
-                const BrickStruct* found = nullptr;
-
-                for(i32 b = 0; b < structCount; ++b) {
-                    if(brickStructs[b].nameHash == structHash) {
-                        found = &brickStructs[b];
-                        break;
-                    }
-                }
-                assert(found); // tried to place a non existing struct
-                assert(found->_size > 0); // did not finalize struct?
-                bool r = wall->insertBrickStruct(name, nameLen, bufferOffset, arrayCount, *found);
-                if(!r) {
-                    LOG("Script> could not insert '%s %.*s'", found->name.str, nameLen, name);
-                    return false;
-                }
-                bufferOffset += found->_size * arrayCount;
-
-            } break;
-
-            case InstType::BRICK_STRUCT_BEGIN: {
-                assert(!insideStructDeclaration); // cannot declare structs inside of structs
-
-                currentBrickStruct = {};
-                insideStructDeclaration = true;
-
-                const char* name = (const char*)bytecodeData + (i32)(i32)inst.args[0];
-                const i32 nameLen = (i32)inst.args[1];
-                const u32 color = (u32)inst.args[2];
-
-                LOG("Inst> BRICK_STRUCT_BEGIN(%.*s, color=%x)",
-                        nameLen,
-                        name,
-                        color);
-
-                currentBrickStruct.name.set(name, nameLen);
-                currentBrickStruct.color = color;
-
-            } break;
-
-            case InstType::BRICK_STRUCT_END: {
-                assert(insideStructDeclaration); // END without BEGIN
-
-                LOG("Inst> BRICK_STRUCT_END()");
-                insideStructDeclaration = false;
-
-                currentBrickStruct.finalize();
-                wall->structs.push(currentBrickStruct);
-                wall->_rebuildTypeCache();
-            } break;
-
-            case InstType::BRICK_STRUCT_ADD_MEMBER: {
-                assert(insideStructDeclaration); // add member during struct declaration only
-
-                const char* name = (const char*)bytecodeData + (i32)(i32)inst.args[0];
-                const i32 nameLen = (i32)inst.args[1];
-                const i32 arrayCount = inst.args[2];
-                const BrickType brickType = (BrickType)inst.args[3];
-                const u32 structHash = (u32)inst.args[4];
-                const u32 color = (u32)inst.args[5];
-
-                LOG("Inst> BRICK_STRUCT_ADD_MEMBER(%.*s, arrayCount=%d, baseType=%d, struct=%x, color=%x)",
-                        nameLen,
-                        name,
-                        arrayCount,
-                        brickType,
-                        structHash,
-                        color);
-
-                Brick b;
-                if(structHash == 0) {
-                    b = makeBrickBasic(name, nameLen, brickType, arrayCount, color);
-                }
-                else {
-                    const i32 structCount = wall->structs.count();
-                    const BrickStruct* brickStructs = wall->structs.data();
-                    const BrickStruct* found = nullptr;
-
-                    for(i32 b = 0; b < structCount; ++b) {
-                        if(brickStructs[b].nameHash == structHash) {
-                            found = &brickStructs[b];
-                            break;
-                        }
-                    }
-                    assert(found); // tried to place a non existing struct
-                    assert(found->_size > 0); // did not finalize struct?
-
-                    b = makeBrickOfStruct(name, nameLen,
-                                          (BrickStruct*)((intptr_t)(found - brickStructs)),
-                                          found->_size, arrayCount, color);
-                }
-
-                currentBrickStruct.bricks.push(b);
-
-            } break;
-        }
-    }
 
     wall->finalize();
     return true;
 }
 
-u32 Script::_pushBytecodeData(const void* data, u32 dataSize)
+u32 Script::_pushExecData(const void* data, u32 dataSize)
 {
-    if(bytecodeDataCur + dataSize >= bytecodeDataSize) {
-        bytecodeDataSize = max(bytecodeDataSize * 2, bytecodeDataSize + dataSize);
-        bytecodeData = (u8*)realloc(bytecodeData, bytecodeDataSize);
+    if(execDataCur + dataSize >= execDataSize) {
+        execDataSize = max(execDataSize * 2, execDataSize + dataSize);
+        execData = (u8*)realloc(execData, execDataSize);
     }
 
-    memmove(bytecodeData + bytecodeDataCur, data, dataSize);
-    u32 offset = bytecodeDataCur;
-    bytecodeDataCur += dataSize;
+    memmove(execData + execDataCur, data, dataSize);
+    u32 offset = execDataCur;
+    execDataCur += dataSize;
     return offset;
+}
+
+u32 Script::_pushExecDataStr(const i32 len, const char* str)
+{
+    // ExecStr{ i32 len; char buff[] }
+    u32 off = _pushExecData(&len, sizeof(len));
+    _pushExecData(str, len);
+    return off;
+}
+
+ExecNode* Script::_pushExecNode(ExecNode node)
+{
+    return &execNodeList.push(node);
+}
+
+void* ExecNode::execute()
+{
+    switch(type) {
+        case ExecNodeType::STRUCT_DECL: {
+            const ExecStr& name = *(ExecStr*)params[0];
+            ExecArr<ExecNode>& memberNodeArray = *(ExecArr<ExecNode>*)params[1];
+            LOG("struct %.*s {", name.len, name.buff);
+
+            const i32 count = memberNodeArray.count;
+            for(i32 i = 0; i < count; i++) {
+                memberNodeArray.data[i].execute();
+            }
+
+            LOG("}");
+        } break;
+
+        case ExecNodeType::VAR_DECL: {
+            const ExecStr& type = *(ExecStr*)params[0];
+            const i32 arrayCount = (i32)(intptr_t)params[1];
+            const ExecStr& name = *(ExecStr*)params[2];
+            LOG("%.*s[%d] %.*s", type.len, type.buff, arrayCount, name.len, name.buff);
+        } break;
+    }
+
+    return nullptr;
 }

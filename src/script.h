@@ -2,28 +2,39 @@
 
 #include "utils.h"
 
-enum class InstType: i32 {
-    _INVALID = 0,
-    PLACE_BRICK,
-    PLACE_BRICK_STRUCT,
-    BRICK_STRUCT_BEGIN,
-    BRICK_STRUCT_END,
-    BRICK_STRUCT_ADD_MEMBER,
+struct ExecNodeType
+{
+    enum Enum {
+        _INVALID = 0,
+        STRUCT_DECL,
+        VAR_DECL,
+        BLOCK
+    };
 };
 
-struct Instruction
+struct ExecNode
 {
-    InstType type = InstType::_INVALID;
-    intptr_t args[6];
+    ExecNodeType::Enum type;
+    void* params[5];
+    ExecNode* next = nullptr;
+
+    void* execute();
+
+    inline bool isValid() const { return type != ExecNodeType::_INVALID; }
 };
+
+#define ExecNode_INVALID ExecNode{ ExecNodeType::_INVALID }
+
+struct ASTNode;
 
 struct Script
 {
     FileBuffer file;
-    u8* bytecodeData = nullptr;
-    u32 bytecodeDataCur = 0;
-    u32 bytecodeDataSize = 0;
-    Array<Instruction> bytecode;
+    u8* execData = nullptr;
+    u32 execDataCur = 0;
+    u32 execDataSize = 0;
+    List<ExecNode> execNodeList;
+    ExecNode* execTree = nullptr;
 
     ~Script() { release(); }
     void release();
@@ -31,5 +42,12 @@ struct Script
     bool openAndCompile(const char* path);
     bool execute(struct BrickWall* wall);
 
-    u32 _pushBytecodeData(const void* data, u32 dataSize);
+    u32 _pushExecData(const void* data, u32 dataSize);
+    u32 _pushExecDataStr(const i32 len, const char* str);
+    ExecNode* _pushExecNode(ExecNode node);
+
+    ExecNode* _execVarDecl(ASTNode* astNode, ASTNode** nextAstNode);
+    ExecNode* _execStructDecl(ASTNode* astNode, ASTNode** nextAstNode);
+    ExecNode* _execBlock(ASTNode* astNode, ASTNode** nextAstNode);
+    ExecNode* _execExpression(ASTNode* astNode, ASTNode** nextAstNode);
 };
