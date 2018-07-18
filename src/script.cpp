@@ -901,11 +901,8 @@ void printExecNode(ExecNode* node)
 
     switch(node->type) {
         case ExecNodeType::BLOCK: {
-            ExecNode* expr = (ExecNode*)node->params[0];
-            while(expr) {
-                printExecNode(expr);
-                expr = expr->next;
-            }
+            ExecNode* expr = (ExecNode*)node->params[0]; // first expression
+            printExecNode(expr);
         } break;
 
         case ExecNodeType::VAR_DECL: {
@@ -917,8 +914,8 @@ void printExecNode(ExecNode* node)
 
         case ExecNodeType::STRUCT_DECL: {
             const ExecStr& name = *(ExecStr*)node->params[0];
-            LOG_NNL("%.*s ", name.len, name.buff);
-            printExecNode((ExecNode*)node->params[1]);
+            LOG_NNL("\n%.*s ", name.len, name.buff);
+            printExecNode((ExecNode*)node->params[1]); // block
         } break;
     }
 
@@ -1011,6 +1008,7 @@ ExecNode *Script::_execBlock(ASTNode* astNode, ASTNode** nextAstNode)
     ExecNode block;
     block.type = ExecNodeType::BLOCK;
     assert(astNode->param1);
+    ASTNode* astBlock = astNode;
     astNode = astNode->param1;
 
     ASTNode* thisAstNext;
@@ -1034,7 +1032,7 @@ ExecNode *Script::_execBlock(ASTNode* astNode, ASTNode** nextAstNode)
         curExpr = newExpr;
     }
 
-    *nextAstNode = thisAstNext;
+    *nextAstNode = astBlock->next;
     return _pushExecNode(block);
 }
 
