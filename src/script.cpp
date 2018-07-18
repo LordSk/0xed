@@ -236,28 +236,6 @@ Token getToken(Cursor* pCursor)
 
 // PARSING
 
-enum class BaseType: i32 {
-    _INVALID = 0,
-
-    CHAR,
-    WCHAR,
-
-    INT8,
-    INT16,
-    INT32,
-    INT64,
-
-    UINT8,
-    UINT16,
-    UINT32,
-    UINT64,
-
-    FLOAT32,
-    FLOAT64,
-
-    _COUNT
-};
-
 const char* BaseTypeStr[(i32)BaseType::_COUNT] = {
     "",
 
@@ -421,7 +399,19 @@ constexpr char* ExecNodeTypeStr[] =
     "_INVALID",
     "STRUCT_DECL",
     "VAR_DECL",
-    "BLOCK"
+    "BLOCK",
+    "IF_ELSE",
+
+    "STRUCT_ACCESS",
+    "ARRAY_ACCESS",
+
+    "LITTERAL_INT",
+    "LITTERAL_FLOAT",
+
+    "OP_ADD",
+    "OP_SUB",
+    "OP_MUL",
+    "OP_DIV",
 };
 
 List<ASTNode> g_ast;
@@ -731,11 +721,11 @@ ASTNode* astExpression(Cursor* pCursor, TokenType expectedEndType = TokenType::S
             }
 
             switch(n->type) {
-                case ASTNodeType::ARRAY_ACCESS:
+                case ASTNodeType::STRUCT_ACCESS:
                     nodePrecedence = 12;
                     break;
 
-                case ASTNodeType::STRUCT_ACCESS:
+                case ASTNodeType::ARRAY_ACCESS:
                     nodePrecedence = 11;
                     break;
 
@@ -907,15 +897,55 @@ void printExecNode(ExecNode* node)
 
         case ExecNodeType::VAR_DECL: {
             const ExecStr& type = *(ExecStr*)node->params[0];
-            const i32 arrayCount = (intptr_t)node->params[1];
+            ExecNode* arrayCountexpr = (ExecNode*)node->params[1];
             const ExecStr& name = *(ExecStr*)node->params[2];
-            LOG_NNL("%.*s[%d] %.*s", type.len, type.buff, arrayCount, name.len, name.buff);
+
+            LOG_NNL("%.*s", type.len, type.buff);
+
+            if(arrayCountexpr) {
+                LOG_NNL("[");
+                printExecNode(arrayCountexpr);
+                LOG_NNL("]");
+            }
+
+            LOG_NNL(" %.*s", name.len, name.buff);
         } break;
 
         case ExecNodeType::STRUCT_DECL: {
             const ExecStr& name = *(ExecStr*)node->params[0];
             LOG_NNL("\n%.*s ", name.len, name.buff);
             printExecNode((ExecNode*)node->params[1]); // block
+        } break;
+
+        case ExecNodeType::STRUCT_ACCESS: {
+            const ExecStr& var = *(ExecStr*)node->params[0];
+            const ExecStr& member = *(ExecStr*)node->params[1];
+            LOG_NNL("%.*s.%.*s", var.len, var.buff, member.len, member.buff);
+        } break;
+
+        case ExecNodeType::OP_ADD:
+        case ExecNodeType::OP_SUB:
+        case ExecNodeType::OP_MUL:
+        case ExecNodeType::OP_DIV:{
+            ExecNode* left = (ExecNode*)node->params[0];
+            ExecNode* right = (ExecNode*)node->params[1];
+            LOG_NNL("(");
+            printExecNode(left);
+            LOG_NNL(") " KCYN);
+            switch(node->type) {
+                case ExecNodeType::OP_ADD: LOG_NNL("+"); break;
+                case ExecNodeType::OP_SUB: LOG_NNL("-"); break;
+                case ExecNodeType::OP_MUL: LOG_NNL("*"); break;
+                case ExecNodeType::OP_DIV: LOG_NNL("/"); break;
+            }
+            LOG_NNL(KNRM " (");
+            printExecNode(right);
+            LOG_NNL(")");
+        } break;
+
+        case ExecNodeType::LITTERAL_INT: {
+            const i64 i = (i64)(intptr_t)node->params[0];
+            LOG_NNL("%lld", i);
         } break;
     }
 
@@ -936,15 +966,12 @@ ExecNode *Script::_execVarDecl(ASTNode* astNode, ASTNode** nextAstNode)
         astNode->type == ASTNodeType::ARRAY_ACCESS && nextAst->type == ASTNodeType::NAME)) {
         Token tkType;
         Token tkName = nextAst->token;
-        i32 arrayCount = 1;
+
         if(astNode->type == ASTNodeType::ARRAY_ACCESS) {
             assert(astNode->param1);
             assert(astNode->param1->type == ASTNodeType::NAME);
             assert(astNode->param2);
-            // TODO: evaluate expression here
-            assert(astNode->param2->type == ASTNodeType::INT_LITERAL);
             tkType = astNode->param1->token;
-            sscanf(astNode->param2->token.start, "%d", &arrayCount);
         }
         else {
             tkType = astNode->token;
@@ -956,7 +983,22 @@ ExecNode *Script::_execVarDecl(ASTNode* astNode, ASTNode** nextAstNode)
         // type
         varDecl.params[0] = (void*)(intptr_t)_pushExecDataStr(tkType.len, tkType.start);
         // array count
-        varDecl.params[1] = (void*)(intptr_t)arrayCount;
+        if(astNode->param2) {
+            ASTNode* useless;
+            ExecNode* arrayCountExpr = _execExpression(astNode->param2, &useless);
+            if(!arrayCountExpr) {
+                return nullptr;
+            }
+            if(!arrayCountExpr->returnsInt()) {
+                LOG("ERROR> [expression] must evaluate to integer");
+                return nullptr;
+            }
+            varDecl.params[1] = arrayCountExpr;
+        }
+        else {
+            varDecl.params[1] = nullptr;
+        }
+
         // name
         varDecl.params[2] = (void*)(intptr_t)_pushExecDataStr(tkName.len, tkName.start);
 
@@ -1036,6 +1078,86 @@ ExecNode *Script::_execBlock(ASTNode* astNode, ASTNode** nextAstNode)
     return _pushExecNode(block);
 }
 
+ExecNode *Script::_execStructAccess(ASTNode* astNode, ASTNode** nextAstNode)
+{
+    if(astNode->type != ASTNodeType::STRUCT_ACCESS) {
+        return nullptr;
+    }
+
+    Token tkVar = astNode->param1->token;
+    Token tkMember = astNode->param2->token;
+
+    ExecNode execSa;
+    execSa.type = ExecNodeType::STRUCT_ACCESS;
+    // struct variable name
+    execSa.params[0] = (void*)(intptr_t)_pushExecDataStr(tkVar.len, tkVar.start);
+    // member name
+    execSa.params[1] = (void*)(intptr_t)_pushExecDataStr(tkMember.len, tkMember.start);
+
+    *nextAstNode = astNode->next;
+    return _pushExecNode(execSa);
+}
+
+ExecNode *Script::_execOpMath(ASTNode* astNode, ASTNode** nextAstNode)
+{
+    if(astNode->type != ASTNodeType::OP_MATH) {
+        return nullptr;
+    }
+
+    Token tkOp = astNode->token;
+
+    ExecNode execOp;
+    switch(tkOp.start[0]) {
+        case '+': execOp.type = ExecNodeType::OP_ADD; break;
+        case '-': execOp.type = ExecNodeType::OP_SUB; break;
+        case '*': execOp.type = ExecNodeType::OP_MUL; break;
+        case '/': execOp.type = ExecNodeType::OP_DIV; break;
+        default: assert(0); break;
+    }
+
+    ASTNode* useless;
+    ExecNode* leftExpr = _execExpression(astNode->param1, &useless);
+    ExecNode* rightExpr = _execExpression(astNode->param2, &useless);
+
+    if(!leftExpr || (!leftExpr->returnsInt() && !leftExpr->returnsFloat())) {
+        LOG("ERROR> %s: left expression must evaluate to int or float (line: %d)",
+            ExecNodeTypeStr[(i32)execOp.type], tkOp.line);
+        return nullptr;
+    }
+    if(!rightExpr || (!rightExpr->returnsInt() && !rightExpr->returnsFloat())) {
+        LOG("ERROR> %s: right expression must evaluate to int or float (line: %d)",
+            ExecNodeTypeStr[(i32)execOp.type], tkOp.line);
+        return nullptr;
+    }
+
+    // left
+    execOp.params[0] = leftExpr;
+    // right
+    execOp.params[1] = rightExpr;
+
+    *nextAstNode = astNode->next;
+    return _pushExecNode(execOp);
+}
+
+ExecNode*Script::_execLitteral(ASTNode* astNode, ASTNode** nextAstNode)
+{
+    if(astNode->type != ASTNodeType::INT_LITERAL) {
+        return nullptr;
+    }
+
+    Token tkInt = astNode->token;
+    i64 count;
+    sscanf(tkInt.start, "%lld", &count);
+
+    ExecNode litteralInt;
+    litteralInt.type = ExecNodeType::LITTERAL_INT;
+    litteralInt.returnType = BaseType::INT64;
+    litteralInt.params[0] = (void*)(intptr_t)count;
+
+    *nextAstNode = astNode->next;
+    return _pushExecNode(litteralInt);
+}
+
 ExecNode *Script::_execExpression(ASTNode* astNode, ASTNode** nextAstNode)
 {
     ExecNode* varDecl = _execVarDecl(astNode, nextAstNode);
@@ -1051,6 +1173,21 @@ ExecNode *Script::_execExpression(ASTNode* astNode, ASTNode** nextAstNode)
     ExecNode* block = _execBlock(astNode, nextAstNode);
     if(block) {
         return block;
+    }
+
+    ExecNode* structAccess = _execStructAccess(astNode, nextAstNode);
+    if(structAccess) {
+        return structAccess;
+    }
+
+    ExecNode* opMath = _execOpMath(astNode, nextAstNode);
+    if(opMath) {
+        return opMath;
+    }
+
+    ExecNode* litt = _execLitteral(astNode, nextAstNode);
+    if(litt) {
+        return litt;
     }
 
     return nullptr;
@@ -1148,6 +1285,11 @@ bool Script::openAndCompile(const char* path)
 
                 case ExecNodeType::STRUCT_DECL: {
                     n.params[0] = execData + (intptr_t)n.params[0]; // name
+                } break;
+
+                case ExecNodeType::STRUCT_ACCESS: {
+                    n.params[0] = execData + (intptr_t)n.params[0]; // var
+                    n.params[1] = execData + (intptr_t)n.params[1]; // member
                 } break;
             }
         }
