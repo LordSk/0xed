@@ -46,10 +46,10 @@ Script script;
 bool init()
 {
     // TODO: remove this
-    if(!script.openAndCompile("../test_script.0")) {
+    /*if(!script.openAndCompile("../test_script.0")) {
         return false;
     }
-    return false;
+    return false;*/
 
     loadConfigFile(CONFIG_FILENAME, &config);
 
@@ -75,9 +75,9 @@ bool init()
         dataPanels.setFileBuffer(curFileBuff.data, curFileBuff.size);
     }
 
-    if(!script.execute(&brickWall)) {
+    /*if(!script.execute(&brickWall)) {
         return false;
-    }
+    }*/
 
     return true;
 }
@@ -107,6 +107,8 @@ void cleanUp()
         free(curFileBuff.data);
         curFileBuff.data = nullptr;
     }
+
+    setStyleLight();
 }
 
 i32 run()
@@ -162,6 +164,14 @@ static void setStyleLight()
     style.WindowBorderSize = 1.0f;
     style.FrameBorderSize = 1.0f;
     style.PopupBorderSize = 1.0f;
+    style.GrabMinSize = 20.0f;
+    style.GrabRounding = 7.5f;
+    style.ScrollbarSize = 15.0f;
+    style.ScrollbarRounding = 7.5f;
+    style.Colors[ImGuiCol_ScrollbarBg] = ImVec4(0.88, 0.88, 0.9, 1.0);
+    style.Colors[ImGuiCol_ScrollbarGrab] = ImVec4(0.5, 0.5, 0.5, 1.0);
+    style.Colors[ImGuiCol_ScrollbarGrabHovered] = ImVec4(102/255.0, 178/255.0, 1.0, 1.0);
+    style.Colors[ImGuiCol_ScrollbarGrabActive] = ImVec4(36/255.0, 134/255.0, 1.0, 1.0);
 }
 
 void doUI()
@@ -288,6 +298,7 @@ void doUI()
     }
 
     ui_brickPopup(POPUP_BRICK_ADD, popupBrickSelStart, popupBrickSelLength, &brickWall);
+
     //ImGui::ShowDemoWindow();
 }
 

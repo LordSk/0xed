@@ -5,7 +5,7 @@
 #include "imgui.h"
 #include "imgui_internal.h"
 
-#define PANEL_MAX_COUNT 5
+#define PANEL_MAX_COUNT 10
 
 struct SelectionState
 {
@@ -42,6 +42,7 @@ struct DataPanels
         BRICK_COLOR
     };
 
+    f32 childPanelWidth;
     f32 panelRectWidth[PANEL_MAX_COUNT];
     i32 panelType[PANEL_MAX_COUNT];
     ColorDisplay panelColorDisplay[PANEL_MAX_COUNT] = {};
@@ -54,7 +55,7 @@ struct DataPanels
 
     i32 columnCount = 16;
     const i32 columnWidth = 22;
-    const i32 rowHeight = 22;
+    const f32 rowHeight = 22;
     const i32 columnHeaderHeight = 24;
     const i32 rowHeaderWidth = 32;
     const i32 panelSpacing = 10;
@@ -94,9 +95,9 @@ struct DataPanels
 
     void doUi();
 
-    void doHexPanel(const char* label, const i32 startLine, ColorDisplay colorDisplay);
-    void doAsciiPanel(const char* label, const i32 startLine, ColorDisplay colorDisplay);
+    void doHexPanel(i32 pid, f32 panelWidth, const i32 startLine, ColorDisplay colorDisplay);
+    void doAsciiPanel(i32 pid, f32 panelWidth, const i32 startLine, ColorDisplay colorDisplay);
 
     template<typename T>
-    void doFormatPanel(const char* label, const i32 startLine, const char* format);
+    void doFormatPanel(i32 pid, f32 panelWidth, const i32 startLine, const char* format);
 };

@@ -17,7 +17,7 @@ void DoScrollbarVertical(i64* outScrollVal, i64 scrollPageSize, i64 scrollTotalS
 
     ImRect winRect = window->Rect();
     winRect.Expand(ImVec2(0, -2.f)); // padding
-    window->ContentsRegionRect.Max.x -= style.ScrollbarSize;
+    window->ContentsRegionRect.Max.x += style.ScrollbarSize;
 
     // Render background
     ImRect bb = winRect;
@@ -32,7 +32,7 @@ void DoScrollbarVertical(i64* outScrollVal, i64 scrollPageSize, i64 scrollTotalS
     f32 height = winRect.GetHeight() * ((f64)scrollPageSize / scrollTotalSize);
     f32 scrollSurfaceSizeY = winRect.GetHeight();
 
-    constexpr f32 minGrabHeight = 24.f;
+    const f32 minGrabHeight = style.GrabMinSize;
     if(height < minGrabHeight) {
         scrollSurfaceSizeY -= minGrabHeight - height;
         height = minGrabHeight;
@@ -158,7 +158,8 @@ void Tabs(const char* label, const char** names, const i32 count, i32* selected)
     }
 }
 
-void SplitVBeginLeft(const char* label, f32* leftWidth, f32* rightWidth, const i32 separatorWidth)
+void SplitVBeginLeft(const char* label, f32* leftWidth, f32* rightWidth, const i32 separatorWidth,
+                     ImGuiWindowFlags extraFlags)
 {
     assert(leftWidth || rightWidth);
 
@@ -226,10 +227,12 @@ void SplitVBeginLeft(const char* label, f32* leftWidth, f32* rightWidth, const i
     }
     RenderFrame(bb.Min, bb.Max, buttonColor, true);
 
-    BeginChild(label, ImVec2(childLeftWidth, -1), false, ImGuiWindowFlags_AlwaysUseWindowPadding);
+    BeginChild(label, ImVec2(childLeftWidth, -1), false,
+               ImGuiWindowFlags_AlwaysUseWindowPadding|extraFlags);
 }
 
-void SplitVBeginRight(const char* label, f32* leftWidth, f32* rightWidth, const i32 separatorWidth)
+void SplitVBeginRight(const char* label, f32* leftWidth, f32* rightWidth, const i32 separatorWidth,
+                      ImGuiWindowFlags extraFlags)
 {
     assert(leftWidth || rightWidth);
 
@@ -249,7 +252,8 @@ void SplitVBeginRight(const char* label, f32* leftWidth, f32* rightWidth, const 
         childRightWidth = *rightWidth;
     }
 
-    BeginChild(label, ImVec2(childRightWidth, -1), false, ImGuiWindowFlags_AlwaysUseWindowPadding);
+    BeginChild(label, ImVec2(childRightWidth, -1), false,
+               ImGuiWindowFlags_AlwaysUseWindowPadding|extraFlags);
 }
 
 void SplitVEnd()
