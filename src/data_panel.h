@@ -14,7 +14,6 @@ struct SelectionState
     i64 selectStart = -1;
     i64 selectEnd = -1;
     i32 lockedPanelId = -1;
-    ImRect lockedPanelRect;
 };
 
 enum PanelTypes {
@@ -57,7 +56,7 @@ struct DataPanels
     const i32 columnWidth = 22;
     const f32 rowHeight = 22;
     const i32 columnHeaderHeight = 24;
-    const i32 rowHeaderWidth = 32;
+    i32 rowHeaderWidth = 32;
     const i32 panelSpacing = 10;
     const f32 panelCloseButtonWidth = 20;
     const f32 panelColorButtonWidth = 30;
@@ -91,7 +90,7 @@ struct DataPanels
     i32 getSelectedInt();
 
     void calculatePanelWidth();
-    void doRowHeader(const ImRect& winRect);
+    void doRowHeader();
 
     void doUi();
 

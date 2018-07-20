@@ -134,7 +134,6 @@ void DataPanels::selectionProcessMouseInput(const i32 panelId, ImVec2 mousePos, 
         selectionState.selectStart = (startLine + hoverLine) * columnCount + hoverColumn * hoverLen;
         selectionState.selectEnd = selectionState.selectStart + hoverLen-1;
         selectionState.lockedPanelId = panelId;
-        selectionState.lockedPanelRect = rect;
         return;
     }
 
@@ -261,24 +260,37 @@ void DataPanels::calculatePanelWidth()
     }
 }
 
-void DataPanels::doRowHeader(const ImRect& winRect)
+void DataPanels::doRowHeader()
 {
     // row header
+    ImRect winRect = ImGui::GetCurrentWindow()->Rect();
+    const i32 lineCount = (winRect.GetHeight() - columnHeaderHeight) / rowHeight + 1;
+
+    char numStr[24];
+    i32 strLen = sprintf(numStr, "%lld", (lineCount + scrollCurrentLine) * columnCount);
+    const ImVec2 maxTextSize = ImGui::CalcTextSize(numStr, numStr+strLen);
+    rowHeaderWidth = maxTextSize.x + 12;
+
     ImGui::ItemSize(ImVec2(rowHeaderWidth, -1));
 
-    const i32 lineCount = (winRect.GetHeight() - columnHeaderHeight) / rowHeight + 1;
     const ImVec2& winPos = winRect.Min;
-
     ImRect rowHeadBb(winPos, winPos + ImVec2(rowHeaderWidth, winRect.GetHeight()));
     const ImU32 headerColor = ImGui::ColorConvertFloat4ToU32(ImVec4(0.9, 0.9, 0.9, 1));
     const ImU32 headerColorOdd = ImGui::ColorConvertFloat4ToU32(ImVec4(0.85, 0.85, 0.85, 1));
     ImGui::RenderFrame(rowHeadBb.Min, rowHeadBb.Max, headerColor, false, 0);
 
-    for(i64 i = 0; i < lineCount; ++i) {
-        u32 hex = toHexStr(((i + scrollCurrentLine) * columnCount) & 0xFF);
+    const i64 hoverStart = selectionState.hoverStart / columnCount;
+    const i64 hoverEnd = (selectionState.hoverEnd-1) / columnCount;
+    const bool hovered = selectionState.hoverStart >= 0;
+    const i64 selectStart = selectionState.selectStart / columnCount;
+    const i64 selectEnd = (selectionState.selectEnd) / columnCount;
+    const bool selected = selectionState.selectStart >= 0;
 
-        const char* label = (const char*)&hex;
-        const ImVec2 label_size = ImGui::CalcTextSize(label, label+2);
+    for(i64 i = 0; i < lineCount; ++i) {
+        const i64 line = i + scrollCurrentLine;
+        const i32 len = sprintf(numStr, "%lld", line * columnCount);
+        const char* label = numStr;
+        const ImVec2 label_size = ImGui::CalcTextSize(label, label+len);
         const ImVec2 size = ImGui::CalcItemSize(ImVec2(rowHeaderWidth, rowHeight),
                                                 label_size.x, label_size.y);
 
@@ -287,14 +299,21 @@ void DataPanels::doRowHeader(const ImRect& winRect)
         cellPos.y += columnHeaderHeight + 21;
         const ImRect bb(cellPos, cellPos + size);
 
-        ImVec4 textCol = ImVec4(0.5, 0.5, 0.5, 1);
-        if(i & 1) {
-            textCol = ImVec4(0.45, 0.45, 0.45, 1);
-            ImGui::RenderFrame(bb.Min, bb.Max, headerColorOdd, false, 0);
+        u32 frameColor = headerColorOdd;
+        u32 textColor = (i & 1) ? 0xff808080 : 0xff737373;
+        if(selected && line >= selectStart && line <= selectEnd) {
+            frameColor = selectedFrameColor;
+            textColor = 0xffffffff;
+        }
+        if(hovered && line >= hoverStart && line <= hoverEnd) {
+            frameColor = hoverFrameColor;
+            textColor = 0xff000000;
         }
 
-        ImGui::PushStyleColor(ImGuiCol_Text, textCol);
-        ImGui::RenderTextClipped(bb.Min, bb.Max, label, label+2,
+        ImGui::RenderFrame(bb.Min, bb.Max, frameColor, false, 0);
+
+        ImGui::PushStyleColor(ImGuiCol_Text, textColor);
+        ImGui::RenderTextClipped(bb.Min, bb.Max, label, label+len,
                           &label_size, ImVec2(0.3, 0.5), &bb);
 
         ImGui::PopStyleColor();
@@ -312,6 +331,9 @@ void DataPanels::doUi()
     const f32 panelHeaderHeight = ImGui::GetComboHeight();
     calculatePanelWidth();
 
+    doRowHeader();
+    ImGui::SameLine();
+
     // force appropriate content height
     ImGui::SetNextWindowContentSize(
                 ImVec2(0,
@@ -324,14 +346,15 @@ void DataPanels::doUi()
         scrollCurrentLine = window->Scroll.y / rowHeight;
         ImRect inputRect = window->Rect();
         inputRect.Min.y += panelHeaderHeight;
+        inputRect.Translate(ImVec2(panelSpacing, 0));
         processMouseInput(inputRect);
 
-        f32 offsetX = 0;
+        f32 offsetX = panelSpacing;
         for(i32 p = 0; p < panelCount; ++p) {
             const f32 panelWidth = panelRectWidth[p];
 
             ImVec2 csp;
-            csp.x = - window->Scroll.x + offsetX;
+            csp.x = window->Pos.x - window->Scroll.x + offsetX;
             csp.y = window->Rect().Min.y;
             ImGui::SetCursorScreenPos(csp);
             offsetX += panelWidth + panelSpacing;
@@ -409,9 +432,11 @@ void DataPanels::doUi()
                     break;
             }
 
+
+            ImGui::SameLine();
+            ImGui::ItemSize(ImVec2(panelSpacing, -1));
+
             if(p+1 < panelCount) {
-                ImGui::SameLine();
-                ImGui::ItemSize(ImVec2(panelSpacing, -1));
                 ImGui::SameLine();
             }
         }
