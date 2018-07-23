@@ -3,6 +3,75 @@
 #include "imgui_extended.h"
 #include <stdlib.h>
 #include <float.h>
+#include <limits.h>
+
+Gradient getDefaultTypeGradient(PanelType::Enum ptype)
+{
+    Gradient g;
+    switch(ptype) {
+        case PanelType::HEX: {
+            g.setBounds(u8(0x00), u8(0xff));
+            g.setColors(0xff4c4c4c, 0xffffffff);
+        } break;
+
+        case PanelType::ASCII: {
+            g.setBounds(u8(0x00), u8(0x20));
+            g.setColors(0xffcccccc, 0xffffffff);
+        } break;
+
+        case PanelType::INT8: {
+            g.setBounds(i8(-127), i8(127));
+            g.setColors(0xff4c4c4c, 0xffffffff);
+        } break;
+
+        case PanelType::UINT8: {
+            g.setBounds(u8(0), u8(255));
+            g.setColors(0xff4c4c4c, 0xffffffff);
+        } break;
+
+        case PanelType::INT16: {
+            g.setBounds(i16(SHRT_MIN), i16(SHRT_MAX));
+            g.setColors(0xff4c4c4c, 0xffffffff);
+        } break;
+
+        case PanelType::UINT16: {
+            g.setBounds(u16(0), u16(USHRT_MAX));
+            g.setColors(0xff4c4c4c, 0xffffffff);
+        } break;
+
+        case PanelType::INT32: {
+            g.setBounds(i32(INT_MIN), i32(INT_MAX));
+            g.setColors(0xff4c4c4c, 0xffffffff);
+        } break;
+
+        case PanelType::UINT32: {
+            g.setBounds(u32(0), u32(UINT_MAX));
+            g.setColors(0xff4c4c4c, 0xffffffff);
+        } break;
+
+        case PanelType::INT64: {
+            g.setBounds(i64(_I64_MIN), i64(_I64_MAX));
+            g.setColors(0xff4c4c4c, 0xffffffff);
+        } break;
+
+        case PanelType::UINT64: {
+            g.setBounds(u64(0), u64(_UI64_MAX));
+            g.setColors(0xff4c4c4c, 0xffffffff);
+        } break;
+
+        case PanelType::FLOAT32: {
+            g.setBounds(f32(-10000.0f), f32(10000.0f));
+            g.setColors(0xff4c4c4c, 0xffffffff);
+        } break;
+
+        case PanelType::FLOAT64: {
+            g.setBounds(f64(-10000.0), f64(10000.0));
+            g.setColors(0xff4c4c4c, 0xffffffff);
+        } break;
+    }
+    return g;
+}
+
 
 constexpr char* panelComboItems[] = {
     "Hex",
@@ -73,33 +142,33 @@ void DataPanels::processMouseInput(ImRect winRect)
         }
 
         switch(panelType[p]) {
-            case PT_HEX:
+            case PanelType::HEX:
                 selectionProcessMouseInput(p, mousePos, prect, columnWidth,
                                            rowHeight, scrollCurrentLine, 1);
                 break;
-            case PT_ASCII:
+            case PanelType::ASCII:
                 selectionProcessMouseInput(p, mousePos, prect, asciiCharWidth,
                                            rowHeight, scrollCurrentLine, 1);
                 break;
-            case PT_INT8:
-            case PT_UINT8:
+            case PanelType::INT8:
+            case PanelType::UINT8:
                 selectionProcessMouseInput(p, mousePos, prect, intColumnWidth * 1,
                                            rowHeight, scrollCurrentLine, 1);
                 break;
-            case PT_INT16:
-            case PT_UINT16:
+            case PanelType::INT16:
+            case PanelType::UINT16:
                 selectionProcessMouseInput(p, mousePos, prect, intColumnWidth * 2,
                                            rowHeight, scrollCurrentLine, 2);
                 break;
-            case PT_INT32:
-            case PT_UINT32:
-            case PT_FLOAT32:
+            case PanelType::INT32:
+            case PanelType::UINT32:
+            case PanelType::FLOAT32:
                 selectionProcessMouseInput(p, mousePos, prect, intColumnWidth * 4,
                                            rowHeight, scrollCurrentLine, 4);
                 break;
-            case PT_INT64:
-            case PT_UINT64:
-            case PT_FLOAT64:
+            case PanelType::INT64:
+            case PanelType::UINT64:
+            case PanelType::FLOAT64:
                 selectionProcessMouseInput(p, mousePos, prect, intColumnWidth * 8,
                                            rowHeight, scrollCurrentLine, 8);
                 break;
@@ -189,10 +258,27 @@ void DataPanels::deselect()
 DataPanels::DataPanels()
 {
     memset(panelType, 0, sizeof(panelType));
-    panelType[0] = PT_HEX;
-    panelType[1] = PT_ASCII;
-    panelType[2] = PT_HEX;
-    panelColorDisplay[2] = ColorDisplay::BRICK_COLOR;
+    panelType[0] = PanelType::HEX;
+    panelType[1] = PanelType::ASCII;
+    panelType[2] = PanelType::HEX;
+
+    panelColorDisplay[0] = ColorDisplay::GRADIENT;
+    panelColorDisplay[1] = ColorDisplay::GRADIENT;
+    panelColorDisplay[2] = ColorDisplay::GRADIENT;
+    panelColorDisplay[2] = ColorDisplay::GRADIENT;
+
+    for(i32 p = 0; p < PANEL_MAX_COUNT; p++) {
+        for(i32 t = 0; t < (i32)PanelType::_COUNT; t++) {
+            panelGradient[p][t] = getDefaultTypeGradient((PanelType::Enum)t);
+        }
+    }
+
+    for(i32 t = 0; t < (i32)PanelType::_COUNT; t++) {
+        panelGradient[3][t].setColors(0xff800000, 0xff0000ff);
+    }
+    for(i32 t = 0; t < (i32)PanelType::_COUNT; t++) {
+        panelGradient[2][t].setColors(0xff008000, 0xff0000ff);
+    }
 }
 
 void DataPanels::setFileBuffer(u8* buff, i64 buffSize)
@@ -209,7 +295,13 @@ void DataPanels::addNewPanel()
         return;
     }
 
-    panelType[panelCount++] = PT_HEX;
+    const i32 pid = panelCount++;
+    panelType[pid] = PanelType::HEX;
+    panelColorDisplay[pid] = ColorDisplay::GRADIENT;
+    for(i32 t = 0; t < (i32)PanelType::_COUNT; t++) {
+        panelGradient[pid][t] = getDefaultTypeGradient((PanelType::Enum)t);
+    }
+
 }
 
 void DataPanels::goTo(i32 offset)
@@ -236,22 +328,22 @@ void DataPanels::calculatePanelWidth()
     childPanelWidth = 0;
     for(i32 p = 0; p < panelCount; ++p) {
         switch(panelType[p]) {
-            case PT_HEX:
+            case PanelType::HEX:
                 panelRectWidth[p] = columnCount * columnWidth;
                 break;
-            case PT_ASCII:
+            case PanelType::ASCII:
                 panelRectWidth[p] = columnCount * asciiCharWidth;
                 break;
-            case PT_INT8:
-            case PT_UINT8:
-            case PT_INT16:
-            case PT_UINT16:
-            case PT_INT32:
-            case PT_UINT32:
-            case PT_INT64:
-            case PT_UINT64:
-            case PT_FLOAT32:
-            case PT_FLOAT64:
+            case PanelType::INT8:
+            case PanelType::UINT8:
+            case PanelType::INT16:
+            case PanelType::UINT16:
+            case PanelType::INT32:
+            case PanelType::UINT32:
+            case PanelType::INT64:
+            case PanelType::UINT64:
+            case PanelType::FLOAT32:
+            case PanelType::FLOAT64:
                 panelRectWidth[p] = intColumnWidth * columnCount;
                 break;
 
@@ -299,18 +391,20 @@ void DataPanels::doRowHeader()
         cellPos.y += columnHeaderHeight + 21;
         const ImRect bb(cellPos, cellPos + size);
 
-        u32 frameColor = headerColorOdd;
+        u32 frameColor = (i & 1) ? headerColorOdd : headerColor;
         u32 textColor = (i & 1) ? 0xff808080 : 0xff737373;
         if(selected && line >= selectStart && line <= selectEnd) {
             frameColor = selectedFrameColor;
             textColor = 0xffffffff;
         }
-        if(hovered && line >= hoverStart && line <= hoverEnd) {
+        else if(hovered && line >= hoverStart && line <= hoverEnd) {
             frameColor = hoverFrameColor;
             textColor = 0xff000000;
         }
 
-        ImGui::RenderFrame(bb.Min, bb.Max, frameColor, false, 0);
+        if(frameColor != headerColor) {
+           ImGui::RenderFrame(bb.Min, bb.Max, frameColor, false, 0);
+        }
 
         ImGui::PushStyleColor(ImGuiCol_Text, textColor);
         ImGui::RenderTextClipped(bb.Min, bb.Max, label, label+len,
@@ -362,7 +456,7 @@ void DataPanels::doUi()
 
             ImGui::PushItemWidth(panelWidth - panelCloseButtonWidth - panelColorButtonWidth);
             ImGui::PushID(&panelType[p]);
-            ImGui::Combo("##PanelType", &panelType[p], panelComboItems, IM_ARRAYSIZE(panelComboItems),
+            ImGui::Combo("##PanelType", (i32*)&panelType[p], panelComboItems, IM_ARRAYSIZE(panelComboItems),
                          IM_ARRAYSIZE(panelComboItems));
             ImGui::PopID();
             ImGui::PopItemWidth();
@@ -390,42 +484,42 @@ void DataPanels::doUi()
             ImGui::SetCursorScreenPos(csp);
 
             switch(panelType[p]) {
-                case PT_HEX:
+                case PanelType::HEX:
                     doHexPanel(p, panelWidth, scrollCurrentLine, panelColorDisplay[p]);
                     break;
-                case PT_ASCII:
+                case PanelType::ASCII:
                     doAsciiPanel(p, panelWidth, scrollCurrentLine, panelColorDisplay[p]);
                     break;
-                case PT_INT8:
-                    doFormatPanel<i8>(p, panelWidth, scrollCurrentLine, "%d");
+                case PanelType::INT8:
+                    doFormatPanel<i8>(p, panelWidth, scrollCurrentLine, "%d", panelColorDisplay[p]);
                     break;
-                case PT_UINT8:
-                    doFormatPanel<u8>(p, panelWidth, scrollCurrentLine, "%u");
+                case PanelType::UINT8:
+                    doFormatPanel<u8>(p, panelWidth, scrollCurrentLine, "%u", panelColorDisplay[p]);
                     break;
-                case PT_INT16:
-                    doFormatPanel<i16>(p, panelWidth, scrollCurrentLine, "%d");
+                case PanelType::INT16:
+                    doFormatPanel<i16>(p, panelWidth, scrollCurrentLine, "%d", panelColorDisplay[p]);
                     break;
-                case PT_UINT16:
-                    doFormatPanel<u16>(p, panelWidth, scrollCurrentLine, "%u");
+                case PanelType::UINT16:
+                    doFormatPanel<u16>(p, panelWidth, scrollCurrentLine, "%u", panelColorDisplay[p]);
                     break;
-                case PT_INT32:
-                    doFormatPanel<i32>(p, panelWidth, scrollCurrentLine, "%d");
+                case PanelType::INT32:
+                    doFormatPanel<i32>(p, panelWidth, scrollCurrentLine, "%d", panelColorDisplay[p]);
                     break;
-                case PT_UINT32:
-                    doFormatPanel<u32>(p, panelWidth, scrollCurrentLine, "%u");
+                case PanelType::UINT32:
+                    doFormatPanel<u32>(p, panelWidth, scrollCurrentLine, "%u", panelColorDisplay[p]);
                     break;
-                case PT_INT64:
-                    doFormatPanel<i64>(p, panelWidth, scrollCurrentLine, "%lld");
+                case PanelType::INT64:
+                    doFormatPanel<i64>(p, panelWidth, scrollCurrentLine, "%lld", panelColorDisplay[p]);
                     break;
-                case PT_UINT64:
-                    doFormatPanel<u64>(p, panelWidth, scrollCurrentLine, "%llu");
+                case PanelType::UINT64:
+                    doFormatPanel<u64>(p, panelWidth, scrollCurrentLine, "%llu", panelColorDisplay[p]);
                     break;
-                case PT_FLOAT32:
+                case PanelType::FLOAT32:
                     // TODO: color range to better see which values may be useful
-                    doFormatPanel<f32>(p, panelWidth, scrollCurrentLine, "%g");
+                    doFormatPanel<f32>(p, panelWidth, scrollCurrentLine, "%g", panelColorDisplay[p]);
                     break;
-                case PT_FLOAT64:
-                    doFormatPanel<f64>(p, panelWidth, scrollCurrentLine, "%g");
+                case PanelType::FLOAT64:
+                    doFormatPanel<f64>(p, panelWidth, scrollCurrentLine, "%g", panelColorDisplay[p]);
                     break;
                 default:
                     assert(0);
@@ -500,6 +594,8 @@ void DataPanels::doHexPanel(i32 pid, f32 panelWidth, const i32 startLine, ColorD
         ImGui::PopStyleColor();
     }
 
+    const Gradient grad = panelGradient[pid][panelType[pid]];
+
     // hex table
     const i64 startDataOff = startLine * columnCount;
     for(i64 i = 0; i < itemCount; ++i) {
@@ -509,7 +605,6 @@ void DataPanels::doHexPanel(i32 pid, f32 panelWidth, const i32 startLine, ColorD
 
         ImU32 frameColor = 0xffffffff;
         ImU32 textColor = 0xff000000;
-        f32 geyScale = val/255.f * 0.7 + 0.3;
 
         const char* label = (const char*)&hex;
         const ImVec2 label_size = ImGui::CalcTextSize(label, label+2);
@@ -529,8 +624,24 @@ void DataPanels::doHexPanel(i32 pid, f32 panelWidth, const i32 startLine, ColorD
             frameColor = hoverFrameColor;
         }
         else {
-            if(colorDisplay == ColorDisplay::GRAY_SCALE) {
-                frameColor = ImGui::ColorConvertFloat4ToU32(ImVec4(geyScale, geyScale, geyScale, 1.0f));
+            const f32 ga = grad.getLerpVal(val);
+            f32 brightness;
+            f32 hsvCol[3];
+            f32 rgbCol[3];
+            const u32 gradientColor = grad.lerpColor(ga, &brightness, hsvCol);
+            u32 fixedTextColor = textColor;
+            if(brightness < 0.25) {
+                hsvCol[1] = max(0.0f, hsvCol[1] - 0.6f);
+                hsvCol[2] = min(1.0f, hsvCol[2] + 0.6f);
+                hsvToRgb(hsvCol, rgbCol);
+                fixedTextColor = rgbToU32(rgbCol);
+            }
+
+            if(colorDisplay == ColorDisplay::GRADIENT) {
+                frameColor = gradientColor;
+                if(brightness < 0.25) {
+                    textColor = fixedTextColor;
+                }
             }
             else if(colorDisplay == ColorDisplay::BRICK_COLOR) {
                 assert(brickWall);
@@ -543,8 +654,11 @@ void DataPanels::doHexPanel(i32 pid, f32 panelWidth, const i32 startLine, ColorD
                     }
                     frameColor = b->color;
                 }
-                else {
-                    frameColor = ImGui::ColorConvertFloat4ToU32(ImVec4(geyScale, geyScale, geyScale, 1.0f));
+                else { // fallback to gradient
+                    frameColor = gradientColor;
+                    if(brightness < 0.25) {
+                        textColor = fixedTextColor;
+                    }
                 }
             }
         }
@@ -580,6 +694,8 @@ void DataPanels::doAsciiPanel(i32 pid, f32 panelWidth, const i32 startLine, Colo
 
     winPos.y += columnHeaderHeight;
 
+    const Gradient grad = panelGradient[pid][panelType[pid]];
+
     ImGui::PushFont(fontMono);
 
     // ascii table
@@ -597,8 +713,20 @@ void DataPanels::doAsciiPanel(i32 pid, f32 panelWidth, const i32 startLine, Colo
         const bool isHovered = selectionInHoverRange(dataOff);
         const bool isSelected = selectionInSelectionRange(dataOff);
 
-        ImU32 frameColor = ImGui::GetColorU32(ImGuiCol_FrameBg);
-        f32 greyOne = (f32)c / 0x19 * 0.2 + 0.8;
+        ImU32 frameColor = 0xffffffff;
+
+        const f32 ga = grad.getLerpVal((u8)c);
+        f32 brightness;
+        f32 hsvCol[3];
+        f32 rgbCol[3];
+        const u32 gradientColor = grad.lerpColor(ga, &brightness, hsvCol);
+        u32 fixedTextColor;
+        if(brightness < 0.25) {
+            hsvCol[1] = max(0.0f, hsvCol[1] - 0.6f);
+            hsvCol[2] = min(1.0f, hsvCol[2] + 0.6f);
+            hsvToRgb(hsvCol, rgbCol);
+            fixedTextColor = rgbToU32(rgbCol);
+        }
 
         if(colorDisplay == ColorDisplay::BRICK_COLOR) {
             assert(brickWall);
@@ -606,12 +734,12 @@ void DataPanels::doAsciiPanel(i32 pid, f32 panelWidth, const i32 startLine, Colo
             if(b) {
                 frameColor = b->color;
             }
-            else if((u8)c < 0x20) {
-                frameColor = ImGui::ColorConvertFloat4ToU32(ImVec4(greyOne, greyOne, greyOne, 1));
+            else {
+                frameColor = gradientColor;
             }
         }
-        else if((u8)c < 0x20 && colorDisplay != ColorDisplay::PLAIN) {
-            frameColor = ImGui::ColorConvertFloat4ToU32(ImVec4(greyOne, greyOne, greyOne, 1));
+        else if(colorDisplay == ColorDisplay::GRADIENT) {
+            frameColor = gradientColor;
         }
 
         if(isSelected) {
@@ -623,7 +751,7 @@ void DataPanels::doAsciiPanel(i32 pid, f32 panelWidth, const i32 startLine, Colo
 
         ImGui::RenderFrame(bb.Min, bb.Max, frameColor, false);
 
-        if((u8)c > 0x19) {
+        if((u8)c >= 0x20) {
             ImU32 textColor = ImGui::GetColorU32(ImGuiCol_Text);
             if(isSelected) {
                 textColor = selectedTextColor;
@@ -647,7 +775,8 @@ void DataPanels::doAsciiPanel(i32 pid, f32 panelWidth, const i32 startLine, Colo
 }
 
 template<typename T>
-void DataPanels::doFormatPanel(i32 pid, f32 panelWidth, const i32 startLine, const char* format)
+void DataPanels::doFormatPanel(i32 pid, f32 panelWidth, const i32 startLine, const char* format,
+                               ColorDisplay colorDisplay)
 {
     if(columnCount % sizeof(T)) {
         ImGui::TextColored(ImVec4(0.8, 0, 0, 1), "\nColumn count is not divisible by %d", sizeof(T));
@@ -705,6 +834,8 @@ void DataPanels::doFormatPanel(i32 pid, f32 panelWidth, const i32 startLine, con
 
     const ImVec2 cellSize(intColumnWidth * byteSize, rowHeight);
 
+    const Gradient grad = panelGradient[pid][panelType[pid]];
+
     const i64 startLineOff = (i64)startLine * columnCount;
     for(i64 i = 0; i < itemCount2; i += byteSize) {
         const i64 dataOff = i + startLineOff;
@@ -729,9 +860,30 @@ void DataPanels::doFormatPanel(i32 pid, f32 panelWidth, const i32 startLine, con
         /*if((i + (line & 1) * byteSize) & byteSize) {
             frameColor = 0xffe0e0e0;
         }*/
-        f32 bgColor = avgByteVal/255.f * 0.4 + 0.6;
-        frameColor = ImGui::ColorConvertFloat4ToU32(ImVec4(bgColor, bgColor, bgColor, 1));
         ImU32 textColor = ImGui::GetColorU32(ImGuiCol_Text);
+
+        if(colorDisplay == ColorDisplay::GRADIENT) {
+            T val = *(T*)&fileBuffer[dataOff];
+            if(!(val == val)) { // check for NaN
+                val = 0;
+            }
+            const f32 ga = grad.getLerpVal(val);
+            f32 brightness;
+            f32 hsvCol[3];
+            f32 rgbCol[3];
+            const u32 gradientColor = grad.lerpColor(ga, &brightness, hsvCol);
+            u32 fixedTextColor = textColor;
+
+            if(brightness < 0.25) {
+                hsvCol[1] = max(0.0f, hsvCol[1] - 0.6f);
+                hsvCol[2] = min(1.0f, hsvCol[2] + 0.6f);
+                hsvToRgb(hsvCol, rgbCol);
+                fixedTextColor = rgbToU32(rgbCol);
+            }
+
+            frameColor = gradientColor;
+            textColor = fixedTextColor;
+        }
 
         // TODO: find a better way to do this (overlapping ranges)
         bool hovered = false;
@@ -748,6 +900,7 @@ void DataPanels::doFormatPanel(i32 pid, f32 panelWidth, const i32 startLine, con
         else if(hovered) {
             frameColor = hoverFrameColor;
         }
+
 
         ImGui::RenderFrame(bb.Min, bb.Max, frameColor, false, 0);
 

@@ -64,4 +64,10 @@ inline void swap(T* t1, T* t2)
     *t2 = temp;
 }
 
+template<typename T>
+inline T lerp(T v1, T v2, f32 alpha)
+{
+    return v1 * (1.0f - alpha) + v2 * alpha;
+}
+
 #define arr_count(a) (sizeof(a)/sizeof(a[0]))
