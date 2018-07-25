@@ -44,8 +44,8 @@ struct Gradient
 {
     byte8 gmin; // reinterpret this to whatever we like
     byte8 gmax;
-    f32 hsv1[3];
-    f32 hsv2[3];
+    Color3 color1;
+    Color3 color2;
 
     template<typename T>
     inline void setBounds(T bmin, T bmax) {
@@ -53,30 +53,18 @@ struct Gradient
         *(T*)&gmax = bmax;
     }
 
-    inline void setColors(u32 colMin, u32 colMax) {
-        const f32 normRgb1[3] = {(colMin & 0xff) / 255.f,
-                                 ((colMin & 0xff00) >> 8) / 255.f,
-                                 ((colMin & 0xff0000) >> 16) / 255.f};
-        const f32 normRgb2[3] = {(colMax & 0xff) / 255.f,
-                                 ((colMax & 0xff00) >> 8) / 255.f,
-                                 ((colMax & 0xff0000) >> 16) / 255.f};
-        rgbToHsv(normRgb1, hsv1);
-        rgbToHsv(normRgb2, hsv2);
+    inline void setColors(u32 colorU32_1, u32 colorU32_2) {
+        color1 = {(colorU32_1 & 0xff) / 255.f,
+                  ((colorU32_1 & 0xff00) >> 8) / 255.f,
+                  ((colorU32_1 & 0xff0000) >> 16) / 255.f};
+        color2 = {(colorU32_2 & 0xff) / 255.f,
+                  ((colorU32_2 & 0xff00) >> 8) / 255.f,
+                  ((colorU32_2 & 0xff0000) >> 16) / 255.f};
     }
 
-    inline u32 lerpColor(f32 alpha, f32* brightness, f32* hsvOut) const {
+    inline Color3 lerpColor(f32 alpha) const {
         alpha = clamp(alpha, 0.0f, 1.0f);
-        f32 hsvMix[3];
-        f32 rgbOut[3];
-
-        hsvLerp(hsv1, hsv2, alpha, hsvMix);
-        hsvToRgb(hsvMix, rgbOut);
-
-        memmove(hsvOut, hsvMix, sizeof(hsvMix));
-        *brightness = 0.299f * rgbOut[0] + 0.587f * rgbOut[1] + 0.114f * rgbOut[2];
-
-        return 0xff000000 | (i32(rgbOut[2] * 0xff) << 16) |
-                (i32(rgbOut[1] * 0xff) << 8) | i32(rgbOut[0] * 0xff);
+        return rgbLerp(color1, color2, alpha);
     }
 
     template<typename T>
@@ -89,20 +77,29 @@ struct Gradient
 
 Gradient getDefaultTypeGradient(PanelType::Enum ptype);
 
-struct DataPanels
+struct ColorDisplay
 {
-    enum class ColorDisplay: i32 {
-        PLAIN = 0, // default
-        GRADIENT,
+    enum Enum: i32 {
+        GRADIENT = 0, // default
+        PLAIN,
         BRICK_COLOR
     };
+};
 
+struct PanelParams
+{
+    ColorDisplay::Enum colorDisplay = ColorDisplay::GRADIENT;
+    Gradient grads[PanelType::Enum::_COUNT];
+};
+
+struct DataPanels
+{
     f32 childPanelWidth;
     f32 panelRectWidth[PANEL_MAX_COUNT];
-    PanelType::Enum panelType[PANEL_MAX_COUNT];
-    ColorDisplay panelColorDisplay[PANEL_MAX_COUNT] = {};
-    Gradient panelGradient[PANEL_MAX_COUNT][PanelType::Enum::_COUNT];
-    i32 panelCount = 2;
+
+    PanelType::Enum panelType[PANEL_MAX_COUNT] = {};
+    PanelParams panelParams[PANEL_MAX_COUNT] = {};
+    i32 panelCount = 3;
 
     u8* fileBuffer;
     i64 fileBufferSize;
@@ -143,6 +140,7 @@ struct DataPanels
     DataPanels();
     void setFileBuffer(u8* buff, i64 buffSize);
     void addNewPanel();
+    void removePanel(const i32 pid);
     void goTo(i32 offset);
     i32 getSelectedInt();
 
@@ -151,10 +149,9 @@ struct DataPanels
 
     void doUi();
 
-    void doHexPanel(i32 pid, f32 panelWidth, const i32 startLine, ColorDisplay colorDisplay);
-    void doAsciiPanel(i32 pid, f32 panelWidth, const i32 startLine, ColorDisplay colorDisplay);
+    void doHexPanel(i32 pid, f32 panelWidth, const i32 startLine);
+    void doAsciiPanel(i32 pid, f32 panelWidth, const i32 startLine);
 
     template<typename T>
-    void doFormatPanel(i32 pid, f32 panelWidth, const i32 startLine, const char* format,
-                       ColorDisplay colorDisplay);
+    void doFormatPanel(i32 pid, f32 panelWidth, const i32 startLine, const char* format);
 };

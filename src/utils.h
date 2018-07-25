@@ -168,7 +168,14 @@ struct StrT
 typedef StrT<32> Str32;
 typedef StrT<64> Str64;
 
-inline u32 rgbLerp(u32 col1, u32 col2, f32 alpha)
+union Color3
+{
+    struct { f32 r, g, b; };
+    struct { f32 h, s, v; };
+    f32 data[3];
+};
+
+inline u32 rgbU32Lerp(u32 col1, u32 col2, f32 alpha)
 {
     const u8 r1 = col1 & 0xFF;
     const u8 g1 = (col1 & 0xFF00) >> 8;
@@ -182,10 +189,29 @@ inline u32 rgbLerp(u32 col1, u32 col2, f32 alpha)
     return 0xff000000 | (b << 16) | (g << 8) | r;
 }
 
-inline u32 rgbToU32(const f32* rgb)
+inline Color3 rgbLerp(const Color3& rgb1, const Color3& rgb2, const f32 alpha)
 {
-    return 0xff000000 | (i32(rgb[2] * 0xff) << 16) |
-           (i32(rgb[1] * 0xff) << 8) | i32(rgb[0] * 0xff);
+    return Color3 {
+        rgb1.r * (1.0f - alpha) + rgb2.r * alpha,
+        rgb1.g * (1.0f - alpha) + rgb2.g * alpha,
+        rgb1.b * (1.0f - alpha) + rgb2.b * alpha,
+    };
+}
+
+inline u32 rgbToU32(const Color3& rgb)
+{
+    return 0xff000000 | (i32(rgb.b * 0xff) << 16) |
+           (i32(rgb.g * 0xff) << 8) | i32(rgb.r * 0xff);
+}
+
+inline void u32ToRgb(const u32 col, f32* out)
+{
+    const u8 r = col & 0xFF;
+    const u8 g = (col & 0xFF00) >> 8;
+    const u8 b = (col & 0xFF0000) >> 16;
+    out[0] = r / 255.f;
+    out[1] = g / 255.f;
+    out[2] = b / 255.f;
 }
 
 inline void rgbToCmyk(u32 rbg, f32* cmyk)
@@ -244,11 +270,11 @@ inline void xyzToRgb(const f32* xyz, f32* normRgb)
     normRgb[2] = vec3Dot(vz, xyz);
 }
 
-inline void rgbToHsv(const f32* rgb, f32* hsv)
+inline void rgbToHsv(const Color3& rgb, Color3* hsv)
 {
-    f32 r = rgb[0];
-    f32 g = rgb[1];
-    f32 b = rgb[2];
+    f32 r = rgb.r;
+    f32 g = rgb.g;
+    f32 b = rgb.b;
 
     f32 K = 0.f;
     if(g < b) {
@@ -261,19 +287,20 @@ inline void rgbToHsv(const f32* rgb, f32* hsv)
     }
 
     const f32 chroma = r - (g < b ? g : b);
-    hsv[0] = fabsf(K + (g - b) / (6.f * chroma + 1e-20f));
-    hsv[1] = chroma / (r + 1e-20f);
-    hsv[2] = r;
+    const f32 h = fabsf(K + (g - b) / (6.f * chroma + 1e-20f));
+    const f32 s = chroma / (r + 1e-20f);
+    const f32 v = r;
+    *hsv = { h, s, v };
 }
 
-inline void hsvToRgb(const f32* hsv, f32* rgb)
+inline void hsvToRgb(const Color3& hsv, Color3* rgb)
 {
-    f32 h = hsv[0];
-    f32 s = hsv[1];
-    f32 v = hsv[2];
-    f32& out_r = rgb[0];
-    f32& out_g = rgb[1];
-    f32& out_b = rgb[2];
+    f32 h = hsv.h;
+    f32 s = hsv.s;
+    f32 v = hsv.v;
+    f32& out_r = rgb->r;
+    f32& out_g = rgb->g;
+    f32& out_b = rgb->b;
 
     if(s == 0.0f) {
         // gray
@@ -300,29 +327,34 @@ inline void hsvToRgb(const f32* hsv, f32* rgb)
 
 inline void hsvLerp(const f32* hsv1, const f32* hsv2, f32 alpha, f32* hsvOut)
 {
-    // https://www.alanzucconi.com/2016/01/06/colour-interpolation/2/
-    const f32 startAlpha = alpha;
     f32 h1 = hsv1[0];
     f32 h2 = hsv2[0];
 
     // hue interpolation
-    f32 hue;
     f32 d = h2 - h1;
-    if(h1 > h2) {
-        swap(&h1, &h2);
-        d = -d;
-        alpha = 1.0f - alpha;
+    if(d > 0.5f) {
+        h1 += 1.0f;
+    }
+    else if(d < -0.5f) {
+        h2 += 1.0f;
     }
 
-    if(d > 0.5f) { // 180deg
-        h1 += 1.0f; // 360deg
-        hue = fmodf(h1 + alpha * (h2 - h1), 1.0f); // 360deg
-    }
-    if(d <= 0.5f) { // 180deg
-        hue = h1 + alpha * d;
-    }
+    hsvOut[0] = fmodf(lerp(h1, h2, alpha), 1.0f);
+    hsvOut[1] = lerp(hsv1[1], hsv2[1], alpha);
+    hsvOut[2] = lerp(hsv1[2], hsv2[2], alpha);
+}
 
-    hsvOut[0] = hue;
-    hsvOut[1] = lerp(hsv1[1], hsv2[1], startAlpha);
-    hsvOut[2] = lerp(hsv1[2], hsv2[2], startAlpha);
+inline f32 rgbGetBrightness(const Color3& rgbIn)
+{
+    return 0.299f * rgbIn.r + 0.587f * rgbIn.g + 0.114f * rgbIn.b;
+}
+
+inline Color3 rgbGetLighterColor(const Color3& rgbIn, const f32 lightVal)
+{
+    Color3 hsv, rgbOut;
+    rgbToHsv(rgbIn, &hsv);
+    hsv.s = max(0.0f, hsv.s - lightVal);
+    hsv.v = min(1.0f, hsv.v + lightVal);
+    hsvToRgb(hsv, &rgbOut);
+    return rgbOut;
 }

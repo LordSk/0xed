@@ -40,22 +40,22 @@ Gradient getDefaultTypeGradient(PanelType::Enum ptype)
         } break;
 
         case PanelType::INT32: {
-            g.setBounds(i32(INT_MIN), i32(INT_MAX));
+            g.setBounds(i32(-100000), i32(100000));
             g.setColors(0xff4c4c4c, 0xffffffff);
         } break;
 
         case PanelType::UINT32: {
-            g.setBounds(u32(0), u32(UINT_MAX));
+            g.setBounds(u32(0), u32(100000));
             g.setColors(0xff4c4c4c, 0xffffffff);
         } break;
 
         case PanelType::INT64: {
-            g.setBounds(i64(_I64_MIN), i64(_I64_MAX));
+            g.setBounds(i32(-100000), i32(100000));
             g.setColors(0xff4c4c4c, 0xffffffff);
         } break;
 
         case PanelType::UINT64: {
-            g.setBounds(u64(0), u64(_UI64_MAX));
+            g.setBounds(u64(0), u64(100000));
             g.setColors(0xff4c4c4c, 0xffffffff);
         } break;
 
@@ -68,6 +68,8 @@ Gradient getDefaultTypeGradient(PanelType::Enum ptype)
             g.setBounds(f64(-10000.0), f64(10000.0));
             g.setColors(0xff4c4c4c, 0xffffffff);
         } break;
+
+        default: assert(0); break;
     }
     return g;
 }
@@ -109,7 +111,8 @@ void DataPanels::processMouseInput(ImRect winRect)
     selectionState.hoverStart = -1;
 
     ImGuiIO& io = ImGui::GetIO();
-    if(!winRect.Contains(io.MousePos)) {
+    if(!(io.MouseDown[0] && selectionState.selectStart >= 0 && selectionState.lockedPanelId >= 0) &&
+       (!winRect.Contains(io.MousePos) || !ImGui::IsWindowHovered())) {
         return;
     }
     if(ImGui::IsAnyPopupOpen()) {
@@ -198,8 +201,7 @@ void DataPanels::selectionProcessMouseInput(const i32 panelId, ImVec2 mousePos, 
     selectionState.hoverEnd = selectionState.hoverStart + hoverLen;
 
     // selection
-    if(io.MouseClicked[0] &&
-       ImGui::IsWindowHovered(ImGuiHoveredFlags_ChildWindows)) {
+    if(io.MouseClicked[0]) {
         selectionState.selectStart = (startLine + hoverLine) * columnCount + hoverColumn * hoverLen;
         selectionState.selectEnd = selectionState.selectStart + hoverLen-1;
         selectionState.lockedPanelId = panelId;
@@ -260,24 +262,19 @@ DataPanels::DataPanels()
     memset(panelType, 0, sizeof(panelType));
     panelType[0] = PanelType::HEX;
     panelType[1] = PanelType::ASCII;
-    panelType[2] = PanelType::HEX;
-
-    panelColorDisplay[0] = ColorDisplay::GRADIENT;
-    panelColorDisplay[1] = ColorDisplay::GRADIENT;
-    panelColorDisplay[2] = ColorDisplay::GRADIENT;
-    panelColorDisplay[2] = ColorDisplay::GRADIENT;
+    panelType[2] = PanelType::INT32;
 
     for(i32 p = 0; p < PANEL_MAX_COUNT; p++) {
         for(i32 t = 0; t < (i32)PanelType::_COUNT; t++) {
-            panelGradient[p][t] = getDefaultTypeGradient((PanelType::Enum)t);
+            panelParams[p].grads[t] = getDefaultTypeGradient((PanelType::Enum)t);
         }
     }
 
     for(i32 t = 0; t < (i32)PanelType::_COUNT; t++) {
-        panelGradient[3][t].setColors(0xff800000, 0xff0000ff);
+        panelParams[3].grads[t].setColors(0xff800000, 0xff0000ff);
     }
     for(i32 t = 0; t < (i32)PanelType::_COUNT; t++) {
-        panelGradient[2][t].setColors(0xff008000, 0xff0000ff);
+        panelParams[2].grads[t].setColors(0xff008000, 0xff0000ff);
     }
 }
 
@@ -297,16 +294,26 @@ void DataPanels::addNewPanel()
 
     const i32 pid = panelCount++;
     panelType[pid] = PanelType::HEX;
-    panelColorDisplay[pid] = ColorDisplay::GRADIENT;
+    panelParams[pid].colorDisplay = ColorDisplay::GRADIENT;
     for(i32 t = 0; t < (i32)PanelType::_COUNT; t++) {
-        panelGradient[pid][t] = getDefaultTypeGradient((PanelType::Enum)t);
+        panelParams[pid].grads[t] = getDefaultTypeGradient((PanelType::Enum)t);
     }
+}
 
+void DataPanels::removePanel(const i32 pid)
+{
+    if(pid+1 < panelCount) {
+        panelType[pid] = panelType[pid+1];
+        memmove(panelType + pid, panelType + pid + 1, sizeof(panelType[0]) * (panelCount - pid - 1));
+        panelParams[pid] = panelParams[pid+1];
+        memmove(panelParams + pid, panelParams + pid + 1, sizeof(panelParams[0]) * (panelCount - pid - 1));
+    }
+    panelCount--;
 }
 
 void DataPanels::goTo(i32 offset)
 {
-    if(offset >=0 && offset < fileBufferSize) {
+    if(offset >= 0 && offset < fileBufferSize) {
         scrollCurrentLine = offset / columnCount;
     }
 }
@@ -424,6 +431,9 @@ void DataPanels::doUi()
     i32 panelMarkedForDelete = -1;
     const f32 panelHeaderHeight = ImGui::GetComboHeight();
     calculatePanelWidth();
+    static i32 panelParamWindowOpenId = -1;
+    static ImVec2 panelParamWindowPos;
+    ImGuiIO& io = ImGui::GetIO();
 
     doRowHeader();
     ImGui::SameLine();
@@ -454,7 +464,8 @@ void DataPanels::doUi()
             offsetX += panelWidth + panelSpacing;
             ImGui::BeginGroup();
 
-            ImGui::PushItemWidth(panelWidth - panelCloseButtonWidth - panelColorButtonWidth);
+            const f32 comboWidth = panelWidth - panelCloseButtonWidth - panelColorButtonWidth;
+            ImGui::PushItemWidth(comboWidth);
             ImGui::PushID(&panelType[p]);
             ImGui::Combo("##PanelType", (i32*)&panelType[p], panelComboItems, IM_ARRAYSIZE(panelComboItems),
                          IM_ARRAYSIZE(panelComboItems));
@@ -463,18 +474,27 @@ void DataPanels::doUi()
 
             ImGui::SameLine();
 
-            ImGui::PushID(&panelType[p] + 0xbaab + 'C');
-            if(ImGui::Button("C", ImVec2(panelColorButtonWidth, 0))) {
-                panelColorDisplay[p] = (ColorDisplay)(((i32)panelColorDisplay[p] + 1) % 3);
+            char paramButStr[24];
+            char paramPopupStr[32];
+            sprintf(paramButStr, "P##%d", p);
+            sprintf(paramPopupStr, "PanelParamsPopup%d", p);
+
+            // TODO: make toggle button
+            if(ImGui::ButtonEx(paramButStr, ImVec2(panelColorButtonWidth, 0))) {
+                if(panelParamWindowOpenId != p) {
+                    panelParamWindowOpenId = p;
+                    panelParamWindowPos = ImGui::GetCursorScreenPos() + ImVec2(comboWidth, 0);
+                }
+                else {
+                    panelParamWindowOpenId = -1;
+                }
             }
-            ImGui::PopID();
 
             ImGui::SameLine();
 
             ImGui::PushID(&panelType[p] + 0xb00b + 'X');
             if(ImGui::Button("X", ImVec2(panelCloseButtonWidth, 0))) {
                 panelMarkedForDelete = p;
-                LOG("DELETE: %d", p);
             }
             ImGui::PopID();
 
@@ -485,41 +505,40 @@ void DataPanels::doUi()
 
             switch(panelType[p]) {
                 case PanelType::HEX:
-                    doHexPanel(p, panelWidth, scrollCurrentLine, panelColorDisplay[p]);
+                    doHexPanel(p, panelWidth, scrollCurrentLine);
                     break;
                 case PanelType::ASCII:
-                    doAsciiPanel(p, panelWidth, scrollCurrentLine, panelColorDisplay[p]);
+                    doAsciiPanel(p, panelWidth, scrollCurrentLine);
                     break;
                 case PanelType::INT8:
-                    doFormatPanel<i8>(p, panelWidth, scrollCurrentLine, "%d", panelColorDisplay[p]);
+                    doFormatPanel<i8>(p, panelWidth, scrollCurrentLine, "%d");
                     break;
                 case PanelType::UINT8:
-                    doFormatPanel<u8>(p, panelWidth, scrollCurrentLine, "%u", panelColorDisplay[p]);
+                    doFormatPanel<u8>(p, panelWidth, scrollCurrentLine, "%u");
                     break;
                 case PanelType::INT16:
-                    doFormatPanel<i16>(p, panelWidth, scrollCurrentLine, "%d", panelColorDisplay[p]);
+                    doFormatPanel<i16>(p, panelWidth, scrollCurrentLine, "%d");
                     break;
                 case PanelType::UINT16:
-                    doFormatPanel<u16>(p, panelWidth, scrollCurrentLine, "%u", panelColorDisplay[p]);
+                    doFormatPanel<u16>(p, panelWidth, scrollCurrentLine, "%u");
                     break;
                 case PanelType::INT32:
-                    doFormatPanel<i32>(p, panelWidth, scrollCurrentLine, "%d", panelColorDisplay[p]);
+                    doFormatPanel<i32>(p, panelWidth, scrollCurrentLine, "%d");
                     break;
                 case PanelType::UINT32:
-                    doFormatPanel<u32>(p, panelWidth, scrollCurrentLine, "%u", panelColorDisplay[p]);
+                    doFormatPanel<u32>(p, panelWidth, scrollCurrentLine, "%u");
                     break;
                 case PanelType::INT64:
-                    doFormatPanel<i64>(p, panelWidth, scrollCurrentLine, "%lld", panelColorDisplay[p]);
+                    doFormatPanel<i64>(p, panelWidth, scrollCurrentLine, "%lld");
                     break;
                 case PanelType::UINT64:
-                    doFormatPanel<u64>(p, panelWidth, scrollCurrentLine, "%llu", panelColorDisplay[p]);
+                    doFormatPanel<u64>(p, panelWidth, scrollCurrentLine, "%llu");
                     break;
                 case PanelType::FLOAT32:
-                    // TODO: color range to better see which values may be useful
-                    doFormatPanel<f32>(p, panelWidth, scrollCurrentLine, "%g", panelColorDisplay[p]);
+                    doFormatPanel<f32>(p, panelWidth, scrollCurrentLine, "%g");
                     break;
                 case PanelType::FLOAT64:
-                    doFormatPanel<f64>(p, panelWidth, scrollCurrentLine, "%g", panelColorDisplay[p]);
+                    doFormatPanel<f64>(p, panelWidth, scrollCurrentLine, "%g");
                     break;
                 default:
                     assert(0);
@@ -537,17 +556,217 @@ void DataPanels::doUi()
 
     ImGui::EndChild();
 
-    if(panelMarkedForDelete >= 0 && panelCount > 1) {
-        if(panelMarkedForDelete+1 < panelCount) {
-            panelType[panelMarkedForDelete] = panelType[panelMarkedForDelete+1];
-            memmove(panelType + panelMarkedForDelete, panelType + panelMarkedForDelete + 1,
-                    sizeof(panelType[0]) * (panelCount - panelMarkedForDelete - 1));
+
+    if(panelParamWindowOpenId != -1) {
+        const i32 p = panelParamWindowOpenId;
+        ImGui::SetNextWindowPos(panelParamWindowPos);
+        ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(15, 15));
+        ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 5);
+        ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 2);
+        ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(10, 10));
+
+        if(ImGui::Begin("Panel parameters", nullptr,
+                        ImGuiWindowFlags_NoTitleBar|ImGuiWindowFlags_AlwaysAutoResize)) {
+            ColorDisplay::Enum& colorDisplay = panelParams[p].colorDisplay;
+            LOG("POPUP");
+            ImGui::Text("Color display:");
+            static bool butPlain, butGradient, butBricks;
+            butPlain = colorDisplay == ColorDisplay::PLAIN;
+            butGradient = colorDisplay == ColorDisplay::GRADIENT;
+            butBricks = colorDisplay == ColorDisplay::BRICK_COLOR;
+
+            if(ImGui::Selectable("Plain", &butPlain, 0, ImVec2(50,20))) {
+                colorDisplay = ColorDisplay::PLAIN;
+            } ImGui::SameLine();
+            if(ImGui::Selectable("Gradient", &butGradient, 0, ImVec2(50,20))) {
+                colorDisplay = ColorDisplay::GRADIENT;
+            } ImGui::SameLine();
+            if(ImGui::Selectable("Bricks", &butBricks, 0, ImVec2(50,20))) {
+                colorDisplay = ColorDisplay::BRICK_COLOR;
+            };
+
+            ImGui::Separator();
+
+            ImGui::Text("Gradient:");
+
+            const PanelType::Enum ptype = panelType[p];
+            Gradient& grad = panelParams[p].grads[ptype];
+
+            switch(ptype) {
+                case PanelType::ASCII:
+                case PanelType::UINT8:
+                case PanelType::HEX: {
+                    static i32 imin, imax;
+                    imin = *(u8*)&grad.gmin;
+                    imax = *(u8*)&grad.gmax;
+                    if(ImGui::DragInt("min", &imin, 1.0f, 0, 255)) {
+                        *(u8*)&grad.gmin = min(imin, imax-1);
+                    }
+                    if(ImGui::DragInt("max", &imax, 1.0f, imin+1, 255)) {
+                        *(u8*)&grad.gmax = max(imin+1, imax);
+                    }
+                } break;
+
+                case PanelType::INT8: {
+                    static i32 imin, imax;
+                    imin = *(i8*)&grad.gmin;
+                    imax = *(i8*)&grad.gmax;
+                    if(ImGui::DragInt("min", &imin, 1.0f, -127, 127)) {
+                        *(i8*)&grad.gmin = min(imin, imax-1);
+                    }
+                    if(ImGui::DragInt("max", &imax, 1.0f, imin+1, 127)) {
+                        *(i8*)&grad.gmax = max(imin+1, imax);
+                    }
+                } break;
+
+                case PanelType::INT16: {
+                    static i32 imin, imax;
+                    imin = *(i16*)&grad.gmin;
+                    imax = *(i16*)&grad.gmax;
+                    if(ImGui::DragInt("min", &imin, 1.0f, SHRT_MIN, SHRT_MAX)) {
+                        *(i16*)&grad.gmin = min(imin, imax-1);
+                    }
+                    if(ImGui::DragInt("max", &imax, 1.0f, imin+1, SHRT_MAX)) {
+                        *(i16*)&grad.gmax = max(imin+1, imax);
+                    }
+                } break;
+
+                case PanelType::UINT16: {
+                    static i32 imin, imax;
+                    imin = *(u16*)&grad.gmin;
+                    imax = *(u16*)&grad.gmax;
+                    if(ImGui::DragInt("min", &imin, 1.0f, 0, USHRT_MAX)) {
+                        *(u16*)&grad.gmin = min(imin, imax-1);
+                    }
+                    if(ImGui::DragInt("max", &imax, 1.0f, imin+1, USHRT_MAX)) {
+                        *(u16*)&grad.gmax = max(imin+1, imax);
+                    }
+                } break;
+
+                case PanelType::INT32: {
+                    static i32 imin, imax;
+                    imin = *(i32*)&grad.gmin;
+                    imax = *(i32*)&grad.gmax;
+                    if(ImGui::DragInt("min", &imin, 1.0f, _I32_MIN, _I32_MAX)) {
+                        *(i32*)&grad.gmin = min(imin, imax-1);
+                    }
+                    if(ImGui::DragInt("max", &imax, 1.0f, imin+1, _I32_MAX)) {
+                        *(i32*)&grad.gmax = max(imin+1, imax);
+                    }
+                } break;
+
+                case PanelType::UINT32: {
+                    // TODO: use DragUint32 (new imgui version)
+                    static i32 imin, imax;
+                    imin = *(u32*)&grad.gmin;
+                    imax = *(u32*)&grad.gmax;
+                    if(ImGui::DragInt("min", &imin, 1.0f, 0, _I32_MAX)) {
+                        *(u32*)&grad.gmin = min(imin, imax-1);
+                    }
+                    if(ImGui::DragInt("max", &imax, 1.0f, imin+1, _I32_MAX)) {
+                        *(u32*)&grad.gmax = max(imin+1, imax);
+                    }
+                } break;
+
+                case PanelType::INT64: {
+                    static i32 imin, imax;
+                    imin = *(i32*)&grad.gmin;
+                    imax = *(i32*)&grad.gmax;
+                    if(ImGui::DragInt("min", &imin, 1.0f, _I32_MIN, _I32_MAX)) {
+                        *(i32*)&grad.gmin = min(imin, imax-1);
+                    }
+                    if(ImGui::DragInt("max", &imax, 1.0f, imin+1, _I32_MAX)) {
+                        *(i32*)&grad.gmax = max(imin+1, imax);
+                    }
+                } break;
+
+                case PanelType::UINT64: {
+                    static i32 imin, imax;
+                    imin = *(u32*)&grad.gmin;
+                    imax = *(u32*)&grad.gmax;
+                    if(ImGui::DragInt("min", &imin, 1.0f, 0, _I32_MAX)) {
+                        *(u32*)&grad.gmin = min(imin, imax-1);
+                    }
+                    if(ImGui::DragInt("max", &imax, 1.0f, imin+1, _I32_MAX)) {
+                        *(u32*)&grad.gmax = max(imin+1, imax);
+                    }
+                } break;
+
+                case PanelType::FLOAT32: {
+                    static f32 imin, imax;
+                    imin = *(f32*)&grad.gmin;
+                    imax = *(f32*)&grad.gmax;
+                    if(ImGui::DragFloat("min", &imin, 1.0f, -FLT_MAX, FLT_MAX)) {
+                        *(f32*)&grad.gmin = min(imin, imax-1);
+                    }
+                    if(ImGui::DragFloat("max", &imax, 1.0f, imin+1, _I32_MAX)) {
+                        *(f32*)&grad.gmax = max(imin+1, imax);
+                    }
+                } break;
+
+                case PanelType::FLOAT64: {
+                    static f32 imin, imax;
+                    imin = *(f64*)&grad.gmin;
+                    imax = *(f64*)&grad.gmax;
+                    if(ImGui::DragFloat("min", &imin, 1.0f, -FLT_MAX, FLT_MAX)) {
+                        *(f64*)&grad.gmin = min(imin, imax-1);
+                    }
+                    if(ImGui::DragFloat("max", &imax, 1.0f, imin+1, FLT_MAX)) {
+                        *(f64*)&grad.gmax = max(imin+1, imax);
+                    }
+                } break;
+            }
+
+            static Color3 gradCol1;
+            static Color3 gradCol2;
+            Color3& rgb1 = panelParams[p].grads[ptype].color1;
+            Color3& rgb2 = panelParams[p].grads[ptype].color2;
+            gradCol1 = rgb1;
+            gradCol2 = rgb2;
+
+            if(ImGui::ColorEdit3("Color1", gradCol1.data)) {
+                rgb1 = gradCol1;
+            }
+            if(ImGui::ColorEdit3("Color2", gradCol2.data)) {
+                rgb2 = gradCol2;
+            }
+
+            if(ImGui::Button("Reset min/max", ImVec2(100, 25))) {
+                Gradient defGrad = getDefaultTypeGradient(ptype);
+                grad.gmin = defGrad.gmin;
+                grad.gmax = defGrad.gmax;
+            }
+
+            ImGui::SameLine();
+
+            if(ImGui::Button("Reset colors", ImVec2(100, 25))) {
+                Gradient defGrad = getDefaultTypeGradient(ptype);
+                rgb1 = defGrad.color1;
+                rgb2 = defGrad.color2;
+            }
+
+            ImGui::Separator();
+
+            if(ImGui::Button("Ok", ImVec2(300, 25))) {
+                panelParamWindowOpenId = -1;
+            }
+
+            if(!ImGui::IsWindowFocused(ImGuiFocusedFlags_ChildWindows)) {
+                panelParamWindowOpenId = -1;
+            }
+
+            ImGui::End();
         }
-        panelCount--;
+
+        ImGui::PopStyleVar(4);
+    }
+
+    if(panelMarkedForDelete >= 0 && panelCount > 1) {
+        removePanel(panelMarkedForDelete);
     }
 }
 
-void DataPanels::doHexPanel(i32 pid, f32 panelWidth, const i32 startLine, ColorDisplay colorDisplay)
+void DataPanels::doHexPanel(i32 pid, f32 panelWidth, const i32 startLine)
 {
     ImGuiWindow* window = ImGui::GetCurrentWindow();
     ImVec2 winPos = ImGui::GetCursorScreenPos();
@@ -594,7 +813,8 @@ void DataPanels::doHexPanel(i32 pid, f32 panelWidth, const i32 startLine, ColorD
         ImGui::PopStyleColor();
     }
 
-    const Gradient grad = panelGradient[pid][panelType[pid]];
+    const ColorDisplay::Enum colorDisplay = panelParams[pid].colorDisplay;
+    const Gradient grad = panelParams[pid].grads[panelType[pid]];
 
     // hex table
     const i64 startDataOff = startLine * columnCount;
@@ -625,16 +845,14 @@ void DataPanels::doHexPanel(i32 pid, f32 panelWidth, const i32 startLine, ColorD
         }
         else {
             const f32 ga = grad.getLerpVal(val);
-            f32 brightness;
-            f32 hsvCol[3];
-            f32 rgbCol[3];
-            const u32 gradientColor = grad.lerpColor(ga, &brightness, hsvCol);
+
+            const Color3 rgbCol = grad.lerpColor(ga);
+            const f32 brightness = rgbGetBrightness(rgbCol);
+            const u32 gradientColor = rgbToU32(rgbCol);
+
             u32 fixedTextColor = textColor;
             if(brightness < 0.25) {
-                hsvCol[1] = max(0.0f, hsvCol[1] - 0.6f);
-                hsvCol[2] = min(1.0f, hsvCol[2] + 0.6f);
-                hsvToRgb(hsvCol, rgbCol);
-                fixedTextColor = rgbToU32(rgbCol);
+                fixedTextColor = rgbToU32(rgbGetLighterColor(rgbCol, 0.6f));
             }
 
             if(colorDisplay == ColorDisplay::GRADIENT) {
@@ -671,7 +889,7 @@ void DataPanels::doHexPanel(i32 pid, f32 panelWidth, const i32 startLine, ColorD
     }
 }
 
-void DataPanels::doAsciiPanel(i32 pid, f32 panelWidth, const i32 startLine, ColorDisplay colorDisplay)
+void DataPanels::doAsciiPanel(i32 pid, f32 panelWidth, const i32 startLine)
 {
     ImGuiWindow* window = ImGui::GetCurrentWindow();
     ImVec2 winPos = ImGui::GetCursorScreenPos();
@@ -694,7 +912,8 @@ void DataPanels::doAsciiPanel(i32 pid, f32 panelWidth, const i32 startLine, Colo
 
     winPos.y += columnHeaderHeight;
 
-    const Gradient grad = panelGradient[pid][panelType[pid]];
+    const ColorDisplay::Enum colorDisplay = panelParams[pid].colorDisplay;
+    const Gradient grad = panelParams[pid].grads[panelType[pid]];
 
     ImGui::PushFont(fontMono);
 
@@ -710,22 +929,19 @@ void DataPanels::doAsciiPanel(i32 pid, f32 panelWidth, const i32 startLine, Colo
                   winPos.y + line * rowHeight + rowHeight);
 
 
+        ImU32 textColor = ImGui::GetColorU32(ImGuiCol_Text);
         const bool isHovered = selectionInHoverRange(dataOff);
         const bool isSelected = selectionInSelectionRange(dataOff);
 
         ImU32 frameColor = 0xffffffff;
 
         const f32 ga = grad.getLerpVal((u8)c);
-        f32 brightness;
-        f32 hsvCol[3];
-        f32 rgbCol[3];
-        const u32 gradientColor = grad.lerpColor(ga, &brightness, hsvCol);
-        u32 fixedTextColor;
+
+        const Color3 rgbCol = grad.lerpColor(ga);
+        const f32 brightness = rgbGetBrightness(rgbCol);
+        const u32 gradientColor = rgbToU32(rgbCol);
         if(brightness < 0.25) {
-            hsvCol[1] = max(0.0f, hsvCol[1] - 0.6f);
-            hsvCol[2] = min(1.0f, hsvCol[2] + 0.6f);
-            hsvToRgb(hsvCol, rgbCol);
-            fixedTextColor = rgbToU32(rgbCol);
+            textColor = rgbToU32(rgbGetLighterColor(rgbCol, 0.6f));
         }
 
         if(colorDisplay == ColorDisplay::BRICK_COLOR) {
@@ -752,7 +968,6 @@ void DataPanels::doAsciiPanel(i32 pid, f32 panelWidth, const i32 startLine, Colo
         ImGui::RenderFrame(bb.Min, bb.Max, frameColor, false);
 
         if((u8)c >= 0x20) {
-            ImU32 textColor = ImGui::GetColorU32(ImGuiCol_Text);
             if(isSelected) {
                 textColor = selectedTextColor;
             }
@@ -775,8 +990,7 @@ void DataPanels::doAsciiPanel(i32 pid, f32 panelWidth, const i32 startLine, Colo
 }
 
 template<typename T>
-void DataPanels::doFormatPanel(i32 pid, f32 panelWidth, const i32 startLine, const char* format,
-                               ColorDisplay colorDisplay)
+void DataPanels::doFormatPanel(i32 pid, f32 panelWidth, const i32 startLine, const char* format)
 {
     if(columnCount % sizeof(T)) {
         ImGui::TextColored(ImVec4(0.8, 0, 0, 1), "\nColumn count is not divisible by %d", sizeof(T));
@@ -834,7 +1048,8 @@ void DataPanels::doFormatPanel(i32 pid, f32 panelWidth, const i32 startLine, con
 
     const ImVec2 cellSize(intColumnWidth * byteSize, rowHeight);
 
-    const Gradient grad = panelGradient[pid][panelType[pid]];
+    const ColorDisplay::Enum colorDisplay = panelParams[pid].colorDisplay;
+    const Gradient grad = panelParams[pid].grads[panelType[pid]];
 
     const i64 startLineOff = (i64)startLine * columnCount;
     for(i64 i = 0; i < itemCount2; i += byteSize) {
@@ -857,9 +1072,6 @@ void DataPanels::doFormatPanel(i32 pid, f32 panelWidth, const i32 startLine, con
         avgByteVal /= byteSize;
 
         ImU32 frameColor = ImGui::GetColorU32(ImGuiCol_FrameBg);
-        /*if((i + (line & 1) * byteSize) & byteSize) {
-            frameColor = 0xffe0e0e0;
-        }*/
         ImU32 textColor = ImGui::GetColorU32(ImGuiCol_Text);
 
         if(colorDisplay == ColorDisplay::GRADIENT) {
@@ -868,17 +1080,14 @@ void DataPanels::doFormatPanel(i32 pid, f32 panelWidth, const i32 startLine, con
                 val = 0;
             }
             const f32 ga = grad.getLerpVal(val);
-            f32 brightness;
-            f32 hsvCol[3];
-            f32 rgbCol[3];
-            const u32 gradientColor = grad.lerpColor(ga, &brightness, hsvCol);
+
+            const Color3 rgbCol = grad.lerpColor(ga);
+            const f32 brightness = rgbGetBrightness(rgbCol);
+            const u32 gradientColor = rgbToU32(rgbCol);
             u32 fixedTextColor = textColor;
 
             if(brightness < 0.25) {
-                hsvCol[1] = max(0.0f, hsvCol[1] - 0.6f);
-                hsvCol[2] = min(1.0f, hsvCol[2] + 0.6f);
-                hsvToRgb(hsvCol, rgbCol);
-                fixedTextColor = rgbToU32(rgbCol);
+                fixedTextColor = rgbToU32(rgbGetLighterColor(rgbCol, 0.6f));
             }
 
             frameColor = gradientColor;
