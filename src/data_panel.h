@@ -104,6 +104,7 @@ struct DataPanels
     u8* fileBuffer;
     i64 fileBufferSize;
     i64 scrollCurrentLine = 0;
+    i64 goToLine = -1;
     struct BrickWall* brickWall = nullptr;
 
     i32 columnCount = 16;

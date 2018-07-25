@@ -71,18 +71,18 @@ bool init()
     dataPanels.panelCount = clamp(config.panelCount, 1, PANEL_MAX_COUNT);
     dataPanels.brickWall = &brickWall;
 
-    /*if(openFileReadAll("C:\\Prog\\Projets\\sacred_remake\\sacred_data\\mixed.pak", &curFileBuff)) {
+    if(openFileReadAll("C:\\Prog\\Projets\\sacred_remake\\sacred_data\\mixed.pak", &curFileBuff)) {
         dataPanels.setFileBuffer(curFileBuff.data, curFileBuff.size);
-    }*/
+    }
 
-    u8* fileData = (u8*)malloc(256);
+    /*u8* fileData = (u8*)malloc(256);
     curFileBuff.data = fileData;
     curFileBuff.size = 256;
     dataPanels.setFileBuffer(curFileBuff.data, curFileBuff.size);
 
     for(i32 i = 0; i < 256; i++) {
         fileData[i] = i;
-    }
+    }*/
 
     /*if(!script.execute(&brickWall)) {
         return false;

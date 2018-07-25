@@ -314,7 +314,7 @@ void DataPanels::removePanel(const i32 pid)
 void DataPanels::goTo(i32 offset)
 {
     if(offset >= 0 && offset < fileBufferSize) {
-        scrollCurrentLine = offset / columnCount;
+        goToLine = offset / columnCount;
     }
 }
 
@@ -447,6 +447,10 @@ void DataPanels::doUi()
                       ImGuiWindowFlags_HorizontalScrollbar);
 
         ImGuiWindow* window = ImGui::GetCurrentWindow();
+        if(goToLine != -1) {
+            ImGui::SetScrollY(goToLine * rowHeight);
+            goToLine = -1;
+        }
         scrollCurrentLine = window->Scroll.y / rowHeight;
         ImRect inputRect = window->Rect();
         inputRect.Min.y += panelHeaderHeight;
