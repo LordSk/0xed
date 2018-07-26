@@ -3,6 +3,7 @@
 #ifdef _WIN32
     #include <windows.h>
 #endif
+
 #include <stdio.h>
 #include "window.h"
 #include "imgui_extended.h"
@@ -116,8 +117,6 @@ void cleanUp()
         free(curFileBuff.data);
         curFileBuff.data = nullptr;
     }
-
-    setStyleLight();
 }
 
 i32 run()
@@ -192,6 +191,7 @@ void doUI()
     const i32 menuBarHeight = io.FontDefault->FontSize + style.FramePadding.y * 2.0;
 
     bool openGoto = false;
+    bool openSearch = false;
 
     // menu bar
     if(ImGui::BeginMainMenuBar()) {
@@ -203,6 +203,9 @@ void doUI()
                         dataPanels.setFileBuffer(curFileBuff.data, curFileBuff.size);
                     }
                 }
+            }
+            if(ImGui::MenuItem("Search", "CTRL+F")) {
+                openSearch = true;
             }
             if(ImGui::MenuItem("Exit", "CTRL+X")) {
                 win.exit();
@@ -301,6 +304,87 @@ void doUI()
         ImGui::EndPopup();
     }
 
+    static bool popupSearch = false;
+
+    if(openSearch) {
+        ImGui::OpenPopup("Search data item");
+        ImGui::SetNextWindowPos(ImVec2(200, 200));
+        popupSearch = true;
+    }
+
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(15, 15));
+    ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(10, 10));
+    if(popupSearch && ImGui::Begin("Search data item", NULL, ImGuiWindowFlags_AlwaysAutoResize)) {
+        static i32 comboDataTypeId = 0;
+        struct SearchDataType
+        {
+            enum Enum {
+                ASCII_String,
+                Integer,
+                Float,
+            };
+        };
+        constexpr char* dataTypeComboItems[] = {
+            "ASCII String",
+            "Integer",
+            "Float",
+        };
+
+        ImGui::Text("Data type:");
+        ImGui::Combo("##comboDataType", &comboDataTypeId, dataTypeComboItems,
+                     IM_ARRAYSIZE(dataTypeComboItems),
+                     IM_ARRAYSIZE(dataTypeComboItems));
+
+        ImGui::Separator();
+
+        switch(comboDataTypeId) {
+            case SearchDataType::ASCII_String: {
+                static char searchStr[64];
+                ImGui::InputText("##searchString", searchStr, sizeof(searchStr));
+            } break;
+
+            case SearchDataType::Integer: {
+                static i32 searchInt = 0;
+                static i32 bytesSize = 4;
+                static i32 searchStride = 4;
+                ImGui::InputInt("Integer", &searchInt, 1, 100, ImGuiInputTextFlags_CharsHexadecimal);
+                ImGui::InputInt("Byte size", &bytesSize); // TODO: replace with 4 buttons [1, 2, 4, 8]
+                ImGui::InputInt("Search stride", &searchStride);
+                searchStride = clamp(searchStride, 1, bytesSize);
+            } break;
+
+            case SearchDataType::Float: {
+                static f32 searchFloat = 0;
+                static i32 bytesSize = 4;
+                static i32 searchStride = 4;
+                ImGui::InputFloat("Float", &searchFloat);
+                ImGui::InputInt("Byte size", &bytesSize); // TODO: replace with 2 buttons [4, 8]
+                ImGui::InputInt("Search stride", &searchStride);
+                searchStride = clamp(searchStride, 1, bytesSize);
+            } break;
+
+            default: assert(0); break;
+        }
+
+        ImGui::Separator();
+
+        if(ImGui::Button("Search", ImVec2(120,0))) {
+            popupSearch = false;
+        }
+        ImGui::SameLine();
+        if(ImGui::Button("Cancel", ImVec2(120,0))) {
+            popupSearch = false;
+        }
+
+        if(!ImGui::IsWindowFocused(ImGuiFocusedFlags_ChildWindows)) {
+            popupSearch = false;
+        }
+
+        ImGui::End();
+    }
+    ImGui::PopStyleVar(2);
+
+    // TODO: remove
     if(popupBrickWantOpen) {
         popupBrickWantOpen = false;
         ImGui::OpenPopup(POPUP_BRICK_ADD);

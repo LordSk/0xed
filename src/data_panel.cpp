@@ -5,68 +5,56 @@
 #include <float.h>
 #include <limits.h>
 
-Gradient getDefaultTypeGradient(PanelType::Enum ptype)
+GradientRange getDefaultTypeGradientRange(PanelType::Enum ptype)
 {
-    Gradient g;
+    GradientRange g;
     switch(ptype) {
         case PanelType::HEX: {
             g.setBounds(u8(0x00), u8(0xff));
-            g.setColors(0xff4c4c4c, 0xffffffff);
         } break;
 
         case PanelType::ASCII: {
             g.setBounds(u8(0x00), u8(0x20));
-            g.setColors(0xffcccccc, 0xffffffff);
         } break;
 
         case PanelType::INT8: {
             g.setBounds(i8(-127), i8(127));
-            g.setColors(0xff4c4c4c, 0xffffffff);
         } break;
 
         case PanelType::UINT8: {
             g.setBounds(u8(0), u8(255));
-            g.setColors(0xff4c4c4c, 0xffffffff);
         } break;
 
         case PanelType::INT16: {
             g.setBounds(i16(SHRT_MIN), i16(SHRT_MAX));
-            g.setColors(0xff4c4c4c, 0xffffffff);
         } break;
 
         case PanelType::UINT16: {
             g.setBounds(u16(0), u16(USHRT_MAX));
-            g.setColors(0xff4c4c4c, 0xffffffff);
         } break;
 
         case PanelType::INT32: {
             g.setBounds(i32(-100000), i32(100000));
-            g.setColors(0xff4c4c4c, 0xffffffff);
         } break;
 
         case PanelType::UINT32: {
             g.setBounds(u32(0), u32(100000));
-            g.setColors(0xff4c4c4c, 0xffffffff);
         } break;
 
         case PanelType::INT64: {
             g.setBounds(i32(-100000), i32(100000));
-            g.setColors(0xff4c4c4c, 0xffffffff);
         } break;
 
         case PanelType::UINT64: {
             g.setBounds(u64(0), u64(100000));
-            g.setColors(0xff4c4c4c, 0xffffffff);
         } break;
 
         case PanelType::FLOAT32: {
             g.setBounds(f32(-10000.0f), f32(10000.0f));
-            g.setColors(0xff4c4c4c, 0xffffffff);
         } break;
 
         case PanelType::FLOAT64: {
             g.setBounds(f64(-10000.0), f64(10000.0));
-            g.setColors(0xff4c4c4c, 0xffffffff);
         } break;
 
         default: assert(0); break;
@@ -262,19 +250,22 @@ DataPanels::DataPanels()
     memset(panelType, 0, sizeof(panelType));
     panelType[0] = PanelType::HEX;
     panelType[1] = PanelType::ASCII;
-    panelType[2] = PanelType::INT32;
 
     for(i32 p = 0; p < PANEL_MAX_COUNT; p++) {
+        panelParams[p].gradSetDefaultColors();
         for(i32 t = 0; t < (i32)PanelType::_COUNT; t++) {
-            panelParams[p].grads[t] = getDefaultTypeGradient((PanelType::Enum)t);
+            panelParams[p].gradRange[t] = getDefaultTypeGradientRange((PanelType::Enum)t);
         }
     }
 
+    // ascii panel
+    panelParams[1].gradSetColors(0xffcccccc, 0xffffffff);
+
     for(i32 t = 0; t < (i32)PanelType::_COUNT; t++) {
-        panelParams[3].grads[t].setColors(0xff800000, 0xff0000ff);
+        panelParams[3].gradSetColors(0xff800000, 0xff0000ff);
     }
     for(i32 t = 0; t < (i32)PanelType::_COUNT; t++) {
-        panelParams[2].grads[t].setColors(0xff008000, 0xff0000ff);
+        panelParams[2].gradSetColors(0xff008000, 0xff0000ff);
     }
 }
 
@@ -296,7 +287,7 @@ void DataPanels::addNewPanel()
     panelType[pid] = PanelType::HEX;
     panelParams[pid].colorDisplay = ColorDisplay::GRADIENT;
     for(i32 t = 0; t < (i32)PanelType::_COUNT; t++) {
-        panelParams[pid].grads[t] = getDefaultTypeGradient((PanelType::Enum)t);
+        panelParams[pid].gradRange[t] = getDefaultTypeGradientRange((PanelType::Enum)t);
     }
 }
 
@@ -594,19 +585,21 @@ void DataPanels::doUi()
             ImGui::Text("Gradient:");
 
             const PanelType::Enum ptype = panelType[p];
-            Gradient& grad = panelParams[p].grads[ptype];
+            GradientRange& grad = panelParams[p].gradRange[ptype];
 
             switch(ptype) {
                 case PanelType::ASCII:
                 case PanelType::UINT8:
                 case PanelType::HEX: {
+                    const i32 u8Min = 0;
+                    const i32 u8Max = 255;
                     static i32 imin, imax;
                     imin = *(u8*)&grad.gmin;
                     imax = *(u8*)&grad.gmax;
-                    if(ImGui::DragInt("min", &imin, 1.0f, 0, 255)) {
+                    if(ImGui::DragScalar("min", ImGuiDataType_U32, &imin, 1.0f, &u8Min, &u8Max)) {
                         *(u8*)&grad.gmin = min(imin, imax-1);
                     }
-                    if(ImGui::DragInt("max", &imax, 1.0f, imin+1, 255)) {
+                    if(ImGui::DragScalar("max", ImGuiDataType_U32, &imax, 1.0f, &u8Min, &u8Max)) {
                         *(u8*)&grad.gmax = max(imin+1, imax);
                     }
                 } break;
@@ -673,26 +666,32 @@ void DataPanels::doUi()
                 } break;
 
                 case PanelType::INT64: {
-                    static i32 imin, imax;
-                    imin = *(i32*)&grad.gmin;
-                    imax = *(i32*)&grad.gmax;
-                    if(ImGui::DragInt("min", &imin, 1.0f, _I32_MIN, _I32_MAX)) {
-                        *(i32*)&grad.gmin = min(imin, imax-1);
+                    const i64 i64Min = _I64_MIN;
+                    const i64 i64Max = _I64_MAX;
+
+                    static i64 imin, imax;
+                    imin = *(i64*)&grad.gmin;
+                    imax = *(i64*)&grad.gmax;
+                    if(ImGui::DragScalar("min", ImGuiDataType_S64, &imin, 1.0f, &i64Min, &i64Max, "%lld")) {
+                        *(i64*)&grad.gmin = min(imin, imax-1);
                     }
-                    if(ImGui::DragInt("max", &imax, 1.0f, imin+1, _I32_MAX)) {
-                        *(i32*)&grad.gmax = max(imin+1, imax);
+                    if(ImGui::DragScalar("max", ImGuiDataType_S64, &imax, 1.0f, &i64Min, &i64Max, "%lld")) {
+                        *(i64*)&grad.gmax = max(imin+1, imax);
                     }
                 } break;
 
                 case PanelType::UINT64: {
-                    static i32 imin, imax;
-                    imin = *(u32*)&grad.gmin;
-                    imax = *(u32*)&grad.gmax;
-                    if(ImGui::DragInt("min", &imin, 1.0f, 0, _I32_MAX)) {
-                        *(u32*)&grad.gmin = min(imin, imax-1);
+                    const i64 u64Min = 0;
+                    const i64 u64Max = _UI64_MAX;
+
+                    static u64 imin, imax;
+                    imin = *(u64*)&grad.gmin;
+                    imax = *(u64*)&grad.gmax;
+                    if(ImGui::DragScalar("min", ImGuiDataType_U64, &imin, 1.0f, &u64Min, &u64Max, "%llu")) {
+                        *(u64*)&grad.gmin = min(imin, imax-1);
                     }
-                    if(ImGui::DragInt("max", &imax, 1.0f, imin+1, _I32_MAX)) {
-                        *(u32*)&grad.gmax = max(imin+1, imax);
+                    if(ImGui::DragScalar("max", ImGuiDataType_U64, &imax, 1.0f, &u64Min, &u64Max, "%llu")) {
+                        *(u64*)&grad.gmax = max(imin+1, imax);
                     }
                 } break;
 
@@ -703,7 +702,7 @@ void DataPanels::doUi()
                     if(ImGui::DragFloat("min", &imin, 1.0f, -FLT_MAX, FLT_MAX)) {
                         *(f32*)&grad.gmin = min(imin, imax-1);
                     }
-                    if(ImGui::DragFloat("max", &imax, 1.0f, imin+1, _I32_MAX)) {
+                    if(ImGui::DragFloat("max", &imax, 1.0f, imin+1, FLT_MAX)) {
                         *(f32*)&grad.gmax = max(imin+1, imax);
                     }
                 } break;
@@ -723,8 +722,8 @@ void DataPanels::doUi()
 
             static Color3 gradCol1;
             static Color3 gradCol2;
-            Color3& rgb1 = panelParams[p].grads[ptype].color1;
-            Color3& rgb2 = panelParams[p].grads[ptype].color2;
+            Color3& rgb1 = panelParams[p].gradColor1;
+            Color3& rgb2 = panelParams[p].gradColor2;
             gradCol1 = rgb1;
             gradCol2 = rgb2;
 
@@ -736,7 +735,7 @@ void DataPanels::doUi()
             }
 
             if(ImGui::Button("Reset min/max", ImVec2(100, 25))) {
-                Gradient defGrad = getDefaultTypeGradient(ptype);
+                GradientRange defGrad = getDefaultTypeGradientRange(ptype);
                 grad.gmin = defGrad.gmin;
                 grad.gmax = defGrad.gmax;
             }
@@ -744,9 +743,7 @@ void DataPanels::doUi()
             ImGui::SameLine();
 
             if(ImGui::Button("Reset colors", ImVec2(100, 25))) {
-                Gradient defGrad = getDefaultTypeGradient(ptype);
-                rgb1 = defGrad.color1;
-                rgb2 = defGrad.color2;
+                panelParams[p].gradSetDefaultColors();
             }
 
             ImGui::Separator();
@@ -817,8 +814,9 @@ void DataPanels::doHexPanel(i32 pid, f32 panelWidth, const i32 startLine)
         ImGui::PopStyleColor();
     }
 
-    const ColorDisplay::Enum colorDisplay = panelParams[pid].colorDisplay;
-    const Gradient grad = panelParams[pid].grads[panelType[pid]];
+    PanelParams& pparams = panelParams[pid];
+    const ColorDisplay::Enum colorDisplay = pparams.colorDisplay;
+    const GradientRange& grad = pparams.gradRange[panelType[pid]];
 
     // hex table
     const i64 startDataOff = startLine * columnCount;
@@ -850,7 +848,7 @@ void DataPanels::doHexPanel(i32 pid, f32 panelWidth, const i32 startLine)
         else {
             const f32 ga = grad.getLerpVal(val);
 
-            const Color3 rgbCol = grad.lerpColor(ga);
+            const Color3 rgbCol = pparams.gradLerpColor(ga);
             const f32 brightness = rgbGetBrightness(rgbCol);
             const u32 gradientColor = rgbToU32(rgbCol);
 
@@ -916,8 +914,9 @@ void DataPanels::doAsciiPanel(i32 pid, f32 panelWidth, const i32 startLine)
 
     winPos.y += columnHeaderHeight;
 
+    const PanelParams& pparams = panelParams[pid];
     const ColorDisplay::Enum colorDisplay = panelParams[pid].colorDisplay;
-    const Gradient grad = panelParams[pid].grads[panelType[pid]];
+    const GradientRange& grad = panelParams[pid].gradRange[panelType[pid]];
 
     ImGui::PushFont(fontMono);
 
@@ -941,7 +940,7 @@ void DataPanels::doAsciiPanel(i32 pid, f32 panelWidth, const i32 startLine)
 
         const f32 ga = grad.getLerpVal((u8)c);
 
-        const Color3 rgbCol = grad.lerpColor(ga);
+        const Color3 rgbCol = pparams.gradLerpColor(ga);
         const f32 brightness = rgbGetBrightness(rgbCol);
         const u32 gradientColor = rgbToU32(rgbCol);
         if(brightness < 0.25) {
@@ -1052,8 +1051,9 @@ void DataPanels::doFormatPanel(i32 pid, f32 panelWidth, const i32 startLine, con
 
     const ImVec2 cellSize(intColumnWidth * byteSize, rowHeight);
 
-    const ColorDisplay::Enum colorDisplay = panelParams[pid].colorDisplay;
-    const Gradient grad = panelParams[pid].grads[panelType[pid]];
+    const PanelParams& pparams = panelParams[pid];
+    const ColorDisplay::Enum colorDisplay = pparams.colorDisplay;
+    const GradientRange& grad = pparams.gradRange[panelType[pid]];
 
     const i64 startLineOff = (i64)startLine * columnCount;
     for(i64 i = 0; i < itemCount2; i += byteSize) {
@@ -1085,7 +1085,7 @@ void DataPanels::doFormatPanel(i32 pid, f32 panelWidth, const i32 startLine, con
             }
             const f32 ga = grad.getLerpVal(val);
 
-            const Color3 rgbCol = grad.lerpColor(ga);
+            const Color3 rgbCol = pparams.gradLerpColor(ga);
             const f32 brightness = rgbGetBrightness(rgbCol);
             const u32 gradientColor = rgbToU32(rgbCol);
             u32 fixedTextColor = textColor;

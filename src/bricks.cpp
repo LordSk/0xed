@@ -738,7 +738,7 @@ static bool doBrickNode(Brick brick, const Array<BrickWall::TypeInfo>& typeCache
         // arrow
         ImVec2 off = { style.FramePadding.x, style.FramePadding.y};
         ImGui::PushStyleColor(ImGuiCol_Text, arrowColor);
-        ImGui::RenderTriangle(frameBb.Min + off, isOpen ? ImGuiDir_Down : ImGuiDir_Right, 1.0f);
+        ImGui::RenderArrow(frameBb.Min + off, isOpen ? ImGuiDir_Down : ImGuiDir_Right, 1.0f);
         ImGui::PopStyleColor(1);
 
         off = ImVec2(style.FramePadding.x + arrowIconWidth, 0 );

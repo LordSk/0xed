@@ -1,9 +1,11 @@
 #include <SDL2/SDL.h>
 #include <stdio.h>
 #include <assert.h>
+#include <gl3w.h>
 #include "window.h"
 #include "imgui.h"
-#include "imgui_sdl2_setup.h"
+#include "imgui_impl_sdl.h"
+#include "imgui_impl_opengl3.h"
 
 void loadWindowIcon(SDL_Window* window)
 {
@@ -59,6 +61,48 @@ void loadWindowIcon(SDL_Window* window)
 #endif
 }
 
+
+static ImFont* imguiLoadFont(const char* path, i32 sizePx)
+{
+    ImFontConfig config;
+    config.OversampleH = 4;
+    config.OversampleV = 4;
+
+    ImGuiIO& io = ImGui::GetIO();
+    ImFont* font = io.Fonts->AddFontFromFileTTF(path, sizePx, &config);
+    assert(font);
+
+    u8* pFontPixels;
+    i32 fontTexWidth, fontTexHeight;
+    io.Fonts->GetTexDataAsRGBA32(&pFontPixels, &fontTexWidth, &fontTexHeight);
+
+    GLuint oldTex = (GLuint)(intptr_t)io.Fonts->TexID;
+    glDeleteTextures(1, &oldTex);
+
+    GLuint texture;
+    glGenTextures(1, &texture);
+    glBindTexture(GL_TEXTURE_2D, texture);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glTexImage2D(
+                GL_TEXTURE_2D,
+                0,
+                GL_RGBA,
+                fontTexWidth,
+                fontTexHeight,
+                0,
+                GL_RGBA,
+                GL_UNSIGNED_BYTE,
+                pFontPixels
+                );
+    glBindTexture(GL_TEXTURE_2D, 0);
+
+    io.Fonts->SetTexID((void*)(intptr_t)texture);
+    return font;
+}
+
 bool AppWindow::init(const char* title, i32 width, i32 height, bool maximized, const char* imgui_ini)
 {
     SDL_SetHint(SDL_HINT_VIDEO_HIGHDPI_DISABLED, "0");
@@ -111,8 +155,13 @@ bool AppWindow::init(const char* title, i32 width, i32 height, bool maximized, c
     glClearColor(0.15f, 0.15f, 0.15f, 1.f);
     glViewport(0, 0, width, height);
 
-    imguiSetup = imguiInit(width, height, imgui_ini);
-    assert(imguiSetup);
+    IMGUI_CHECKVERSION();
+    ImGui::CreateContext();
+    ImGuiIO& io = ImGui::GetIO(); (void)io;
+    //io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;  // Enable Keyboard Controls
+
+    ImGui_ImplSDL2_InitForOpenGL(sdlWin, glContext);
+    ImGui_ImplOpenGL3_Init();
 
     // TODO: load multiple fonts at once
     // TODO: use free fonts (linux)?
@@ -137,7 +186,7 @@ void AppWindow::loop()
         while(SDL_PollEvent(&event)) {
             eventCount++;
             _handleEvent(event);
-            imguiHandleInput(imguiSetup, event);
+            ImGui_ImplSDL2_ProcessEvent(&event);
         }
 
         // window is not focused, sleep
@@ -162,16 +211,19 @@ void AppWindow::loop()
             // update
             SDL_GL_GetDrawableSize(sdlWin, &winWidth, &winHeight);
             ImGui::GetIO().DisplaySize = ImVec2(winWidth, winHeight);
-            imguiUpdate(imguiSetup, 0);
+
+            ImGui_ImplOpenGL3_NewFrame();
+            ImGui_ImplSDL2_NewFrame(sdlWin);
+            ImGui::NewFrame();
 
             assert(callbackUpdate);
             callbackUpdate();
 
-            glViewport(0, 0, winWidth, winHeight);
-            glClear(GL_COLOR_BUFFER_BIT);
-
             ImGui::Render();
 
+            glViewport(0, 0, winWidth, winHeight);
+            glClear(GL_COLOR_BUFFER_BIT);
+            ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
             SDL_GL_SwapWindow(sdlWin);
 
             // limit framerate
@@ -185,13 +237,17 @@ void AppWindow::loop()
 
 void AppWindow::cleanUp()
 {
-    imguiDeinit(imguiSetup);
+    ImGui_ImplOpenGL3_Shutdown();
+    ImGui_ImplSDL2_Shutdown();
+    ImGui::DestroyContext();
     SDL_GL_DeleteContext(glContext);
     SDL_DestroyWindow(sdlWin);
 }
 
 void AppWindow::_computeGlobalMouseState()
 {
+    // TODO: remove this, we do not need it anymore??
+    return;
     if(!focused) {
         return;
     }
@@ -201,9 +257,11 @@ void AppWindow::_computeGlobalMouseState()
     i32 gmx, gmy;
     u32 gmstate = SDL_GetGlobalMouseState(&gmx, &gmy);
 
+    // TODO: reimplement
+    /*
     defer(
         imguiSetMouseState(imguiSetup, globalMouseX - winx, globalMouseY - winy, globalMouseState);
-    );
+    );*/
 
     if(gmx >= winx && gmx < winx+winWidth && gmy >= winy && gmy < winy+winHeight) {
         globalMouseX = gmx;

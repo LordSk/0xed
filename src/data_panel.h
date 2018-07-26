@@ -40,31 +40,15 @@ struct PanelType
 
 typedef i64 byte8;
 
-struct Gradient
+struct GradientRange
 {
     byte8 gmin; // reinterpret this to whatever we like
     byte8 gmax;
-    Color3 color1;
-    Color3 color2;
 
     template<typename T>
     inline void setBounds(T bmin, T bmax) {
         *(T*)&gmin = bmin;
         *(T*)&gmax = bmax;
-    }
-
-    inline void setColors(u32 colorU32_1, u32 colorU32_2) {
-        color1 = {(colorU32_1 & 0xff) / 255.f,
-                  ((colorU32_1 & 0xff00) >> 8) / 255.f,
-                  ((colorU32_1 & 0xff0000) >> 16) / 255.f};
-        color2 = {(colorU32_2 & 0xff) / 255.f,
-                  ((colorU32_2 & 0xff00) >> 8) / 255.f,
-                  ((colorU32_2 & 0xff0000) >> 16) / 255.f};
-    }
-
-    inline Color3 lerpColor(f32 alpha) const {
-        alpha = clamp(alpha, 0.0f, 1.0f);
-        return rgbLerp(color1, color2, alpha);
     }
 
     template<typename T>
@@ -75,7 +59,7 @@ struct Gradient
     }
 };
 
-Gradient getDefaultTypeGradient(PanelType::Enum ptype);
+GradientRange getDefaultTypeGradientRange(PanelType::Enum ptype);
 
 struct ColorDisplay
 {
@@ -89,7 +73,28 @@ struct ColorDisplay
 struct PanelParams
 {
     ColorDisplay::Enum colorDisplay = ColorDisplay::GRADIENT;
-    Gradient grads[PanelType::Enum::_COUNT];
+    GradientRange gradRange[PanelType::Enum::_COUNT];
+    Color3 gradColor1;
+    Color3 gradColor2;
+
+    inline void gradSetColors(u32 colorU32_1, u32 colorU32_2) {
+        gradColor1 = {(colorU32_1 & 0xff) / 255.f,
+                      ((colorU32_1 & 0xff00) >> 8) / 255.f,
+                      ((colorU32_1 & 0xff0000) >> 16) / 255.f};
+        gradColor2 = {(colorU32_2 & 0xff) / 255.f,
+                      ((colorU32_2 & 0xff00) >> 8) / 255.f,
+                      ((colorU32_2 & 0xff0000) >> 16) / 255.f};
+    }
+
+    inline Color3 gradLerpColor(f32 alpha) const {
+        alpha = clamp(alpha, 0.0f, 1.0f);
+        return rgbLerp(gradColor1, gradColor2, alpha);
+    }
+
+    inline void gradSetDefaultColors()
+    {
+        gradSetColors(0xff4c4c4c, 0xffffffff);
+    }
 };
 
 struct DataPanels
