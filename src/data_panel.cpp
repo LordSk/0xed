@@ -425,6 +425,7 @@ void DataPanels::doUi()
     static i32 panelParamWindowOpenId = -1;
     static ImVec2 panelParamWindowPos;
     ImGuiIO& io = ImGui::GetIO();
+    bool openPanelParamPopup = false;
 
     doRowHeader();
     ImGui::SameLine();
@@ -479,6 +480,7 @@ void DataPanels::doUi()
                 if(panelParamWindowOpenId != p) {
                     panelParamWindowOpenId = p;
                     panelParamWindowPos = ImGui::GetCursorScreenPos() + ImVec2(comboWidth, 0);
+                    openPanelParamPopup = true;
                 }
                 else {
                     panelParamWindowOpenId = -1;
@@ -551,216 +553,7 @@ void DataPanels::doUi()
 
     ImGui::EndChild();
 
-
-    if(panelParamWindowOpenId != -1) {
-        const i32 p = panelParamWindowOpenId;
-        ImGui::SetNextWindowPos(panelParamWindowPos);
-        ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(15, 15));
-        ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 5);
-        ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 2);
-        ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(10, 10));
-
-        if(ImGui::Begin("Panel parameters", nullptr,
-                        ImGuiWindowFlags_NoTitleBar|ImGuiWindowFlags_AlwaysAutoResize)) {
-            ColorDisplay::Enum& colorDisplay = panelParams[p].colorDisplay;
-            LOG("POPUP");
-            ImGui::Text("Color display:");
-            static bool butPlain, butGradient, butBricks;
-            butPlain = colorDisplay == ColorDisplay::PLAIN;
-            butGradient = colorDisplay == ColorDisplay::GRADIENT;
-            butBricks = colorDisplay == ColorDisplay::BRICK_COLOR;
-
-            if(ImGui::Selectable("Plain", &butPlain, 0, ImVec2(50,20))) {
-                colorDisplay = ColorDisplay::PLAIN;
-            } ImGui::SameLine();
-            if(ImGui::Selectable("Gradient", &butGradient, 0, ImVec2(50,20))) {
-                colorDisplay = ColorDisplay::GRADIENT;
-            } ImGui::SameLine();
-            if(ImGui::Selectable("Bricks", &butBricks, 0, ImVec2(50,20))) {
-                colorDisplay = ColorDisplay::BRICK_COLOR;
-            };
-
-            ImGui::Separator();
-
-            ImGui::Text("Gradient:");
-
-            const PanelType::Enum ptype = panelType[p];
-            GradientRange& grad = panelParams[p].gradRange[ptype];
-
-            switch(ptype) {
-                case PanelType::ASCII:
-                case PanelType::UINT8:
-                case PanelType::HEX: {
-                    const i32 u8Min = 0;
-                    const i32 u8Max = 255;
-                    static i32 imin, imax;
-                    imin = *(u8*)&grad.gmin;
-                    imax = *(u8*)&grad.gmax;
-                    if(ImGui::DragScalar("min", ImGuiDataType_U32, &imin, 1.0f, &u8Min, &u8Max)) {
-                        *(u8*)&grad.gmin = min(imin, imax-1);
-                    }
-                    if(ImGui::DragScalar("max", ImGuiDataType_U32, &imax, 1.0f, &u8Min, &u8Max)) {
-                        *(u8*)&grad.gmax = max(imin+1, imax);
-                    }
-                } break;
-
-                case PanelType::INT8: {
-                    static i32 imin, imax;
-                    imin = *(i8*)&grad.gmin;
-                    imax = *(i8*)&grad.gmax;
-                    if(ImGui::DragInt("min", &imin, 1.0f, -127, 127)) {
-                        *(i8*)&grad.gmin = min(imin, imax-1);
-                    }
-                    if(ImGui::DragInt("max", &imax, 1.0f, imin+1, 127)) {
-                        *(i8*)&grad.gmax = max(imin+1, imax);
-                    }
-                } break;
-
-                case PanelType::INT16: {
-                    static i32 imin, imax;
-                    imin = *(i16*)&grad.gmin;
-                    imax = *(i16*)&grad.gmax;
-                    if(ImGui::DragInt("min", &imin, 1.0f, SHRT_MIN, SHRT_MAX)) {
-                        *(i16*)&grad.gmin = min(imin, imax-1);
-                    }
-                    if(ImGui::DragInt("max", &imax, 1.0f, imin+1, SHRT_MAX)) {
-                        *(i16*)&grad.gmax = max(imin+1, imax);
-                    }
-                } break;
-
-                case PanelType::UINT16: {
-                    static i32 imin, imax;
-                    imin = *(u16*)&grad.gmin;
-                    imax = *(u16*)&grad.gmax;
-                    if(ImGui::DragInt("min", &imin, 1.0f, 0, USHRT_MAX)) {
-                        *(u16*)&grad.gmin = min(imin, imax-1);
-                    }
-                    if(ImGui::DragInt("max", &imax, 1.0f, imin+1, USHRT_MAX)) {
-                        *(u16*)&grad.gmax = max(imin+1, imax);
-                    }
-                } break;
-
-                case PanelType::INT32: {
-                    static i32 imin, imax;
-                    imin = *(i32*)&grad.gmin;
-                    imax = *(i32*)&grad.gmax;
-                    if(ImGui::DragInt("min", &imin, 1.0f, _I32_MIN, _I32_MAX)) {
-                        *(i32*)&grad.gmin = min(imin, imax-1);
-                    }
-                    if(ImGui::DragInt("max", &imax, 1.0f, imin+1, _I32_MAX)) {
-                        *(i32*)&grad.gmax = max(imin+1, imax);
-                    }
-                } break;
-
-                case PanelType::UINT32: {
-                    // TODO: use DragUint32 (new imgui version)
-                    static i32 imin, imax;
-                    imin = *(u32*)&grad.gmin;
-                    imax = *(u32*)&grad.gmax;
-                    if(ImGui::DragInt("min", &imin, 1.0f, 0, _I32_MAX)) {
-                        *(u32*)&grad.gmin = min(imin, imax-1);
-                    }
-                    if(ImGui::DragInt("max", &imax, 1.0f, imin+1, _I32_MAX)) {
-                        *(u32*)&grad.gmax = max(imin+1, imax);
-                    }
-                } break;
-
-                case PanelType::INT64: {
-                    const i64 i64Min = _I64_MIN;
-                    const i64 i64Max = _I64_MAX;
-
-                    static i64 imin, imax;
-                    imin = *(i64*)&grad.gmin;
-                    imax = *(i64*)&grad.gmax;
-                    if(ImGui::DragScalar("min", ImGuiDataType_S64, &imin, 1.0f, &i64Min, &i64Max, "%lld")) {
-                        *(i64*)&grad.gmin = min(imin, imax-1);
-                    }
-                    if(ImGui::DragScalar("max", ImGuiDataType_S64, &imax, 1.0f, &i64Min, &i64Max, "%lld")) {
-                        *(i64*)&grad.gmax = max(imin+1, imax);
-                    }
-                } break;
-
-                case PanelType::UINT64: {
-                    const i64 u64Min = 0;
-                    const i64 u64Max = _UI64_MAX;
-
-                    static u64 imin, imax;
-                    imin = *(u64*)&grad.gmin;
-                    imax = *(u64*)&grad.gmax;
-                    if(ImGui::DragScalar("min", ImGuiDataType_U64, &imin, 1.0f, &u64Min, &u64Max, "%llu")) {
-                        *(u64*)&grad.gmin = min(imin, imax-1);
-                    }
-                    if(ImGui::DragScalar("max", ImGuiDataType_U64, &imax, 1.0f, &u64Min, &u64Max, "%llu")) {
-                        *(u64*)&grad.gmax = max(imin+1, imax);
-                    }
-                } break;
-
-                case PanelType::FLOAT32: {
-                    static f32 imin, imax;
-                    imin = *(f32*)&grad.gmin;
-                    imax = *(f32*)&grad.gmax;
-                    if(ImGui::DragFloat("min", &imin, 1.0f, -FLT_MAX, FLT_MAX)) {
-                        *(f32*)&grad.gmin = min(imin, imax-1);
-                    }
-                    if(ImGui::DragFloat("max", &imax, 1.0f, imin+1, FLT_MAX)) {
-                        *(f32*)&grad.gmax = max(imin+1, imax);
-                    }
-                } break;
-
-                case PanelType::FLOAT64: {
-                    static f32 imin, imax;
-                    imin = *(f64*)&grad.gmin;
-                    imax = *(f64*)&grad.gmax;
-                    if(ImGui::DragFloat("min", &imin, 1.0f, -FLT_MAX, FLT_MAX)) {
-                        *(f64*)&grad.gmin = min(imin, imax-1);
-                    }
-                    if(ImGui::DragFloat("max", &imax, 1.0f, imin+1, FLT_MAX)) {
-                        *(f64*)&grad.gmax = max(imin+1, imax);
-                    }
-                } break;
-            }
-
-            static Color3 gradCol1;
-            static Color3 gradCol2;
-            Color3& rgb1 = panelParams[p].gradColor1;
-            Color3& rgb2 = panelParams[p].gradColor2;
-            gradCol1 = rgb1;
-            gradCol2 = rgb2;
-
-            if(ImGui::ColorEdit3("Color1", gradCol1.data)) {
-                rgb1 = gradCol1;
-            }
-            if(ImGui::ColorEdit3("Color2", gradCol2.data)) {
-                rgb2 = gradCol2;
-            }
-
-            if(ImGui::Button("Reset min/max", ImVec2(100, 25))) {
-                GradientRange defGrad = getDefaultTypeGradientRange(ptype);
-                grad.gmin = defGrad.gmin;
-                grad.gmax = defGrad.gmax;
-            }
-
-            ImGui::SameLine();
-
-            if(ImGui::Button("Reset colors", ImVec2(100, 25))) {
-                panelParams[p].gradSetDefaultColors();
-            }
-
-            ImGui::Separator();
-
-            if(ImGui::Button("Ok", ImVec2(300, 25))) {
-                panelParamWindowOpenId = -1;
-            }
-
-            if(!ImGui::IsWindowFocused(ImGuiFocusedFlags_ChildWindows)) {
-                panelParamWindowOpenId = -1;
-            }
-
-            ImGui::End();
-        }
-
-        ImGui::PopStyleVar(4);
-    }
+    doPanelParamPopup(openPanelParamPopup, &panelParamWindowOpenId, panelParamWindowPos);
 
     if(panelMarkedForDelete >= 0 && panelCount > 1) {
         removePanel(panelMarkedForDelete);
@@ -990,6 +783,218 @@ void DataPanels::doAsciiPanel(i32 pid, f32 panelWidth, const i32 startLine)
     }
 
     ImGui::PopFont();
+}
+
+void DataPanels::doPanelParamPopup(bool open, i32* panelId, ImVec2 popupPos)
+{
+    if(open && *panelId != -1) {
+        ImGui::OpenPopup("Panel parameters");
+    }
+    ImGui::SetNextWindowPos(popupPos);
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(15, 15));
+    ImGui::PushStyleVar(ImGuiStyleVar_PopupRounding, 5);
+    ImGui::PushStyleVar(ImGuiStyleVar_PopupBorderSize, 2);
+    ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(10, 10));
+
+    if(ImGui::BeginPopup("Panel parameters",
+                    ImGuiWindowFlags_NoTitleBar|ImGuiWindowFlags_AlwaysAutoResize)) {
+        const i32 p = *panelId;
+        ImGui::Text("Color display:");
+
+        ColorDisplay::Enum& colorDisplay = panelParams[p].colorDisplay;
+
+        const char* colorTypeSelectList[] = {
+            "Gradient",
+            "Plain",
+            "Bricks",
+            "Search",
+        };
+
+        ImGui::ButtonListOne("color_type_select", colorTypeSelectList,
+                                arr_count(colorTypeSelectList), (i32*)&colorDisplay);
+
+        ImGui::Separator();
+
+        ImGui::Text("Gradient:");
+
+        const PanelType::Enum ptype = panelType[p];
+        GradientRange& grad = panelParams[p].gradRange[ptype];
+
+        switch(ptype) {
+            case PanelType::ASCII:
+            case PanelType::UINT8:
+            case PanelType::HEX: {
+                const u32 u8Min = 0;
+                const u32 u8Max = 255;
+                static u32 imin, imax;
+                imin = *(u8*)&grad.gmin;
+                imax = *(u8*)&grad.gmax;
+                if(ImGui::DragScalar("min", ImGuiDataType_U32, &imin, 1.0f, &u8Min, &u8Max)) {
+                    *(u8*)&grad.gmin = min(imin, imax-1);
+                }
+                if(ImGui::DragScalar("max", ImGuiDataType_U32, &imax, 1.0f, &u8Min, &u8Max)) {
+                    *(u8*)&grad.gmax = max(imin+1, imax);
+                }
+            } break;
+
+            case PanelType::INT8: {
+                static i32 imin, imax;
+                imin = *(i8*)&grad.gmin;
+                imax = *(i8*)&grad.gmax;
+                if(ImGui::DragInt("min", &imin, 1.0f, -127, 127)) {
+                    *(i8*)&grad.gmin = min(imin, imax-1);
+                }
+                if(ImGui::DragInt("max", &imax, 1.0f, imin+1, 127)) {
+                    *(i8*)&grad.gmax = max(imin+1, imax);
+                }
+            } break;
+
+            case PanelType::INT16: {
+                static i32 imin, imax;
+                imin = *(i16*)&grad.gmin;
+                imax = *(i16*)&grad.gmax;
+                if(ImGui::DragInt("min", &imin, 1.0f, SHRT_MIN, SHRT_MAX)) {
+                    *(i16*)&grad.gmin = min(imin, imax-1);
+                }
+                if(ImGui::DragInt("max", &imax, 1.0f, imin+1, SHRT_MAX)) {
+                    *(i16*)&grad.gmax = max(imin+1, imax);
+                }
+            } break;
+
+            case PanelType::UINT16: {
+                const u32 u16Min = 0;
+                const u32 u16Max = USHRT_MAX;
+
+                static u32 imin, imax;
+                imin = *(u16*)&grad.gmin;
+                imax = *(u16*)&grad.gmax;
+                if(ImGui::DragScalar("min", ImGuiDataType_U32, &imin, 1.0f, &u16Min, &u16Max)) {
+                    *(u16*)&grad.gmin = min(imin, imax-1);
+                }
+                if(ImGui::DragScalar("max", ImGuiDataType_U32, &imax, 1.0f, &u16Min, &u16Max)) {
+                    *(u16*)&grad.gmax = max(imin+1, imax);
+                }
+            } break;
+
+            case PanelType::INT32: {
+                static i32 imin, imax;
+                imin = *(i32*)&grad.gmin;
+                imax = *(i32*)&grad.gmax;
+                if(ImGui::DragInt("min", &imin, 1.0f, _I32_MIN, _I32_MAX)) {
+                    *(i32*)&grad.gmin = min(imin, imax-1);
+                }
+                if(ImGui::DragInt("max", &imax, 1.0f, imin+1, _I32_MAX)) {
+                    *(i32*)&grad.gmax = max(imin+1, imax);
+                }
+            } break;
+
+            case PanelType::UINT32: {
+                // TODO: use DragUint32 (new imgui version)
+                static u32 imin, imax;
+                imin = *(u32*)&grad.gmin;
+                imax = *(u32*)&grad.gmax;
+                if(ImGui::DragScalar("min", ImGuiDataType_U32, &imin, 1.0f)) {
+                    *(u32*)&grad.gmin = min(imin, imax-1);
+                }
+                if(ImGui::DragScalar("max", ImGuiDataType_U32,  &imax, 1.0f)) {
+                    *(u32*)&grad.gmax = max(imin+1, imax);
+                }
+            } break;
+
+            case PanelType::INT64: {
+                const i64 i64Min = _I64_MIN;
+                const i64 i64Max = _I64_MAX;
+
+                static i64 imin, imax;
+                imin = *(i64*)&grad.gmin;
+                imax = *(i64*)&grad.gmax;
+                if(ImGui::DragScalar("min", ImGuiDataType_S64, &imin, 1.0f, &i64Min, &i64Max, "%lld")) {
+                    *(i64*)&grad.gmin = min(imin, imax-1);
+                }
+                if(ImGui::DragScalar("max", ImGuiDataType_S64, &imax, 1.0f, &i64Min, &i64Max, "%lld")) {
+                    *(i64*)&grad.gmax = max(imin+1, imax);
+                }
+            } break;
+
+            case PanelType::UINT64: {
+                const i64 u64Min = 0;
+                const i64 u64Max = _UI64_MAX;
+
+                static u64 imin, imax;
+                imin = *(u64*)&grad.gmin;
+                imax = *(u64*)&grad.gmax;
+                if(ImGui::DragScalar("min", ImGuiDataType_U64, &imin, 1.0f, &u64Min, &u64Max, "%llu")) {
+                    *(u64*)&grad.gmin = min(imin, imax-1);
+                }
+                if(ImGui::DragScalar("max", ImGuiDataType_U64, &imax, 1.0f, &u64Min, &u64Max, "%llu")) {
+                    *(u64*)&grad.gmax = max(imin+1, imax);
+                }
+            } break;
+
+            case PanelType::FLOAT32: {
+                static f32 imin, imax;
+                imin = *(f32*)&grad.gmin;
+                imax = *(f32*)&grad.gmax;
+                if(ImGui::DragFloat("min", &imin, 1.0f, -FLT_MAX, FLT_MAX)) {
+                    *(f32*)&grad.gmin = min(imin, imax-1);
+                }
+                if(ImGui::DragFloat("max", &imax, 1.0f, imin+1, FLT_MAX)) {
+                    *(f32*)&grad.gmax = max(imin+1, imax);
+                }
+            } break;
+
+            case PanelType::FLOAT64: {
+                static f32 imin, imax;
+                imin = *(f64*)&grad.gmin;
+                imax = *(f64*)&grad.gmax;
+                if(ImGui::DragFloat("min", &imin, 1.0f, -FLT_MAX, FLT_MAX)) {
+                    *(f64*)&grad.gmin = min(imin, imax-1);
+                }
+                if(ImGui::DragFloat("max", &imax, 1.0f, imin+1, FLT_MAX)) {
+                    *(f64*)&grad.gmax = max(imin+1, imax);
+                }
+            } break;
+        }
+
+        static Color3 gradCol1;
+        static Color3 gradCol2;
+        Color3& rgb1 = panelParams[p].gradColor1;
+        Color3& rgb2 = panelParams[p].gradColor2;
+        gradCol1 = rgb1;
+        gradCol2 = rgb2;
+
+        if(ImGui::ColorEdit3("Color1", gradCol1.data)) {
+            rgb1 = gradCol1;
+        }
+        if(ImGui::ColorEdit3("Color2", gradCol2.data)) {
+            rgb2 = gradCol2;
+        }
+
+        if(ImGui::Button("Reset min/max", ImVec2(100, 25))) {
+            GradientRange defGrad = getDefaultTypeGradientRange(ptype);
+            grad.gmin = defGrad.gmin;
+            grad.gmax = defGrad.gmax;
+        }
+
+        ImGui::SameLine();
+
+        if(ImGui::Button("Reset colors", ImVec2(100, 25))) {
+            panelParams[p].gradSetDefaultColors();
+        }
+
+        ImGui::Separator();
+
+        if(ImGui::Button("Ok", ImVec2(300, 25))) {
+            ImGui::CloseCurrentPopup();
+        }
+
+        ImGui::EndPopup();
+    }
+    else {
+        *panelId = -1;
+    }
+
+    ImGui::PopStyleVar(4);
 }
 
 template<typename T>

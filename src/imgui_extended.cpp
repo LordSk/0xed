@@ -297,4 +297,66 @@ void TextBox(ImU32 frameColor, ImU32 textColor, ImVec2 size, ImVec2 align, ImVec
     PopStyleColor(1);
 }
 
+void ButtonListOne(const char* strId, const char* names[], const i32 count, i32* selected, ImVec2 size_)
+{
+    ImGuiContext& g = *GImGui;
+    const ImGuiStyle& style = GetStyle();
+    ImGuiWindow* window = GetCurrentWindow();
+    const ImGuiID id = window->GetID(strId);
+
+    const f32 buttonHeight = CalcTextSize(names[0], NULL, true).y + style.FramePadding.y * 2.0f;
+    const ImVec2 widgetSize = CalcItemSize(ImVec2(size_.x, size_.y <= 0 ? buttonHeight: size_.y),
+                                           100, buttonHeight);
+    const f32 buttonWidth = widgetSize.x / count;
+    ImVec2 pos = window->DC.CursorPos;
+    const ImRect rect(pos, pos + widgetSize);
+
+    ItemSize(rect, 0);
+    if(!ItemAdd(rect, id)) {
+        return;
+    }
+
+    // TODO: add more style colors
+    const u32 textColorOff = GetColorU32(ImGuiCol_TextDisabled);
+    const u32 textColorBase = GetColorU32(ImGuiCol_Text);
+    const u32 colorOff = GetColorU32(ImGuiCol_Button);
+    const u32 colorHovered = GetColorU32(ImGuiCol_ButtonHovered);
+    const u32 colorOn = GetColorU32(ImGuiCol_ButtonActive);
+
+    f32 offX = 0;
+    for(i32 i = 0; i < count; ++i) {
+        ImRect bb = rect;
+        bb.Min.x += offX;
+        bb.Max.x = bb.Min.x + buttonWidth;
+        offX += buttonWidth;
+
+        const ImGuiID butId = id + i;
+        bool held = false;
+        bool hovered = false;
+        const bool previouslyHeld = (g.ActiveId == butId);
+        ButtonBehavior(bb, butId, &hovered, &held);
+
+        if(held) {
+            *selected = i;
+        }
+
+        ImU32 buttonColor = colorOff;
+        ImU32 textColor = textColorOff;
+        if(*selected == i) {
+            buttonColor = colorOn;
+            textColor = textColorBase;
+        }
+        else if(hovered) {
+            buttonColor = colorHovered;
+            textColor = textColorBase;
+        }
+        RenderFrame(bb.Min, bb.Max, buttonColor, false);
+
+        PushStyleColor(ImGuiCol_Text, textColor);
+        RenderTextClipped(bb.Min, bb.Max, names[i], NULL,
+                          NULL, ImVec2(0.5, 0.5), &bb);
+        PopStyleColor();
+    }
+}
+
 }

@@ -66,7 +66,8 @@ struct ColorDisplay
     enum Enum: i32 {
         GRADIENT = 0, // default
         PLAIN,
-        BRICK_COLOR
+        BRICK_COLOR,
+        SEARCH
     };
 };
 
@@ -160,4 +161,6 @@ struct DataPanels
 
     template<typename T>
     void doFormatPanel(i32 pid, f32 panelWidth, const i32 startLine, const char* format);
+
+    void doPanelParamPopup(bool open, i32* panelId, ImVec2 popupPos);
 };

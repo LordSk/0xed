@@ -23,4 +23,7 @@ bool IsAnyPopupOpen();
 void TextBox(ImU32 frameColor, ImU32 textColor, ImVec2 size, ImVec2 align, ImVec2 textOffset,
                     const char* fmt, ...);
 
+void ButtonListOne(const char* strId, const char* names[], const i32 count, i32* selected,
+                      ImVec2 size_ = {-1, 0});
+
 }
