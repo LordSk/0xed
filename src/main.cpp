@@ -304,147 +304,7 @@ void doUI()
         ImGui::EndPopup();
     }
 
-    static bool popupSearch = false;
-
-    if(openSearch) {
-        ImGui::OpenPopup("Search data item");
-        ImGui::SetNextWindowPos(ImVec2(200, 200));
-        popupSearch = true;
-    }
-
-    if(popupSearch) {
-        ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(15, 15));
-        ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(8, 8));
-
-        if(ImGui::Begin("Search data item", &popupSearch,
-                        ImGuiWindowFlags_AlwaysAutoResize|ImGuiWindowFlags_NoCollapse)) {
-
-            static i32 comboDataTypeId = 0;
-            struct SearchDataType
-            {
-                enum Enum {
-                    ASCII_String,
-                    Integer,
-                    Float,
-                };
-            };
-            const char* dataTypeComboItems[] = {
-                "ASCII String",
-                "Integer",
-                "Float",
-            };
-
-            ImGui::ButtonListOne("##comboDataType", dataTypeComboItems, arr_count(dataTypeComboItems),
-                                 &comboDataTypeId);
-            ImGui::Separator();
-
-            switch(comboDataTypeId) {
-                case SearchDataType::ASCII_String: {
-                    static char searchStr[64];
-                    ImGui::Text("String:");
-                    ImGui::InputText("##searchString", searchStr, sizeof(searchStr));
-                } break;
-
-                case SearchDataType::Integer: {
-                    static i64 searchInt = 0;
-                    static i32 bitSizeItemId = 2;
-                    static i32 searchStride = 2;
-
-
-                    ImGui::Text("Integer size (in bits):");
-                    const char* bitSizeList[] = {
-                        "8",
-                        "16",
-                        "32",
-                        "64",
-                    };
-
-                    ImGui::ButtonListOne("byte_size_select", bitSizeList, arr_count(bitSizeList),
-                                            &bitSizeItemId, ImVec2(200, 0));
-
-                    ImGui::Text("Search stride:");
-                    const char* strideSelectList[] = {
-                        "Full",
-                        "Twice",
-                        "Even",
-                    };
-                    ImGui::ButtonListOne("stride_select", strideSelectList, arr_count(strideSelectList),
-                                            &searchStride, ImVec2(200, 0));
-
-                    static bool signed_ = true;
-                    ImGui::Checkbox("Signed", &signed_);
-
-                    ImGui::Text("Integer:");
-                    const i32 step = 1;
-                    const i32 stepFast = 100;
-
-                    ImGuiDataType_ intType = bitSizeItemId == 3 ? ImGuiDataType_S64: ImGuiDataType_S32;
-                    char* format = bitSizeItemId == 3 ? "%lld": "%d";
-                    if(!signed_) {
-                        intType = bitSizeItemId == 3 ? ImGuiDataType_U64: ImGuiDataType_U32;
-                        format = bitSizeItemId == 3 ? "%llu": "%u";
-                    }
-
-                    ImGui::InputScalar("##int_input", intType, (void*)&searchInt, &step,
-                                       &stepFast, format);
-                } break;
-
-                case SearchDataType::Float: {
-                    static f64 searchFloat = 0;
-                    static i32 bitSizeItemId = 0;
-                    static i32 searchStride = 2;
-
-
-                    ImGui::Text("Float size (in bits):");
-                    const char* bitSizeList[] = {
-                        "32",
-                        "64",
-                    };
-
-                    ImGui::ButtonListOne("byte_size_select", bitSizeList, arr_count(bitSizeList),
-                                         &bitSizeItemId, ImVec2(100, 0));
-
-                    ImGui::Text("Search stride:");
-                    const char* strideSelectList[] = {
-                        "Full",
-                        "Twice",
-                        "Even",
-                    };
-                    ImGui::ButtonListOne("stride_select", strideSelectList, arr_count(strideSelectList),
-                                         &searchStride, ImVec2(200, 0));
-
-                    ImGui::Text("Float:");
-
-                    const f64 step = 1;
-                    const f64 stepFast = 10;
-                    ImGuiDataType_ fltType = bitSizeItemId == 0 ? ImGuiDataType_Float: ImGuiDataType_Double;
-                    char* format = bitSizeItemId == 0 ? "%.5f": "%.10f";
-                    ImGui::InputScalar("##flt_input", fltType, (void*)&searchFloat, &step,
-                                       &stepFast, format);
-                } break;
-
-                default: assert(0); break;
-            }
-
-            if(ImGui::Button("Search", ImVec2(120,0))) {
-                popupSearch = false;
-                ImGui::CloseCurrentPopup();
-            }
-            ImGui::SameLine();
-            if(ImGui::Button("Cancel", ImVec2(120,0))) {
-                popupSearch = false;
-            }
-
-            if(!ImGui::IsWindowFocused(ImGuiFocusedFlags_ChildWindows)) {
-                popupSearch = false;
-            }
-        }
-
-        ImGui::End();
-
-        ImGui::PopStyleVar(2);
-        // FIXME: closing this popup does not give focus back
-    }
+    doSearchPopup(openSearch);
 
     // TODO: remove
     if(popupBrickWantOpen) {
@@ -455,6 +315,141 @@ void doUI()
     ui_brickPopup(POPUP_BRICK_ADD, popupBrickSelStart, popupBrickSelLength, &brickWall);
 
     //ImGui::ShowDemoWindow();
+}
+
+void doSearchPopup(bool open)
+{
+    if(open) {
+        ImGui::OpenPopup("Search data item");
+        ImGui::SetNextWindowPos(ImVec2(200, 200)); // TODO: does not work
+    }
+
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(15, 15));
+    ImGui::PushStyleVar(ImGuiStyleVar_PopupRounding, 5);
+    ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(8, 8));
+
+    if(ImGui::BeginPopupModal("Search data item", nullptr,
+                    ImGuiWindowFlags_AlwaysAutoResize|ImGuiWindowFlags_NoCollapse)) {
+
+        static i32 comboDataTypeId = 0;
+        struct SearchDataType
+        {
+            enum Enum {
+                ASCII_String,
+                Integer,
+                Float,
+            };
+        };
+        const char* dataTypeComboItems[] = {
+            "ASCII String",
+            "Integer",
+            "Float",
+        };
+
+        ImGui::ButtonListOne("##comboDataType", dataTypeComboItems, arr_count(dataTypeComboItems),
+                             &comboDataTypeId);
+        ImGui::Separator();
+
+        switch(comboDataTypeId) {
+            case SearchDataType::ASCII_String: {
+                static char searchStr[64];
+                ImGui::Text("String:");
+                ImGui::InputText("##searchString", searchStr, sizeof(searchStr));
+            } break;
+
+            case SearchDataType::Integer: {
+                static i64 searchInt = 0;
+                static i32 bitSizeItemId = 2;
+                static i32 searchStride = 2;
+
+
+                ImGui::Text("Integer size (in bits):");
+                const char* bitSizeList[] = {
+                    "8",
+                    "16",
+                    "32",
+                    "64",
+                };
+
+                ImGui::ButtonListOne("byte_size_select", bitSizeList, arr_count(bitSizeList),
+                                        &bitSizeItemId, ImVec2(200, 0));
+
+                ImGui::Text("Search stride:");
+                const char* strideSelectList[] = {
+                    "Full",
+                    "Twice",
+                    "Even",
+                };
+                ImGui::ButtonListOne("stride_select", strideSelectList, arr_count(strideSelectList),
+                                        &searchStride, ImVec2(200, 0));
+
+                static bool signed_ = true;
+                ImGui::Checkbox("Signed", &signed_);
+
+                ImGui::Text("Integer:");
+                const i32 step = 1;
+                const i32 stepFast = 100;
+
+                ImGuiDataType_ intType = bitSizeItemId == 3 ? ImGuiDataType_S64: ImGuiDataType_S32;
+                char* format = bitSizeItemId == 3 ? "%lld": "%d";
+                if(!signed_) {
+                    intType = bitSizeItemId == 3 ? ImGuiDataType_U64: ImGuiDataType_U32;
+                    format = bitSizeItemId == 3 ? "%llu": "%u";
+                }
+
+                ImGui::InputScalar("##int_input", intType, (void*)&searchInt, &step,
+                                   &stepFast, format);
+            } break;
+
+            case SearchDataType::Float: {
+                static f64 searchFloat = 0;
+                static i32 bitSizeItemId = 0;
+                static i32 searchStride = 2;
+
+
+                ImGui::Text("Float size (in bits):");
+                const char* bitSizeList[] = {
+                    "32",
+                    "64",
+                };
+
+                ImGui::ButtonListOne("byte_size_select", bitSizeList, arr_count(bitSizeList),
+                                     &bitSizeItemId, ImVec2(100, 0));
+
+                ImGui::Text("Search stride:");
+                const char* strideSelectList[] = {
+                    "Full",
+                    "Twice",
+                    "Even",
+                };
+                ImGui::ButtonListOne("stride_select", strideSelectList, arr_count(strideSelectList),
+                                     &searchStride, ImVec2(200, 0));
+
+                ImGui::Text("Float:");
+
+                const f64 step = 1;
+                const f64 stepFast = 10;
+                ImGuiDataType_ fltType = bitSizeItemId == 0 ? ImGuiDataType_Float: ImGuiDataType_Double;
+                char* format = bitSizeItemId == 0 ? "%.5f": "%.10f";
+                ImGui::InputScalar("##flt_input", fltType, (void*)&searchFloat, &step,
+                                   &stepFast, format);
+            } break;
+
+            default: assert(0); break;
+        }
+
+        if(ImGui::Button("Search", ImVec2(120,0))) {
+            ImGui::CloseCurrentPopup();
+        }
+        ImGui::SameLine();
+        if(ImGui::Button("Cancel", ImVec2(120,0))) {
+            ImGui::CloseCurrentPopup();
+        }
+
+        ImGui::EndPopup();
+    }
+
+    ImGui::PopStyleVar(3);
 }
 
 };
