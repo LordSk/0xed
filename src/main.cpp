@@ -45,6 +45,7 @@ i64 popupBrickSelLength;
 
 Script script;
 SearchParams searchParams = {};
+Array<SearchResult> searchResults;
 
 bool init()
 {
@@ -77,6 +78,10 @@ bool init()
     if(openFileReadAll("C:\\Prog\\Projets\\sacred_remake\\sacred_data\\mixed.pak", &curFileBuff)) {
         dataPanels.setFileBuffer(curFileBuff.data, curFileBuff.size);
     }
+
+    searchResults.reserve(1024);
+    searchStartThread();
+    searchSetNewFileBuffer(curFileBuff);
 
     /*u8* fileData = (u8*)malloc(256);
     curFileBuff.data = fileData;
@@ -306,7 +311,10 @@ void doUI()
         ImGui::EndPopup();
     }
 
-    doSearchPopup(openSearch, &searchParams);
+    if(doSearchPopup(openSearch, &searchParams)) {
+        searchResults.clear();
+        searchNewRequest(searchParams, &searchResults);
+    }
 
     // TODO: remove
     if(popupBrickWantOpen) {
@@ -348,12 +356,14 @@ bool doSearchPopup(bool open, SearchParams* params)
         switch(params->dataType) {
             case SearchDataType::ASCII_String: {
                 ImGui::Text("String:");
-                ImGui::InputText("##searchString", params->str.buff, sizeof(params->str.buff));
+                ImGui::InputText("##searchString", params->str, sizeof(params->str));
+                params->dataSize = strlen(params->str);
+                params->strideKind = SearchParams::Stride::Full;
             } break;
 
             case SearchDataType::Integer: {
                 static i32 bitSizeItemId = 2;
-                static i32 searchStride = 2;
+                static i32 searchStrideId = 2;
 
 
                 ImGui::Text("Integer size (in bits):");
@@ -374,7 +384,7 @@ bool doSearchPopup(bool open, SearchParams* params)
                     "Even",
                 };
                 ImGui::ButtonListOne("stride_select", strideSelectList, arr_count(strideSelectList),
-                                     &searchStride, ImVec2(200, 0));
+                                     &searchStrideId, ImVec2(200, 0));
 
                 static bool signed_ = true;
                 ImGui::Checkbox("Signed", &signed_);
@@ -385,12 +395,15 @@ bool doSearchPopup(bool open, SearchParams* params)
 
                 ImGuiDataType_ intType = bitSizeItemId == 3 ? ImGuiDataType_S64: ImGuiDataType_S32;
                 char* format = bitSizeItemId == 3 ? "%lld": "%d";
-                void* searchInt = &params->vint.val;
+                void* searchInt = &params->vint;
                 if(!signed_) {
                     intType = bitSizeItemId == 3 ? ImGuiDataType_U64: ImGuiDataType_U32;
                     format = bitSizeItemId == 3 ? "%llu": "%u";
-                    searchInt = &params->vuint.val;
+                    searchInt = &params->vuint;
                 }
+
+                params->dataSize = 1 << bitSizeItemId;
+                params->strideKind = (SearchParams::Stride)searchStrideId;
 
                 ImGui::InputScalar("##int_input", intType, searchInt, &step,
                                    &stepFast, format);
@@ -398,7 +411,7 @@ bool doSearchPopup(bool open, SearchParams* params)
 
             case SearchDataType::Float: {
                 static i32 bitSizeItemId = 0;
-                static i32 searchStride = 2;
+                static i32 searchStrideId = 2;
 
 
                 ImGui::Text("Float size (in bits):");
@@ -417,7 +430,7 @@ bool doSearchPopup(bool open, SearchParams* params)
                     "Even",
                 };
                 ImGui::ButtonListOne("stride_select", strideSelectList, arr_count(strideSelectList),
-                                     &searchStride, ImVec2(200, 0));
+                                     &searchStrideId, ImVec2(200, 0));
 
                 ImGui::Text("Float:");
 
@@ -425,7 +438,12 @@ bool doSearchPopup(bool open, SearchParams* params)
                 const f64 stepFast = 10;
                 ImGuiDataType_ fltType = bitSizeItemId == 0 ? ImGuiDataType_Float: ImGuiDataType_Double;
                 char* format = bitSizeItemId == 0 ? "%.5f": "%.10f";
-                ImGui::InputScalar("##flt_input", fltType, (void*)&params->vfloat.val, &step,
+                void* fltVal = bitSizeItemId == 0 ? &params->vf32: &params->vf64;
+
+                params->dataSize = bitSizeItemId == 0 ? 4 : 8;
+                params->strideKind = (SearchParams::Stride)searchStrideId;
+
+                ImGui::InputScalar("##flt_input", fltType, fltVal, &step,
                                    &stepFast, format);
             } break;
 

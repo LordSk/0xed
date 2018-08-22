@@ -13,13 +13,22 @@ struct SearchDataType
 
 struct SearchParams
 {
-    struct { char buff[64] = {0}; u8 len = 0; } str;
-    struct { i64 val; } vint;
-    struct { u64 val; } vuint;
-    struct { f64 val; } vfloat;
+    char str[64] = {0};
+    i64 vint;
+    u64 vuint;
+    f32 vf32;
+    f32 vf64;
 
+    u8 dataSize = 0;
+    bool8 intSigned = true;
     SearchDataType::Enum dataType = SearchDataType::ASCII_String;
-    i32 stride = 1;
+
+    enum Stride: i32 {
+        Full=0,
+        Twice,
+        Even
+    };
+    Stride strideKind = Full;
 };
 
 struct SearchResult
@@ -30,4 +39,5 @@ struct SearchResult
 };
 
 bool searchStartThread();
-void searchData(const SearchParams& params, Array<SearchResult>* results);
+void searchSetNewFileBuffer(FileBuffer nfb);
+void searchNewRequest(const SearchParams& params, Array<SearchResult>* results);
