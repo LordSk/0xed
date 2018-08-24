@@ -274,6 +274,8 @@ void TextBox(ImU32 frameColor, ImU32 textColor, ImVec2 size, ImVec2 align, ImVec
 {
     ImGuiWindow* window = GetCurrentWindow();
     ImVec2 pos = window->DC.CursorPos;
+    if(size.x == 0) size.x = ImGui::GetContentRegionAvail().x;
+    if(size.y == 0) size.y = ImGui::GetContentRegionAvail().y;
     ImRect bb(pos, pos + size);
 
     ItemSize(size);

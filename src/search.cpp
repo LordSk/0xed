@@ -60,7 +60,7 @@ static i32 thread_search(void* ptr)
                         memmove(cmpData, &sq.paramsCurrent.vf32, 4);
                     }
                     else {
-                        memmove(cmpData, &sq.paramsCurrent.vf32, 8);
+                        memmove(cmpData, &sq.paramsCurrent.vf64, 8);
                     }
                 } break;
 
@@ -79,7 +79,7 @@ static i32 thread_search(void* ptr)
                     r.len = cmpDataSize;
                     sq.resultListCurrent->push(r);
                     foundCount++;
-                    i += cmpDataSize-1;
+                    i += cmpDataSize-stride;
                 }
             }
 

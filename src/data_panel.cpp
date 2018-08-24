@@ -245,6 +245,12 @@ void DataPanels::deselect()
     selectionState.lockedPanelId = -1;
 }
 
+void DataPanels::select(i64 start, i64 end)
+{
+    selectionState.selectStart = start;
+    selectionState.selectEnd = end;
+}
+
 DataPanels::DataPanels()
 {
     memset(panelType, 0, sizeof(panelType));

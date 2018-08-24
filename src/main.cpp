@@ -38,6 +38,7 @@ DataPanels dataPanels;
 BrickWall brickWall;
 
 f32 toolsPanelWidth = 400;
+i32 rightSideTabId = 0;
 
 bool popupBrickWantOpen = false;
 intptr_t popupBrickSelStart;
@@ -45,6 +46,7 @@ i64 popupBrickSelLength;
 
 Script script;
 SearchParams searchParams = {};
+SearchParams lastSearchParams = {};
 Array<SearchResult> searchResults;
 
 bool init()
@@ -82,6 +84,14 @@ bool init()
     searchResults.reserve(1024);
     searchStartThread();
     searchSetNewFileBuffer(curFileBuff);
+
+    lastSearchParams.dataType = SearchDataType::Integer;
+    lastSearchParams.intSigned = true;
+    lastSearchParams.vint = 0;
+    lastSearchParams.dataSize = 4;
+    lastSearchParams.strideKind = SearchParams::Stride::Even;
+    searchNewRequest(lastSearchParams, &searchResults);
+    rightSideTabId = 3;
 
     /*u8* fileData = (u8*)malloc(256);
     curFileBuff.data = fileData;
@@ -259,16 +269,15 @@ void doUI()
             "Inspector",
             "Bricks",
             "Scripts",
-            "Options"
+            "Search results",
         };
 
-        static i32 selectedTab = 0;
         ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(15, 5));
         ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(0, 0));
-        ImGui::Tabs("Inspector_tabs", tabs, IM_ARRAYSIZE(tabs), &selectedTab);
+        ImGui::Tabs("Inspector_tabs", tabs, IM_ARRAYSIZE(tabs), &rightSideTabId);
         ImGui::PopStyleVar(1);
 
-        switch(selectedTab) {
+        switch(rightSideTabId) {
             case 0:
                 toolsDoInspector(dataPanels.fileBuffer, dataPanels.fileBufferSize,
                                  dataPanels.selectionState);
@@ -280,7 +289,13 @@ void doUI()
                 toolsDoScript(&script, &brickWall);
                 break;
             case 3:
-                toolsDoOptions(&dataPanels.columnCount);
+                //toolsDoOptions(&dataPanels.columnCount);
+                // search results here
+                u64 searchGotoOffset;
+                if(toolsSearchResults(lastSearchParams, searchResults, &searchGotoOffset)) {
+                    dataPanels.goTo(searchGotoOffset);
+                    dataPanels.select(searchGotoOffset, searchGotoOffset + lastSearchParams.dataSize - 1);
+                }
                 break;
         }
 
@@ -313,7 +328,9 @@ void doUI()
 
     if(doSearchPopup(openSearch, &searchParams)) {
         searchResults.clear();
-        searchNewRequest(searchParams, &searchResults);
+        rightSideTabId = 3;
+        lastSearchParams = searchParams;
+        searchNewRequest(lastSearchParams, &searchResults);
     }
 
     // TODO: remove
@@ -464,6 +481,114 @@ bool doSearchPopup(bool open, SearchParams* params)
 
     ImGui::PopStyleVar(3);
     return doSearch;
+}
+
+bool toolsSearchResults(const SearchParams& params, const Array<SearchResult>& results, u64* gotoOffset)
+{
+    switch(params.dataType) {
+        case SearchDataType::ASCII_String: {
+            const f32 typeFrameLen = ImGui::CalcTextSize("ASCII").x + 20.0f;
+            const f32 searchTermFrameLen = ImGui::GetContentRegionAvail().x - typeFrameLen;
+
+            ImGui::TextBox(0xffdfdfdf, 0xff000000, ImVec2(typeFrameLen, 35), ImVec2(0.5, 0.5), ImVec2(0, 0),
+                           "ASCII");
+            ImGui::SameLine();
+            ImGui::TextBox(0xffffefef, 0xffff0000, ImVec2(searchTermFrameLen, 35),
+                           ImVec2(0, 0.5), ImVec2(10, 0),
+                           "%.*s", params.dataSize, params.str);
+        } break;
+
+        case SearchDataType::Integer: {
+            if(params.intSigned) {
+                const f32 typeFrameLen = ImGui::CalcTextSize("Integer").x + 20.0f;
+                const f32 searchTermFrameLen = ImGui::GetContentRegionAvail().x - typeFrameLen;
+
+                ImGui::TextBox(0xffdfdfdf, 0xff000000, ImVec2(typeFrameLen, 35), ImVec2(0.5, 0.5),
+                               ImVec2(0, 0), "Integer");
+                ImGui::SameLine();
+                ImGui::TextBox(0xffffefef, 0xffff0000, ImVec2(searchTermFrameLen, 35), ImVec2(0, 0.5),
+                               ImVec2(10, 0),
+                               "%d", params.vint);
+            }
+            else {
+                const f32 typeFrameLen = ImGui::CalcTextSize("Unsigned integer").x + 20.0f;
+                const f32 searchTermFrameLen = ImGui::GetContentRegionAvail().x - typeFrameLen;
+
+                ImGui::TextBox(0xffdfdfdf, 0xff000000, ImVec2(typeFrameLen, 35), ImVec2(0.5, 0.5),
+                               ImVec2(0, 0), "Unsigned integer");
+                ImGui::SameLine();
+                ImGui::TextBox(0xffffefef, 0xffff0000, ImVec2(searchTermFrameLen, 35),
+                               ImVec2(0, 0.5), ImVec2(10, 0),
+                               "%llu", params.vuint);
+            }
+        } break;
+
+        case SearchDataType::Float: {
+            const f32 typeFrameLen = ImGui::CalcTextSize("Float").x + 20.0f;
+            const f32 searchTermFrameLen = ImGui::GetContentRegionAvail().x - typeFrameLen;
+
+            ImGui::TextBox(0xffdfdfdf, 0xff000000, ImVec2(typeFrameLen, 35), ImVec2(0.5, 0.5), ImVec2(0, 0),
+                           "Float");
+            ImGui::SameLine();
+            ImGui::TextBox(0xffffefef, 0xffff0000, ImVec2(searchTermFrameLen, 35), ImVec2(0, 0.5),
+                           ImVec2(10, 0),
+                           "%g", params.dataSize == 4 ? params.vf32 : params.vf64);
+        } break;
+    }
+
+    ImGui::TextBox(0xffffffff, 0xff000000, ImVec2(0, 30), ImVec2(0, 0.5), ImVec2(10, 0),
+                   "%d found", results.count());
+
+    const i32 count = results.count();
+    if(count <= 0) {
+        return false;
+    }
+
+    bool clicked = false;
+
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
+    ImGui::BeginChild("search_results", {0,0}, false, ImGuiWindowFlags_AlwaysUseWindowPadding);
+
+    ImGuiWindow* window = ImGui::GetCurrentWindow();
+    const ImVec2 padding = {12, 3};
+    const ImVec2 textSize = ImGui::CalcTextSize("AAAAAAAAAAA");
+    ImGuiListClipper clipper(count, textSize.y + padding.y * 2);
+
+    for(i32 i = clipper.DisplayStart; i < clipper.DisplayEnd; i++) {
+        const u64 itemDataOffset = results[i].offset;
+        const ImVec2 pos = window->DC.CursorPos;
+        const ImVec2 size = {ImGui::GetContentRegionAvail().x, textSize.y + padding.y * 2};
+        const ImRect frameBb = {pos, pos + size};
+        bool hovered, held;
+        ImGui::ButtonBehavior(frameBb, window->GetID(((u8*)&results) + i), &hovered, &held);
+
+        u32 textColor = 0xff000000;
+        u32 frameColor = (i&1) ? 0xfff0f0f0 : 0xffe0e0e0;
+
+        if(held) {
+            frameColor = 0xffff7200;
+            textColor = 0xffffffff;
+            *gotoOffset = itemDataOffset;
+        }
+        else if(hovered) {
+            frameColor = 0xffffb056;
+            textColor = 0xffff0000;
+        }
+        clicked |= held;
+
+        ImGui::TextBox(frameColor, textColor, size,
+                       ImVec2(0, 0.5), ImVec2(padding.x, 0),
+                       "%llx", itemDataOffset);
+    }
+
+    // TODO: add pages
+    clipper.End();
+
+    ImGui::ItemSize(ImVec2(10, 30));
+
+    ImGui::EndChild();
+    ImGui::PopStyleVar(1);
+    return clicked;
 }
 
 };

@@ -143,6 +143,7 @@ struct DataPanels
     inline bool selectionInSelectionRange(i64 dataOffset);
     bool selectionIsEmpty();
     void deselect();
+    void select(i64 start, i64 end);
 
     DataPanels();
     void setFileBuffer(u8* buff, i64 buffSize);
