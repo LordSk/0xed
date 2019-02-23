@@ -79,6 +79,7 @@ bool init()
 
     if(openFileReadAll("C:\\Prog\\Projets\\sacred_remake\\sacred_data\\mixed.pak", &curFileBuff)) {
         dataPanels.setFileBuffer(curFileBuff.data, curFileBuff.size);
+		// TODO: onFileLoaded
     }
 
     searchResults.reserve(1024);
@@ -156,6 +157,7 @@ void handleEvent(const SDL_Event& event)
 
         if(openFileReadAll(droppedFilepath, &curFileBuff)) {
             dataPanels.setFileBuffer(curFileBuff.data, curFileBuff.size);
+			searchSetNewFileBuffer(curFileBuff);
         }
 
         SDL_free(droppedFilepath);
@@ -286,10 +288,10 @@ void doUI()
                 ui_brickWall(&brickWall, curFileBuff.data);
                 break;
             case 2:
+				toolsDoOptions(&dataPanels.columnCount);
                 toolsDoScript(&script, &brickWall);
                 break;
             case 3:
-                //toolsDoOptions(&dataPanels.columnCount);
                 // search results here
                 u64 searchGotoOffset;
                 if(toolsSearchResults(lastSearchParams, searchResults, &searchGotoOffset)) {
