@@ -153,7 +153,6 @@ struct DataPanels
     i32 getSelectedInt();
 
     void calculatePanelWidth();
-    void doRowHeader();
 
     void doUi();
 
@@ -165,3 +164,32 @@ struct DataPanels
 
     void doPanelParamPopup(bool open, i32* panelId, ImVec2 popupPos);
 };
+
+struct UiStyle
+{
+	const i32 columnWidth = 22;
+	const f32 rowHeight = 22;
+	const i32 columnHeaderHeight = 24;
+	const i32 panelSpacing = 10;
+	const f32 panelCloseButtonWidth = 20;
+	const f32 panelColorButtonWidth = 30;
+
+	const i32 asciiCharWidth = 14;
+	const i32 intColumnWidth = 34;
+
+	const u32 textColor = 0xff000000;
+	const u32 hoverFrameColor = 0xffff9c4c;
+	const u32 selectedFrameColor = 0xffff7200;
+	const u32 selectedTextColor = 0xffffffff;
+
+	const u32 headerBgColorOdd = 0xffd8d8d8;
+	const u32 headerBgColorEven = 0xffe5e5e5;
+	const u32 headerTextColorOdd = 0xff808080;
+	const u32 headerTextColorEven = 0xff737373;
+};
+
+extern UiStyle* g_uiStyle;
+void SetUiStyleLight();
+inline const UiStyle& GetUiStyle() { return *g_uiStyle; }
+
+void UiHexRowHeader(i64 firstRow, i32 rowStep, const SelectionState& selection);

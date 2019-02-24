@@ -356,68 +356,6 @@ void DataPanels::calculatePanelWidth()
     }
 }
 
-void DataPanels::doRowHeader()
-{
-    // row header
-    ImRect winRect = ImGui::GetCurrentWindow()->Rect();
-    const i32 lineCount = (winRect.GetHeight() - columnHeaderHeight) / rowHeight + 1;
-
-    char numStr[24];
-    i32 strLen = sprintf(numStr, "%lld", (lineCount + scrollCurrentLine) * columnCount);
-    const ImVec2 maxTextSize = ImGui::CalcTextSize(numStr, numStr+strLen);
-    rowHeaderWidth = maxTextSize.x + 12;
-
-    ImGui::ItemSize(ImVec2(rowHeaderWidth, -1));
-
-    const ImVec2& winPos = winRect.Min;
-    ImRect rowHeadBb(winPos, winPos + ImVec2(rowHeaderWidth, winRect.GetHeight()));
-    const ImU32 headerColor = ImGui::ColorConvertFloat4ToU32(ImVec4(0.9, 0.9, 0.9, 1));
-    const ImU32 headerColorOdd = ImGui::ColorConvertFloat4ToU32(ImVec4(0.85, 0.85, 0.85, 1));
-    ImGui::RenderFrame(rowHeadBb.Min, rowHeadBb.Max, headerColor, false, 0);
-
-    const i64 hoverStart = selectionState.hoverStart / columnCount;
-    const i64 hoverEnd = (selectionState.hoverEnd-1) / columnCount;
-    const bool hovered = selectionState.hoverStart >= 0;
-    const i64 selectStart = selectionState.selectStart / columnCount;
-    const i64 selectEnd = (selectionState.selectEnd) / columnCount;
-    const bool selected = selectionState.selectStart >= 0;
-
-    for(i64 i = 0; i < lineCount; ++i) {
-        const i64 line = i + scrollCurrentLine;
-        const i32 len = sprintf(numStr, "%lld", line * columnCount);
-        const char* label = numStr;
-        const ImVec2 label_size = ImGui::CalcTextSize(label, label+len);
-        const ImVec2 size = ImGui::CalcItemSize(ImVec2(rowHeaderWidth, rowHeight),
-                                                label_size.x, label_size.y);
-
-        ImVec2 cellPos(0, rowHeight * i);
-        cellPos += winPos;
-        cellPos.y += columnHeaderHeight + 21;
-        const ImRect bb(cellPos, cellPos + size);
-
-        u32 frameColor = (i & 1) ? headerColorOdd : headerColor;
-        u32 textColor = (i & 1) ? 0xff808080 : 0xff737373;
-        if(selected && line >= selectStart && line <= selectEnd) {
-            frameColor = selectedFrameColor;
-            textColor = 0xffffffff;
-        }
-        else if(hovered && line >= hoverStart && line <= hoverEnd) {
-            frameColor = hoverFrameColor;
-            textColor = 0xff000000;
-        }
-
-        if(frameColor != headerColor) {
-           ImGui::RenderFrame(bb.Min, bb.Max, frameColor, false, 0);
-        }
-
-        ImGui::PushStyleColor(ImGuiCol_Text, textColor);
-        ImGui::RenderTextClipped(bb.Min, bb.Max, label, label+len,
-                          &label_size, ImVec2(0.3, 0.5), &bb);
-
-        ImGui::PopStyleColor();
-    }
-}
-
 void DataPanels::doUi()
 {
     if(!fileBuffer) {
@@ -433,7 +371,8 @@ void DataPanels::doUi()
     ImGuiIO& io = ImGui::GetIO();
     bool openPanelParamPopup = false;
 
-    doRowHeader();
+	UiHexRowHeader(scrollCurrentLine, columnCount, selectionState);
+
     ImGui::SameLine();
 
     // force appropriate content height
@@ -1249,3 +1188,77 @@ void DataPanels::doBrickPanel(const char* label, const i32 startLine)
     }
 }
 #endif
+
+void UiHexRowHeader(i64 firstRow, i32 rowStep, const SelectionState& selection)
+{
+	SetUiStyleLight(); // TODO: remove
+	const UiStyle& style = GetUiStyle();
+
+	// row header
+	ImRect winRect = ImGui::GetCurrentWindow()->Rect();
+	const i32 lineCount = (winRect.GetHeight() - style.columnHeaderHeight) / style.rowHeight + 1;
+
+	char numStr[24];
+	i32 strLen = sprintf(numStr, "%lld", (lineCount + firstRow) * rowStep);
+	const ImVec2 maxTextSize = ImGui::CalcTextSize(numStr, numStr+strLen);
+	f32 rowHeaderWidth = maxTextSize.x + 12;
+
+	ImGui::ItemSize(ImVec2(rowHeaderWidth, -1));
+
+	const ImVec2& winPos = winRect.Min;
+	ImRect rowHeadBb(winPos, winPos + ImVec2(rowHeaderWidth, winRect.GetHeight()));
+	ImGui::RenderFrame(rowHeadBb.Min, rowHeadBb.Max, style.headerBgColorEven, false, 0);
+
+	const i64 hoverStart = min(selection.hoverStart, selection.hoverEnd) / rowStep;
+	const i64 hoverEnd = (max(selection.hoverStart, selection.hoverEnd)-1) / rowStep;
+	const bool hovered = selection.hoverStart >= 0;
+	const i64 selectStart = min(selection.selectStart, selection.selectEnd) / rowStep;
+	const i64 selectEnd = max(selection.selectStart, selection.selectEnd) / rowStep;
+	const bool selected = selection.selectStart >= 0;
+
+	for(i64 i = 0; i < lineCount; ++i) {
+		const i64 line = i + firstRow;
+		const i32 len = sprintf(numStr, "%lld", line * rowStep);
+		const char* label = numStr;
+		const ImVec2 label_size = ImGui::CalcTextSize(label, label+len);
+		const ImVec2 size = ImGui::CalcItemSize(ImVec2(rowHeaderWidth, style.rowHeight),
+												label_size.x, label_size.y);
+
+		ImVec2 cellPos(0, style.rowHeight * i);
+		cellPos += winPos;
+		cellPos.y += style.columnHeaderHeight + 21;
+		const ImRect bb(cellPos, cellPos + size);
+
+		const bool isOdd = i & 1;
+
+		u32 frameColor = isOdd ? style.headerBgColorOdd : style.headerBgColorEven;
+		u32 textColor = isOdd ? style.headerTextColorOdd : style.headerTextColorEven;
+
+		if(selected && line >= selectStart && line <= selectEnd) {
+			frameColor = style.selectedFrameColor;
+			textColor = style.selectedTextColor;
+		}
+		else if(hovered && line >= hoverStart && line <= hoverEnd) {
+			frameColor = style.hoverFrameColor;
+			textColor = style.textColor;
+		}
+
+		if(frameColor != style.headerTextColorEven) {
+		   ImGui::RenderFrame(bb.Min, bb.Max, frameColor, false, 0);
+		}
+
+		ImGui::PushStyleColor(ImGuiCol_Text, textColor);
+		ImGui::RenderTextClipped(bb.Min, bb.Max, label, label+len,
+						  &label_size, ImVec2(0.3, 0.5), &bb);
+
+		ImGui::PopStyleColor();
+	}
+}
+
+UiStyle* g_uiStyle = nullptr;
+
+void SetUiStyleLight()
+{
+	static UiStyle style;
+	g_uiStyle = &style;
+}

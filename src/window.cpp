@@ -158,7 +158,9 @@ bool AppWindow::init(const char* title, i32 width, i32 height, bool maximized, c
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
     ImGuiIO& io = ImGui::GetIO(); (void)io;
-    //io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;  // Enable Keyboard Controls
+	io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;  // Enable Keyboard Controls
+	io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;  // Enable Docking
+	//io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;  // Enable Viewports
 
     ImGui_ImplSDL2_InitForOpenGL(sdlWin, glContext);
     ImGui_ImplOpenGL3_Init();
@@ -229,7 +231,7 @@ void AppWindow::loop()
             // limit framerate
             u32 frameTime = SDL_GetTicks() - frameStart;
             if(frameTime < 15) {
-                SDL_Delay(15 - frameTime);
+				SDL_Delay(15 - frameTime); // TODO: do better than that?
             }
         }
     }

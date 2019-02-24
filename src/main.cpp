@@ -343,7 +343,7 @@ void doUI()
 
     ui_brickPopup(POPUP_BRICK_ADD, popupBrickSelStart, popupBrickSelLength, &brickWall);
 
-    //ImGui::ShowDemoWindow();
+	ImGui::ShowDemoWindow();
 }
 
 bool doSearchPopup(bool open, SearchParams* params)
