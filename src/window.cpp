@@ -186,7 +186,7 @@ void AppWindow::loop()
         while(SDL_PollEvent(&event)) {
             eventCount++;
             _handleEvent(event);
-            ImGui_ImplSDL2_ProcessEvent(&event);
+			ImGui_ImplSDL2_ProcessEvent(&event);
         }
 
         // window is not focused, sleep
