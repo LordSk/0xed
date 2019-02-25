@@ -190,9 +190,9 @@ static void setStyleLight()
     style.FrameBorderSize = 1.0f;
     style.PopupBorderSize = 1.0f;
     style.GrabMinSize = 20.0f;
-    style.GrabRounding = 7.5f;
+	style.GrabRounding = 7.5f;
     style.ScrollbarSize = 15.0f;
-    style.ScrollbarRounding = 7.5f;
+	style.ScrollbarRounding = 7.5f;
     style.Colors[ImGuiCol_ScrollbarBg] = ImVec4(0.88, 0.88, 0.9, 1.0);
     style.Colors[ImGuiCol_ScrollbarGrab] = ImVec4(0.5, 0.5, 0.5, 1.0);
     style.Colors[ImGuiCol_ScrollbarGrabHovered] = ImVec4(102/255.0, 178/255.0, 1.0, 1.0);
@@ -308,11 +308,17 @@ void doUI()
 	ImGui::End();
 
 	// Search
-	ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
+	ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
 	ImGui::Begin("Search", nullptr, 0/*|ImGuiWindowFlags_NoTitleBar|ImGuiWindowFlags_NoResize|
 				 ImGuiWindowFlags_NoMove|ImGuiWindowFlags_NoScrollbar*/);
 	ImGui::PopStyleVar(1);
 
+		// search params
+		if(toolsSearchParams(&searchParams)) {
+			searchResults.clear();
+			lastSearchParams = searchParams;
+			searchNewRequest(lastSearchParams, &searchResults);
+		}
 		// search results here
 		u64 searchGotoOffset;
 		if(toolsSearchResults(lastSearchParams, searchResults, &searchGotoOffset)) {
@@ -361,13 +367,6 @@ void doUI()
         ImGui::EndPopup();
     }
 
-    if(doSearchPopup(openSearch, &searchParams)) {
-        searchResults.clear();
-        lastSearchParams = searchParams;
-        searchNewRequest(lastSearchParams, &searchResults);
-		ImGui::FocusWindow(searchWindow);
-    }
-
     // TODO: remove
     if(popupBrickWantOpen) {
         popupBrickWantOpen = false;
@@ -379,150 +378,137 @@ void doUI()
 	//ImGui::ShowDemoWindow();
 }
 
-bool doSearchPopup(bool open, SearchParams* params)
+bool toolsSearchParams(SearchParams* params)
 {
-    bool doSearch = false;
+	bool doSearch = false;
 
-    if(open) {
-        ImGui::OpenPopup("Search data item");
-        ImGui::SetNextWindowPos(ImVec2(200, 200)); // TODO: does not work
-    }
+	ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(10, 10));
+	ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(10, 10));
 
-    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(15, 15));
-    ImGui::PushStyleVar(ImGuiStyleVar_PopupRounding, 5);
-    ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(8, 8));
+	// TODO: so I didn't find a way to do a group with padding. A child seems required.
+	// Change child size to fit content (depending on search type)
+	ImGui::BeginChild("search_params", ImVec2(0, 270), false, ImGuiWindowFlags_AlwaysUseWindowPadding);
 
-    if(ImGui::BeginPopupModal("Search data item", nullptr,
-                    ImGuiWindowFlags_AlwaysAutoResize|ImGuiWindowFlags_NoCollapse)) {
+	const char* dataTypeComboItems[] = {
+		"ASCII String",
+		"Integer",
+		"Float",
+	};
 
-        const char* dataTypeComboItems[] = {
-            "ASCII String",
-            "Integer",
-            "Float",
-        };
+	ImGui::ButtonListOne("##comboDataType", dataTypeComboItems, arr_count(dataTypeComboItems),
+						 (i32*)&params->dataType);
 
-        ImGui::ButtonListOne("##comboDataType", dataTypeComboItems, arr_count(dataTypeComboItems),
-                             (i32*)&params->dataType);
-        ImGui::Separator();
+	switch(params->dataType) {
+		case SearchDataType::ASCII_String: {
+			ImGui::Text("String:");
+			ImGui::InputText("##searchString", params->str, sizeof(params->str));
+			params->dataSize = strlen(params->str);
+			params->strideKind = SearchParams::Stride::Full;
+		} break;
 
-        switch(params->dataType) {
-            case SearchDataType::ASCII_String: {
-                ImGui::Text("String:");
-                ImGui::InputText("##searchString", params->str, sizeof(params->str));
-                params->dataSize = strlen(params->str);
-                params->strideKind = SearchParams::Stride::Full;
-            } break;
-
-            case SearchDataType::Integer: {
-                static i32 bitSizeItemId = 2;
-                static i32 searchStrideId = 2;
+		case SearchDataType::Integer: {
+			static i32 bitSizeItemId = 2;
+			static i32 searchStrideId = 2;
 
 
-                ImGui::Text("Integer size (in bits):");
-                const char* bitSizeList[] = {
-                    "8",
-                    "16",
-                    "32",
-                    "64",
-                };
+			ImGui::Text("Integer size (in bits):");
+			const char* bitSizeList[] = {
+				"8",
+				"16",
+				"32",
+				"64",
+			};
 
-                ImGui::ButtonListOne("byte_size_select", bitSizeList, arr_count(bitSizeList),
-                                     &bitSizeItemId, ImVec2(200, 0));
+			ImGui::ButtonListOne("byte_size_select", bitSizeList, arr_count(bitSizeList),
+								 &bitSizeItemId, ImVec2(200, 0));
 
-                ImGui::Text("Search stride:");
-                const char* strideSelectList[] = {
-                    "Full",
-                    "Twice",
-                    "Even",
-                };
-                ImGui::ButtonListOne("stride_select", strideSelectList, arr_count(strideSelectList),
-                                     &searchStrideId, ImVec2(200, 0));
+			ImGui::Text("Search stride:");
+			const char* strideSelectList[] = {
+				"Full",
+				"Twice",
+				"Even",
+			};
+			ImGui::ButtonListOne("stride_select", strideSelectList, arr_count(strideSelectList),
+								 &searchStrideId, ImVec2(200, 0));
 
-                static bool signed_ = true;
-                ImGui::Checkbox("Signed", &signed_);
+			static bool signed_ = true;
+			ImGui::Checkbox("Signed", &signed_);
 
-                ImGui::Text("Integer:");
-                const i32 step = 1;
-                const i32 stepFast = 100;
+			ImGui::Text("Integer:");
+			const i32 step = 1;
+			const i32 stepFast = 100;
 
-                ImGuiDataType_ intType = bitSizeItemId == 3 ? ImGuiDataType_S64: ImGuiDataType_S32;
-                char* format = bitSizeItemId == 3 ? "%lld": "%d";
-                void* searchInt = &params->vint;
-                if(!signed_) {
-                    intType = bitSizeItemId == 3 ? ImGuiDataType_U64: ImGuiDataType_U32;
-                    format = bitSizeItemId == 3 ? "%llu": "%u";
-                    searchInt = &params->vuint;
-                }
+			ImGuiDataType_ intType = bitSizeItemId == 3 ? ImGuiDataType_S64: ImGuiDataType_S32;
+			const char* format = bitSizeItemId == 3 ? "%lld": "%d";
+			void* searchInt = &params->vint;
+			if(!signed_) {
+				intType = bitSizeItemId == 3 ? ImGuiDataType_U64: ImGuiDataType_U32;
+				format = bitSizeItemId == 3 ? "%llu": "%u";
+				searchInt = &params->vuint;
+			}
 
-                params->dataSize = 1 << bitSizeItemId;
-                params->strideKind = (SearchParams::Stride)searchStrideId;
+			params->dataSize = 1 << bitSizeItemId;
+			params->strideKind = (SearchParams::Stride)searchStrideId;
 
-                ImGui::InputScalar("##int_input", intType, searchInt, &step,
-                                   &stepFast, format);
-            } break;
+			ImGui::InputScalar("##int_input", intType, searchInt, &step,
+							   &stepFast, format);
+		} break;
 
-            case SearchDataType::Float: {
-                static i32 bitSizeItemId = 0;
-                static i32 searchStrideId = 2;
+		case SearchDataType::Float: {
+			static i32 bitSizeItemId = 0;
+			static i32 searchStrideId = 2;
 
 
-                ImGui::Text("Float size (in bits):");
-                const char* bitSizeList[] = {
-                    "32",
-                    "64",
-                };
+			ImGui::Text("Float size (in bits):");
+			const char* bitSizeList[] = {
+				"32",
+				"64",
+			};
 
-                ImGui::ButtonListOne("byte_size_select", bitSizeList, arr_count(bitSizeList),
-                                     &bitSizeItemId, ImVec2(100, 0));
+			ImGui::ButtonListOne("byte_size_select", bitSizeList, arr_count(bitSizeList),
+								 &bitSizeItemId, ImVec2(100, 0));
 
-                ImGui::Text("Search stride:");
-                const char* strideSelectList[] = {
-                    "Full",
-                    "Twice",
-                    "Even",
-                };
-                ImGui::ButtonListOne("stride_select", strideSelectList, arr_count(strideSelectList),
-                                     &searchStrideId, ImVec2(200, 0));
+			ImGui::Text("Search stride:");
+			const char* strideSelectList[] = {
+				"Full",
+				"Twice",
+				"Even",
+			};
+			ImGui::ButtonListOne("stride_select", strideSelectList, arr_count(strideSelectList),
+								 &searchStrideId, ImVec2(200, 0));
 
-                ImGui::Text("Float:");
+			ImGui::Text("Float:");
 
-                const f64 step = 1;
-                const f64 stepFast = 10;
-                ImGuiDataType_ fltType = bitSizeItemId == 0 ? ImGuiDataType_Float: ImGuiDataType_Double;
-                char* format = bitSizeItemId == 0 ? "%.5f": "%.10f";
-                void* fltVal = bitSizeItemId == 0 ? &params->vf32: &params->vf64;
+			const f64 step = 1;
+			const f64 stepFast = 10;
+			ImGuiDataType_ fltType = bitSizeItemId == 0 ? ImGuiDataType_Float: ImGuiDataType_Double;
+			const char* format = bitSizeItemId == 0 ? "%.5f": "%.10f";
+			void* fltVal = bitSizeItemId == 0 ? &params->vf32: &params->vf64;
 
-                params->dataSize = bitSizeItemId == 0 ? 4 : 8;
-                params->strideKind = (SearchParams::Stride)searchStrideId;
+			params->dataSize = bitSizeItemId == 0 ? 4 : 8;
+			params->strideKind = (SearchParams::Stride)searchStrideId;
 
-                ImGui::InputScalar("##flt_input", fltType, fltVal, &step,
-                                   &stepFast, format);
-            } break;
+			ImGui::InputScalar("##flt_input", fltType, fltVal, &step,
+							   &stepFast, format);
+		} break;
 
-            default: assert(0); break;
-        }
+		default: assert(0); break;
+	}
 
-        if(ImGui::Button("Search", ImVec2(120,0))) {
-            doSearch = true;
-            ImGui::CloseCurrentPopup();
-        }
-        ImGui::SameLine();
-        if(ImGui::Button("Cancel", ImVec2(120,0))) {
-            ImGui::CloseCurrentPopup();
-        }
+	if(ImGui::Button("Search", ImVec2(120,0))) {
+		doSearch = true;
+	}
 
-        ImGui::EndPopup();
-    }
-
-    ImGui::PopStyleVar(3);
-    return doSearch;
+	ImGui::EndChild();
+	ImGui::PopStyleVar(2); // ItemSpacing, WindowPadding
+	return doSearch;
 }
 
 bool toolsSearchResults(const SearchParams& params, const Array<SearchResult>& results, u64* gotoOffset)
 {
 	ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(0, 0));
 
-    switch(params.dataType) {
+	switch(params.dataType) {
         case SearchDataType::ASCII_String: {
             const f32 typeFrameLen = ImGui::CalcTextSize("ASCII").x + 20.0f;
             const f32 searchTermFrameLen = ImGui::GetContentRegionAvail().x - typeFrameLen;
@@ -532,11 +518,11 @@ bool toolsSearchResults(const SearchParams& params, const Array<SearchResult>& r
             ImGui::SameLine();
             ImGui::TextBox(0xffffefef, 0xffff0000, ImVec2(searchTermFrameLen, 35),
                            ImVec2(0, 0.5), ImVec2(10, 0),
-                           "%.*s", params.dataSize, params.str);
+						   "%.*s", params.dataSize, params.str);
         } break;
 
         case SearchDataType::Integer: {
-            if(params.intSigned) {
+			if(params.intSigned) {
                 const f32 typeFrameLen = ImGui::CalcTextSize("Integer").x + 20.0f;
                 const f32 searchTermFrameLen = ImGui::GetContentRegionAvail().x - typeFrameLen;
 
@@ -545,7 +531,7 @@ bool toolsSearchResults(const SearchParams& params, const Array<SearchResult>& r
                 ImGui::SameLine();
                 ImGui::TextBox(0xffffefef, 0xffff0000, ImVec2(searchTermFrameLen, 35), ImVec2(0, 0.5),
                                ImVec2(10, 0),
-                               "%d", params.vint);
+							   "%d", params.vint);
             }
             else {
                 const f32 typeFrameLen = ImGui::CalcTextSize("Unsigned integer").x + 20.0f;
@@ -556,7 +542,7 @@ bool toolsSearchResults(const SearchParams& params, const Array<SearchResult>& r
                 ImGui::SameLine();
                 ImGui::TextBox(0xffffefef, 0xffff0000, ImVec2(searchTermFrameLen, 35),
                                ImVec2(0, 0.5), ImVec2(10, 0),
-                               "%llu", params.vuint);
+							   "%llu", params.vuint);
             }
         } break;
 
@@ -569,7 +555,7 @@ bool toolsSearchResults(const SearchParams& params, const Array<SearchResult>& r
             ImGui::SameLine();
             ImGui::TextBox(0xffffefef, 0xffff0000, ImVec2(searchTermFrameLen, 35), ImVec2(0, 0.5),
                            ImVec2(10, 0),
-                           "%g", params.dataSize == 4 ? params.vf32 : params.vf64);
+						   "%g", params.dataSize == 4 ? params.vf32 : params.vf64);
         } break;
     }
 
@@ -578,6 +564,7 @@ bool toolsSearchResults(const SearchParams& params, const Array<SearchResult>& r
 
     const i32 count = results.count();
     if(count <= 0) {
+		ImGui::PopStyleVar(1); // ItemSpacing
         return false;
     }
 
