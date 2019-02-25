@@ -158,6 +158,7 @@ bool AppWindow::init(const char* title, i32 width, i32 height, bool maximized, c
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
     ImGuiIO& io = ImGui::GetIO(); (void)io;
+	io.IniFilename = imgui_ini;
 	io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;  // Enable Keyboard Controls
 	io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;  // Enable Docking
 	//io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;  // Enable Viewports

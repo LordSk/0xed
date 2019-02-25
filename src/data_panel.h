@@ -190,6 +190,6 @@ struct UiStyle
 
 extern UiStyle* g_uiStyle;
 void SetUiStyleLight();
-inline const UiStyle& GetUiStyle() { return *g_uiStyle; }
+inline const UiStyle& GetUiStyle() { assert(g_uiStyle); return *g_uiStyle; }
 
-void UiHexRowHeader(i64 firstRow, i32 rowStep, const SelectionState& selection);
+void UiHexRowHeader(i64 firstRow, i32 rowStep, f32 textOffsetY, const SelectionState& selection);

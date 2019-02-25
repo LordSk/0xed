@@ -371,10 +371,18 @@ void DataPanels::doUi()
     ImGuiIO& io = ImGui::GetIO();
     bool openPanelParamPopup = false;
 
-	UiHexRowHeader(scrollCurrentLine, columnCount, selectionState);
+	SetUiStyleLight(); // TODO: remove
+	const UiStyle& style = GetUiStyle();
+
+	UiHexRowHeader(scrollCurrentLine, columnCount, style.columnHeaderHeight + panelHeaderHeight,
+				   selectionState);
 
     ImGui::SameLine();
 
+	UiHexRowHeader(scrollCurrentLine, columnCount, style.columnHeaderHeight + panelHeaderHeight,
+				   selectionState);
+
+#if 0
     // force appropriate content height
     ImGui::SetNextWindowContentSize(
                 ImVec2(0,
@@ -503,6 +511,7 @@ void DataPanels::doUi()
     if(panelMarkedForDelete >= 0 && panelCount > 1) {
         removePanel(panelMarkedForDelete);
     }
+#endif
 }
 
 void DataPanels::doHexPanel(i32 pid, f32 panelWidth, const i32 startLine)
@@ -1189,14 +1198,13 @@ void DataPanels::doBrickPanel(const char* label, const i32 startLine)
 }
 #endif
 
-void UiHexRowHeader(i64 firstRow, i32 rowStep, const SelectionState& selection)
+void UiHexRowHeader(i64 firstRow, i32 rowStep, f32 textOffsetY, const SelectionState& selection)
 {
-	SetUiStyleLight(); // TODO: remove
 	const UiStyle& style = GetUiStyle();
 
 	// row header
 	ImRect winRect = ImGui::GetCurrentWindow()->Rect();
-	const i32 lineCount = (winRect.GetHeight() - style.columnHeaderHeight) / style.rowHeight + 1;
+	const i32 lineCount = (winRect.GetHeight() - textOffsetY) / style.rowHeight + 1;
 
 	char numStr[24];
 	i32 strLen = sprintf(numStr, "%lld", (lineCount + firstRow) * rowStep);
@@ -1226,7 +1234,7 @@ void UiHexRowHeader(i64 firstRow, i32 rowStep, const SelectionState& selection)
 
 		ImVec2 cellPos(0, style.rowHeight * i);
 		cellPos += winPos;
-		cellPos.y += style.columnHeaderHeight + 21;
+		cellPos.y += textOffsetY;
 		const ImRect bb(cellPos, cellPos + size);
 
 		const bool isOdd = i & 1;
