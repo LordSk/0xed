@@ -38,7 +38,6 @@ DataPanels dataPanels;
 BrickWall brickWall;
 
 f32 toolsPanelWidth = 400;
-i32 rightSideTabId = 0;
 
 bool popupBrickWantOpen = false;
 intptr_t popupBrickSelStart;
@@ -92,7 +91,6 @@ bool init()
     lastSearchParams.dataSize = 4;
     lastSearchParams.strideKind = SearchParams::Stride::Even;
     searchNewRequest(lastSearchParams, &searchResults);
-    rightSideTabId = 3;
 
     /*u8* fileData = (u8*)malloc(256);
     curFileBuff.data = fileData;
@@ -222,8 +220,9 @@ void doUI()
 	ImGui::Begin("Mainframe", nullptr, window_flags);
 	ImGui::PopStyleVar(3);
 
-	ImGuiID dockspace_id = ImGui::GetID("MyDockspace");
-	ImGui::DockSpace(dockspace_id, ImVec2(0.0f, 0.0f), ImGuiDockNodeFlags_None);
+	ImGuiID dockspaceMain = ImGui::GetID("Dockspace_main");
+	ImGui::DockSpace(dockspaceMain, ImVec2(0.0f, 0.0f), ImGuiDockNodeFlags_None);
+	const ImVec2 mainDockSize = ImGui::GetContentRegionAvail();
 
 	// menu bar
 	bool openGoto = false;
@@ -267,54 +266,80 @@ void doUI()
 
 	ImGui::End();
 
-
-	ImGui::Begin("Mainframe_left", nullptr, 0/*|ImGuiWindowFlags_NoTitleBar|ImGuiWindowFlags_NoResize|
+	ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
+	ImGui::Begin("Hex view", nullptr, 0/*|ImGuiWindowFlags_NoTitleBar|ImGuiWindowFlags_NoResize|
 				 ImGuiWindowFlags_NoMove|ImGuiWindowFlags_NoScrollbar*/);
+	ImGui::PopStyleVar(1);
 
         dataPanels.doUi();
 
 	ImGui::End();
 
-	ImGui::Begin("Mainframe_right",nullptr, 0/*|ImGuiWindowFlags_NoTitleBar|ImGuiWindowFlags_NoResize|
+	// Tool windows
+	// Inspector
+	ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
+	ImGui::Begin("Inspector", nullptr, 0/*|ImGuiWindowFlags_NoTitleBar|ImGuiWindowFlags_NoResize|
 				 ImGuiWindowFlags_NoMove|ImGuiWindowFlags_NoScrollbar*/);
+	ImGui::PopStyleVar(1);
 
-        const char* tabs[] = {
-            "Inspector",
-            "Bricks",
-            "Scripts",
-            "Search results",
-        };
+		toolsDoInspector(dataPanels.fileBuffer, dataPanels.fileBufferSize,
+						 dataPanels.selectionState);
+	ImGui::End();
 
-        ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(15, 5));
-        ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(0, 0));
-        ImGui::Tabs("Inspector_tabs", tabs, IM_ARRAYSIZE(tabs), &rightSideTabId);
-        ImGui::PopStyleVar(1);
+	// Brick wall
+	ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
+	ImGui::Begin("Bricks", nullptr, 0/*|ImGuiWindowFlags_NoTitleBar|ImGuiWindowFlags_NoResize|
+				 ImGuiWindowFlags_NoMove|ImGuiWindowFlags_NoScrollbar*/);
+	ImGui::PopStyleVar(1);
 
-        switch(rightSideTabId) {
-            case 0:
-                toolsDoInspector(dataPanels.fileBuffer, dataPanels.fileBufferSize,
-                                 dataPanels.selectionState);
-                break;
-            case 1:
-                ui_brickWall(&brickWall, curFileBuff.data);
-                break;
-            case 2:
-				toolsDoOptions(&dataPanels.columnCount);
-                toolsDoScript(&script, &brickWall);
-                break;
-            case 3:
-                // search results here
-                u64 searchGotoOffset;
-                if(toolsSearchResults(lastSearchParams, searchResults, &searchGotoOffset)) {
-                    dataPanels.goTo(searchGotoOffset);
-                    dataPanels.select(searchGotoOffset, searchGotoOffset + lastSearchParams.dataSize - 1);
-                }
-                break;
-        }
-
-        ImGui::PopStyleVar(1); // ItemSpacing
+		ui_brickWall(&brickWall, curFileBuff.data);
 
 	ImGui::End();
+
+	// Scripts
+	ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
+	ImGui::Begin("Scripts", nullptr, 0/*|ImGuiWindowFlags_NoTitleBar|ImGuiWindowFlags_NoResize|
+				 ImGuiWindowFlags_NoMove|ImGuiWindowFlags_NoScrollbar*/);
+	ImGui::PopStyleVar(1);
+
+		toolsDoOptions(&dataPanels.columnCount);
+		toolsDoScript(&script, &brickWall);
+
+	ImGui::End();
+
+	// Search
+	ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
+	ImGui::Begin("Search", nullptr, 0/*|ImGuiWindowFlags_NoTitleBar|ImGuiWindowFlags_NoResize|
+				 ImGuiWindowFlags_NoMove|ImGuiWindowFlags_NoScrollbar*/);
+	ImGui::PopStyleVar(1);
+
+		// search results here
+		u64 searchGotoOffset;
+		if(toolsSearchResults(lastSearchParams, searchResults, &searchGotoOffset)) {
+			dataPanels.goTo(searchGotoOffset);
+			dataPanels.select(searchGotoOffset, searchGotoOffset + lastSearchParams.dataSize - 1);
+		}
+		ImGuiWindow* searchWindow = ImGui::GetCurrentWindowRead();
+
+	ImGui::End();
+
+	// Default layout (applies after first frame (sizes are correct afer the first frame))
+	if(!ImGui::DockBuilderGetNode(dockspaceMain)->IsSplitNode() && ImGui::GetFrameCount() > 1) {
+		ImGuiID dockspaceMainLeft, dockspaceMainRight;
+		/*ImGui::DockBuilderRemoveNode(dockspaceMain); // Clear out existing layout
+		ImGui::DockBuilderAddNode(dockspaceMain, ImGuiDockNodeFlags_Dockspace); // Add empty node*/
+		ImGui::DockBuilderSetNodeSize(dockspaceMain, mainDockSize);
+
+		ImGui::DockBuilderSplitNode(dockspaceMain, ImGuiDir_Right, 0.30f,
+									&dockspaceMainRight, &dockspaceMainLeft);
+
+		ImGui::DockBuilderDockWindow("Hex view", dockspaceMainLeft);
+		ImGui::DockBuilderDockWindow("Inspector", dockspaceMainRight);
+		ImGui::DockBuilderDockWindow("Bricks", dockspaceMainRight);
+		ImGui::DockBuilderDockWindow("Scripts", dockspaceMainRight);
+		ImGui::DockBuilderDockWindow("Search", dockspaceMainRight);
+		ImGui::DockBuilderFinish(dockspaceMain);
+	}
 
     static i32 gotoOffset = 0;
     if(openGoto) {
@@ -338,9 +363,9 @@ void doUI()
 
     if(doSearchPopup(openSearch, &searchParams)) {
         searchResults.clear();
-        rightSideTabId = 3;
         lastSearchParams = searchParams;
         searchNewRequest(lastSearchParams, &searchResults);
+		ImGui::FocusWindow(searchWindow);
     }
 
     // TODO: remove
