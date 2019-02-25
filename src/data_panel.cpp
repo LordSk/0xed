@@ -1203,8 +1203,9 @@ void UiHexRowHeader(i64 firstRow, i32 rowStep, f32 textOffsetY, const SelectionS
 	const UiStyle& style = GetUiStyle();
 
 	// row header
-	ImRect winRect = ImGui::GetCurrentWindow()->Rect();
-	const i32 lineCount = (winRect.GetHeight() - textOffsetY) / style.rowHeight + 1;
+	const ImVec2 winPos = ImGui::GetCurrentWindow()->DC.CursorPos;
+	const float winHeight = ImGui::GetCurrentWindow()->Rect().GetHeight();
+	const i32 lineCount = (winHeight - textOffsetY) / style.rowHeight + 1;
 
 	char numStr[24];
 	i32 strLen = sprintf(numStr, "%lld", (lineCount + firstRow) * rowStep);
@@ -1213,8 +1214,7 @@ void UiHexRowHeader(i64 firstRow, i32 rowStep, f32 textOffsetY, const SelectionS
 
 	ImGui::ItemSize(ImVec2(rowHeaderWidth, -1));
 
-	const ImVec2& winPos = winRect.Min;
-	ImRect rowHeadBb(winPos, winPos + ImVec2(rowHeaderWidth, winRect.GetHeight()));
+	ImRect rowHeadBb(winPos, winPos + ImVec2(rowHeaderWidth, winHeight));
 	ImGui::RenderFrame(rowHeadBb.Min, rowHeadBb.Max, style.headerBgColorEven, false, 0);
 
 	const i64 hoverStart = min(selection.hoverStart, selection.hoverEnd) / rowStep;

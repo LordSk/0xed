@@ -206,66 +206,77 @@ void doUI()
     setStyleLight();
 
     ImGuiIO& io = ImGui::GetIO();
-    ImGuiStyle& style = ImGui::GetStyle();
-    const i32 menuBarHeight = io.FontDefault->FontSize + style.FramePadding.y * 2.0;
-
-    bool openGoto = false;
-    bool openSearch = false;
-
-    // menu bar
-    if(ImGui::BeginMainMenuBar()) {
-        if(ImGui::BeginMenu("File")) {
-            if(ImGui::MenuItem("Open", "CTRL+O")) {
-                const char* filepath = noc_file_dialog_open(NOC_FILE_DIALOG_OPEN, "*", "", "");
-                if(filepath) {
-                    if(openFileReadAll(filepath, &curFileBuff)) {
-                        dataPanels.setFileBuffer(curFileBuff.data, curFileBuff.size);
-                    }
-                }
-            }
-            if(ImGui::MenuItem("Search", "CTRL+F")) {
-                openSearch = true;
-            }
-            if(ImGui::MenuItem("Exit", "CTRL+X")) {
-                win.exit();
-            }
-            ImGui::EndMenu();
-        }
-        if(ImGui::BeginMenu("About")) {
-            if(ImGui::MenuItem("About 0xed", "")) {
-
-            }
-            ImGui::EndMenu();
-        }
-
-        if(ImGui::Button("Add panel")) {
-            dataPanels.addNewPanel();
-        }
-
-        if(ImGui::Button("Goto")) {
-            openGoto = true;
-        }
-
-        ImGui::EndMainMenuBar();
-    }
 
     // TODO: status bar?
     // MAIN FRAME BEGIN
-    const ImRect winRect(0, menuBarHeight, win.winWidth, win.winHeight);
-    ImGui::SetNextWindowPos(winRect.Min);
-    ImGui::SetNextWindowSize(winRect.Max - winRect.Min);
-    ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0);
-    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0,0));
-    ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0);
-    ImGui::Begin("Mainframe", NULL, ImGuiWindowFlags_NoTitleBar|ImGuiWindowFlags_NoResize|
-                 ImGuiWindowFlags_NoMove|ImGuiWindowFlags_NoScrollbar/*|
-                 ImGuiWindowFlags_NoBringToFrontOnFocus*/);
+	ImGuiWindowFlags window_flags = ImGuiWindowFlags_MenuBar | ImGuiWindowFlags_NoDocking;
+	ImGuiViewport* viewport = ImGui::GetMainViewport();
+	ImGui::SetNextWindowPos(viewport->Pos);
+	ImGui::SetNextWindowSize(viewport->Size);
+	ImGui::SetNextWindowViewport(viewport->ID);
+	ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0.0f);
+	ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.0f);
+	ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
+	window_flags |= ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove;
+	window_flags |= ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_NoNavFocus;
+	ImGui::Begin("Mainframe", nullptr, window_flags);
+	ImGui::PopStyleVar(3);
 
-    ImGui::SplitVBeginLeft("Mainframe_left", nullptr, &toolsPanelWidth);
+	ImGuiID dockspace_id = ImGui::GetID("MyDockspace");
+	ImGui::DockSpace(dockspace_id, ImVec2(0.0f, 0.0f), ImGuiDockNodeFlags_None);
+
+	// menu bar
+	bool openGoto = false;
+	bool openSearch = false;
+
+	if(ImGui::BeginMainMenuBar()) {
+		if(ImGui::BeginMenu("File")) {
+			if(ImGui::MenuItem("Open", "CTRL+O")) {
+				const char* filepath = noc_file_dialog_open(NOC_FILE_DIALOG_OPEN, "*", "", "");
+				if(filepath) {
+					if(openFileReadAll(filepath, &curFileBuff)) {
+						dataPanels.setFileBuffer(curFileBuff.data, curFileBuff.size);
+					}
+				}
+			}
+			if(ImGui::MenuItem("Search", "CTRL+F")) {
+				openSearch = true;
+			}
+			if(ImGui::MenuItem("Exit", "CTRL+X")) {
+				win.exit();
+			}
+			ImGui::EndMenu();
+		}
+		if(ImGui::BeginMenu("About")) {
+			if(ImGui::MenuItem("About 0xed", "")) {
+
+			}
+			ImGui::EndMenu();
+		}
+
+		if(ImGui::Button("Add panel")) {
+			dataPanels.addNewPanel();
+		}
+
+		if(ImGui::Button("Goto")) {
+			openGoto = true;
+		}
+
+		ImGui::EndMainMenuBar();
+	}
+
+	ImGui::End();
+
+
+	ImGui::Begin("Mainframe_left", nullptr, 0/*|ImGuiWindowFlags_NoTitleBar|ImGuiWindowFlags_NoResize|
+				 ImGuiWindowFlags_NoMove|ImGuiWindowFlags_NoScrollbar*/);
 
         dataPanels.doUi();
 
-    ImGui::SplitVBeginRight("Mainframe_right", nullptr, &toolsPanelWidth);
+	ImGui::End();
+
+	ImGui::Begin("Mainframe_right",nullptr, 0/*|ImGuiWindowFlags_NoTitleBar|ImGuiWindowFlags_NoResize|
+				 ImGuiWindowFlags_NoMove|ImGuiWindowFlags_NoScrollbar*/);
 
         const char* tabs[] = {
             "Inspector",
@@ -303,10 +314,7 @@ void doUI()
 
         ImGui::PopStyleVar(1); // ItemSpacing
 
-    ImGui::SplitVEnd();
-
-    ImGui::End();
-    ImGui::PopStyleVar(3);
+	ImGui::End();
 
     static i32 gotoOffset = 0;
     if(openGoto) {
@@ -343,7 +351,7 @@ void doUI()
 
     ui_brickPopup(POPUP_BRICK_ADD, popupBrickSelStart, popupBrickSelLength, &brickWall);
 
-	ImGui::ShowDemoWindow();
+	//ImGui::ShowDemoWindow();
 }
 
 bool doSearchPopup(bool open, SearchParams* params)
