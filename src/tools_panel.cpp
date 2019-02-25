@@ -5,6 +5,8 @@
 
 void toolsDoInspector(const u8* fileBuffer, const i64 fileBufferSize, const SelectionState& selection)
 {
+	ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(0, 0));
+
     const u8* dataStart = &fileBuffer[min(selection.selectStart, selection.selectEnd)];
     const u8* dataEnd = &fileBuffer[max(selection.selectStart, selection.selectEnd) + 1];
 
@@ -43,6 +45,7 @@ void toolsDoInspector(const u8* fileBuffer, const i64 fileBufferSize, const Sele
     constexpr f32 tableLineHeight = 24;
 
     // ---- TYPES ----
+	ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
     ImGui::BeginChild("#inspector_left", ImVec2(150, typeCount * tableLineHeight), false,
                       ImGuiWindowFlags_AlwaysUseWindowPadding);
 
@@ -169,6 +172,8 @@ void toolsDoInspector(const u8* fileBuffer, const i64 fileBufferSize, const Sele
 
 
     ImGui::EndChild();
+
+	ImGui::PopStyleVar(2); // ItemSpacing, WindowPadding
 }
 
 void toolsDoTemplate(BrickWall* brickWall)

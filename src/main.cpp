@@ -520,6 +520,8 @@ bool doSearchPopup(bool open, SearchParams* params)
 
 bool toolsSearchResults(const SearchParams& params, const Array<SearchResult>& results, u64* gotoOffset)
 {
+	ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(0, 0));
+
     switch(params.dataType) {
         case SearchDataType::ASCII_String: {
             const f32 typeFrameLen = ImGui::CalcTextSize("ASCII").x + 20.0f;
@@ -622,7 +624,7 @@ bool toolsSearchResults(const SearchParams& params, const Array<SearchResult>& r
     ImGui::ItemSize(ImVec2(10, 30));
 
     ImGui::EndChild();
-    ImGui::PopStyleVar(1);
+	ImGui::PopStyleVar(2); // ItemSpacing, WindowPadding
     return clicked;
 }
 
