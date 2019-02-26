@@ -374,15 +374,15 @@ void DataPanels::doUi()
 	SetUiStyleLight(); // TODO: remove
 	const UiStyle& style = GetUiStyle();
 
+	ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(0, 0));
+
 	UiHexRowHeader(scrollCurrentLine, columnCount, style.columnHeaderHeight + panelHeaderHeight,
 				   selectionState);
 
     ImGui::SameLine();
 
-	UiHexRowHeader(scrollCurrentLine, columnCount, style.columnHeaderHeight + panelHeaderHeight,
-				   selectionState);
+#if 1
 
-#if 0
     // force appropriate content height
     ImGui::SetNextWindowContentSize(
                 ImVec2(0,
@@ -505,6 +505,7 @@ void DataPanels::doUi()
         }
 
     ImGui::EndChild();
+	ImGui::PopStyleVar(1);
 
     doPanelParamPopup(openPanelParamPopup, &panelParamWindowOpenId, panelParamWindowPos);
 
@@ -970,7 +971,7 @@ void DataPanels::doFormatPanel(i32 pid, f32 panelWidth, const i32 startLine, con
 
     const i32 lineCount = window->Rect().GetHeight() / rowHeight;
     i64 itemCount = min(fileBufferSize - (i64)startLine * columnCount, lineCount * columnCount);
-    itemCount &= ~(itemCount & (byteSize-1)); // round off item count based of byteSize
+	itemCount &= ~(itemCount & (byteSize-1)); // round off item count based on byteSize
     const i64 itemCount2 = itemCount;
 
     const ImGuiID imid = window->GetID(&panelRectWidth[pid]);
@@ -1088,8 +1089,8 @@ void DataPanels::doFormatPanel(i32 pid, f32 panelWidth, const i32 startLine, con
     ImU32 lineColor = 0xff808080;
     const i32 actualLineCount = (itemCount/columnCount)+1;
     const f32 colHeight = actualLineCount * rowHeight;
-
-    for(i32 c = 0; c <= columnCount; ++c) {
+	const i32 typeColumnCount = columnCount/byteSize;
+	for(i32 c = 0; c <= typeColumnCount; ++c) {
         ImRect bb(panelPos.x + cellSize.x * c, panelPos.y + columnHeaderHeight,
                   panelPos.x + cellSize.x * c + 1, panelPos.y + colHeight + 2);
         ImGui::RenderFrame(bb.Min, bb.Max, lineColor, false, 0);
