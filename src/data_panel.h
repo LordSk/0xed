@@ -3,8 +3,8 @@
 #include "utils.h"
 
 #define IMGUI_DEFINE_MATH_OPERATORS
-#include "imgui.h"
-#include "imgui_internal.h"
+#include "imgui.h" // ImVec2
+#include "imgui_internal.h" // ImRect, ImGuiWindow
 
 #define PANEL_MAX_COUNT 10
 
