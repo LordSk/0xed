@@ -381,130 +381,138 @@ void DataPanels::doUi()
 
     ImGui::SameLine();
 
-#if 1
+	// force appropriate content size
+	f32 windowWidth = panelSpacing + ImGui::GetStyle().ScrollbarSize;
+	for(i32 p = 0; p < panelCount; ++p)
+		windowWidth += panelRectWidth[p] + panelSpacing;
 
-    // force appropriate content height
-    ImGui::SetNextWindowContentSize(
-                ImVec2(0,
-                totalLineCount * rowHeight)
-                );
-    ImGui::BeginChild("#child_panel", ImVec2(-1, -1), false,
-                      ImGuiWindowFlags_HorizontalScrollbar);
+	ImGui::SetNextWindowContentSize(ImVec2(windowWidth, totalLineCount * rowHeight));
+	ImGui::BeginChild("#child_panel", ImVec2(0, 0), false,
+					  ImGuiWindowFlags_HorizontalScrollbar);
 
-        ImGuiWindow* window = ImGui::GetCurrentWindow();
-        if(goToLine != -1) {
-            ImGui::SetScrollY(goToLine * rowHeight);
-            goToLine = -1;
-        }
-        scrollCurrentLine = window->Scroll.y / rowHeight;
-        ImRect inputRect = window->Rect();
-        inputRect.Min.y += panelHeaderHeight;
-        inputRect.Translate(ImVec2(panelSpacing, 0));
-        processMouseInput(inputRect);
+		ImGuiWindow* window = ImGui::GetCurrentWindow();
+		if(goToLine != -1) {
+			ImGui::SetScrollY(goToLine * rowHeight);
+			goToLine = -1;
+		}
+		scrollCurrentLine = window->Scroll.y / rowHeight;
 
-        f32 offsetX = panelSpacing;
-        for(i32 p = 0; p < panelCount; ++p) {
-            const f32 panelWidth = panelRectWidth[p];
+		/*ImRect inputRect = window->Rect();
+		inputRect.Min.y += panelHeaderHeight;
+		inputRect.Translate(ImVec2(panelSpacing, 0));
+		processMouseInput(inputRect);*/
 
-            ImVec2 csp;
-            csp.x = window->Pos.x - window->Scroll.x + offsetX;
-            csp.y = window->Rect().Min.y;
-            ImGui::SetCursorScreenPos(csp);
-            offsetX += panelWidth + panelSpacing;
-            ImGui::BeginGroup();
+		// TODO: report bug? Columns don't increase content size even when width is forced to overflow
+		// Thus no horitontal scrollbar is displayed. Width has to be forced beforehand.
+		ImGui::Columns(panelCount, nullptr, false);
 
-            const f32 comboWidth = panelWidth - panelCloseButtonWidth - panelColorButtonWidth;
-            ImGui::PushItemWidth(comboWidth);
-            ImGui::PushID(&panelType[p]);
-            ImGui::Combo("##PanelType", (i32*)&panelType[p], panelComboItems, IM_ARRAYSIZE(panelComboItems),
-                         IM_ARRAYSIZE(panelComboItems));
-            ImGui::PopID();
-            ImGui::PopItemWidth();
+		for(i32 p = 0; p < panelCount; ++p) {
+			const f32 panelWidth = panelRectWidth[p];
+			ImGui::SetColumnWidth(p, panelWidth + panelSpacing + 1);
 
-            ImGui::SameLine();
+			ImGui::ItemSize(ImVec2(panelSpacing, 10));
+			ImGui::SameLine();
 
-            char paramButStr[24];
-            char paramPopupStr[32];
-            sprintf(paramButStr, "P##%d", p);
-            sprintf(paramPopupStr, "PanelParamsPopup%d", p);
+			ImVec2 csp = ImGui::GetCursorScreenPos();
+			csp.y = window->Rect().Min.y + 1;
+			ImGui::SetCursorScreenPos(csp);
 
-            // TODO: make toggle button
-            if(ImGui::ButtonEx(paramButStr, ImVec2(panelColorButtonWidth, 0))) {
-                if(panelParamWindowOpenId != p) {
-                    panelParamWindowOpenId = p;
-                    panelParamWindowPos = ImGui::GetCursorScreenPos() + ImVec2(comboWidth, 0);
-                    openPanelParamPopup = true;
-                }
-                else {
-                    panelParamWindowOpenId = -1;
-                }
-            }
+			const f32 comboWidth = panelWidth - panelCloseButtonWidth - panelColorButtonWidth;
+			ImGui::PushItemWidth(comboWidth);
+			ImGui::PushID(&panelType[p]);
+			ImGui::Combo("##PanelType", (i32*)&panelType[p], panelComboItems, IM_ARRAYSIZE(panelComboItems),
+						 IM_ARRAYSIZE(panelComboItems));
+			ImGui::PopID();
+			ImGui::PopItemWidth();
 
-            ImGui::SameLine();
+			ImGui::SameLine();
 
-            ImGui::PushID(&panelType[p] + 0xb00b + 'X');
-            if(ImGui::Button("X", ImVec2(panelCloseButtonWidth, 0))) {
-                panelMarkedForDelete = p;
-            }
-            ImGui::PopID();
+			char paramButStr[24];
+			char paramPopupStr[32];
+			sprintf(paramButStr, "P##%d", p);
+			sprintf(paramPopupStr, "PanelParamsPopup%d", p);
 
-            ImGui::EndGroup();
+			// TODO: make toggle button
+			if(ImGui::ButtonEx(paramButStr, ImVec2(panelColorButtonWidth, 0))) {
+				if(panelParamWindowOpenId != p) {
+					panelParamWindowOpenId = p;
+					panelParamWindowPos = ImGui::GetCursorScreenPos() + ImVec2(comboWidth, 0);
+					openPanelParamPopup = true;
+				}
+				else {
+					panelParamWindowOpenId = -1;
+				}
+			}
 
-            csp.y += panelHeaderHeight;
-            ImGui::SetCursorScreenPos(csp);
+			ImGui::SameLine();
 
-            switch(panelType[p]) {
-                case PanelType::HEX:
-                    doHexPanel(p, panelWidth, scrollCurrentLine);
-                    break;
-                case PanelType::ASCII:
-                    doAsciiPanel(p, panelWidth, scrollCurrentLine);
-                    break;
-                case PanelType::INT8:
-                    doFormatPanel<i8>(p, panelWidth, scrollCurrentLine, "%d");
-                    break;
-                case PanelType::UINT8:
-                    doFormatPanel<u8>(p, panelWidth, scrollCurrentLine, "%u");
-                    break;
-                case PanelType::INT16:
-                    doFormatPanel<i16>(p, panelWidth, scrollCurrentLine, "%d");
-                    break;
-                case PanelType::UINT16:
-                    doFormatPanel<u16>(p, panelWidth, scrollCurrentLine, "%u");
-                    break;
-                case PanelType::INT32:
-                    doFormatPanel<i32>(p, panelWidth, scrollCurrentLine, "%d");
-                    break;
-                case PanelType::UINT32:
-                    doFormatPanel<u32>(p, panelWidth, scrollCurrentLine, "%u");
-                    break;
-                case PanelType::INT64:
-                    doFormatPanel<i64>(p, panelWidth, scrollCurrentLine, "%lld");
-                    break;
-                case PanelType::UINT64:
-                    doFormatPanel<u64>(p, panelWidth, scrollCurrentLine, "%llu");
-                    break;
-                case PanelType::FLOAT32:
-                    doFormatPanel<f32>(p, panelWidth, scrollCurrentLine, "%g");
-                    break;
-                case PanelType::FLOAT64:
-                    doFormatPanel<f64>(p, panelWidth, scrollCurrentLine, "%g");
-                    break;
-                default:
-                    assert(0);
-                    break;
-            }
+			ImGui::PushID(&panelType[p] + 0xb00b + 'X');
+			if(ImGui::Button("X", ImVec2(panelCloseButtonWidth, 0))) {
+				panelMarkedForDelete = p;
+			}
+			ImGui::PopID();
 
+			ImGui::NextColumn();
+		}
 
-            ImGui::SameLine();
-            ImGui::ItemSize(ImVec2(panelSpacing, -1));
+		for(i32 p = 0; p < panelCount; ++p) {
+			ImGui::ItemSize(ImVec2(panelSpacing, 10));
+			ImGui::SameLine();
+			UiHexColumnHeader(columnCount, selectionState);
+			ImGui::NextColumn();
+		}
 
-            if(p+1 < panelCount) {
-                ImGui::SameLine();
-            }
-        }
+		for(i32 p = 0; p < panelCount; ++p) {
+			const f32 panelWidth = panelRectWidth[p];
+			ImGui::ItemSize(ImVec2(panelSpacing, 10));
+			ImGui::SameLine();
 
-    ImGui::EndChild();
+			switch(panelType[p]) {
+				case PanelType::HEX:
+					doHexPanel(p, panelWidth, scrollCurrentLine);
+					break;
+				case PanelType::ASCII:
+					doAsciiPanel(p, panelWidth, scrollCurrentLine);
+					break;
+				case PanelType::INT8:
+					doFormatPanel<i8>(p, panelWidth, scrollCurrentLine, "%d");
+					break;
+				case PanelType::UINT8:
+					doFormatPanel<u8>(p, panelWidth, scrollCurrentLine, "%u");
+					break;
+				case PanelType::INT16:
+					doFormatPanel<i16>(p, panelWidth, scrollCurrentLine, "%d");
+					break;
+				case PanelType::UINT16:
+					doFormatPanel<u16>(p, panelWidth, scrollCurrentLine, "%u");
+					break;
+				case PanelType::INT32:
+					doFormatPanel<i32>(p, panelWidth, scrollCurrentLine, "%d");
+					break;
+				case PanelType::UINT32:
+					doFormatPanel<u32>(p, panelWidth, scrollCurrentLine, "%u");
+					break;
+				case PanelType::INT64:
+					doFormatPanel<i64>(p, panelWidth, scrollCurrentLine, "%lld");
+					break;
+				case PanelType::UINT64:
+					doFormatPanel<u64>(p, panelWidth, scrollCurrentLine, "%llu");
+					break;
+				case PanelType::FLOAT32:
+					doFormatPanel<f32>(p, panelWidth, scrollCurrentLine, "%g");
+					break;
+				case PanelType::FLOAT64:
+					doFormatPanel<f64>(p, panelWidth, scrollCurrentLine, "%g");
+					break;
+				default:
+					assert(0);
+					break;
+			}
+
+			ImGui::NextColumn();
+		}
+
+	ImGui::EndChild();
 	ImGui::PopStyleVar(1);
 
     doPanelParamPopup(openPanelParamPopup, &panelParamWindowOpenId, panelParamWindowPos);
@@ -512,7 +520,6 @@ void DataPanels::doUi()
     if(panelMarkedForDelete >= 0 && panelCount > 1) {
         removePanel(panelMarkedForDelete);
     }
-#endif
 }
 
 void DataPanels::doHexPanel(i32 pid, f32 panelWidth, const i32 startLine)
@@ -531,36 +538,6 @@ void DataPanels::doHexPanel(i32 pid, f32 panelWidth, const i32 startLine)
         return;
 
     const ImVec2 cellSize(columnWidth, rowHeight);
-
-    // column header
-    ImVec2 headerPos = winPos;
-    ImRect colHeadBb(headerPos, headerPos + ImVec2(panelSize.x, columnHeaderHeight));
-    const ImU32 headerColor = ImGui::ColorConvertFloat4ToU32(ImVec4(0.9, 0.9, 0.9, 1));
-    const ImU32 headerColorOdd = ImGui::ColorConvertFloat4ToU32(ImVec4(0.85, 0.85, 0.85, 1));
-    ImGui::RenderFrame(colHeadBb.Min, colHeadBb.Max, headerColor, false, 0);
-
-    winPos.y += columnHeaderHeight;
-
-    for(i64 i = 0; i < columnCount; ++i) {
-        u32 hex = toHexStr(i);
-        const char* label = (const char*)&hex;
-        const ImVec2 label_size = ImGui::CalcTextSize(label, label+2);
-        const ImVec2 size = ImGui::CalcItemSize(ImVec2(columnWidth, columnHeaderHeight),
-                                                label_size.x, label_size.y);
-
-        ImVec2 cellPos(i * cellSize.x, 0);
-        cellPos += headerPos;
-        const ImRect bb(cellPos, cellPos + size);
-
-        if(i & 1) {
-            ImGui::RenderFrame(bb.Min, bb.Max, headerColorOdd, false, 0);
-        }
-
-        ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.5, 0.5, 0.5, 1));
-        ImGui::RenderTextClipped(bb.Min, bb.Max, label, label+2,
-                          &label_size, ImVec2(0.5, 0.5), &bb);
-        ImGui::PopStyleColor();
-    }
 
     PanelParams& pparams = panelParams[pid];
     const ColorDisplay::Enum colorDisplay = pparams.colorDisplay;
@@ -655,12 +632,10 @@ void DataPanels::doAsciiPanel(i32 pid, f32 panelWidth, const i32 startLine)
         return;
 
     // column header
-    ImVec2 headerPos = winPos;
+	/*ImVec2 headerPos = winPos;
     ImRect colHeadBb(headerPos, headerPos + ImVec2(panelRect.GetWidth(), columnHeaderHeight));
     const ImU32 headerColor = ImGui::ColorConvertFloat4ToU32(ImVec4(1, 1, 1, 1));
-    ImGui::RenderFrame(colHeadBb.Min, colHeadBb.Max, headerColor, false, 0);
-
-    winPos.y += columnHeaderHeight;
+	ImGui::RenderFrame(colHeadBb.Min, colHeadBb.Max, headerColor, false, 0);*/
 
     const PanelParams& pparams = panelParams[pid];
     const ColorDisplay::Enum colorDisplay = panelParams[pid].colorDisplay;
@@ -979,36 +954,6 @@ void DataPanels::doFormatPanel(i32 pid, f32 panelWidth, const i32 startLine, con
     if(!ImGui::ItemAdd(panelRect, imid))
         return;
 
-    // column header
-    ImVec2 headerPos = winPos;
-    ImRect colHeadBb(headerPos, headerPos + ImVec2(panelRect.GetWidth(), columnHeaderHeight));
-    const ImU32 headerColor = ImGui::ColorConvertFloat4ToU32(ImVec4(0.9, 0.9, 0.9, 1));
-    const ImU32 headerColorOdd = ImGui::ColorConvertFloat4ToU32(ImVec4(0.85, 0.85, 0.85, 1));
-    ImGui::RenderFrame(colHeadBb.Min, colHeadBb.Max, headerColor, false, 0);
-
-    for(i64 i = 0; i < columnCount; i++) {
-        u32 hex = toHexStr(i);
-        const char* label = (const char*)&hex;
-        const ImVec2 label_size = ImGui::CalcTextSize(label, label+2);
-        const ImVec2 size = ImGui::CalcItemSize(ImVec2(intColumnWidth, columnHeaderHeight),
-                                                label_size.x, label_size.y);
-
-        ImVec2 cellPos(i * intColumnWidth, 0);
-        cellPos += headerPos;
-        const ImRect bb(cellPos, cellPos + size);
-
-        if(i & 1) {
-            ImGui::RenderFrame(bb.Min, bb.Max, headerColorOdd, false, 0);
-        }
-
-        ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.5, 0.5, 0.5, 1));
-        ImGui::RenderTextClipped(bb.Min, bb.Max, label, label+2,
-                          &label_size, ImVec2(0.5, 0.5), &bb);
-        ImGui::PopStyleColor();
-    }
-
-    winPos.y += columnHeaderHeight;
-
     const ImVec2 cellSize(intColumnWidth * byteSize, rowHeight);
 
     const PanelParams& pparams = panelParams[pid];
@@ -1090,8 +1035,9 @@ void DataPanels::doFormatPanel(i32 pid, f32 panelWidth, const i32 startLine, con
     const i32 actualLineCount = (itemCount/columnCount)+1;
     const f32 colHeight = actualLineCount * rowHeight;
 	const i32 typeColumnCount = columnCount/byteSize;
+
 	for(i32 c = 0; c <= typeColumnCount; ++c) {
-        ImRect bb(panelPos.x + cellSize.x * c, panelPos.y + columnHeaderHeight,
+		ImRect bb(panelPos.x + cellSize.x * c, panelPos.y,
                   panelPos.x + cellSize.x * c + 1, panelPos.y + colHeight + 2);
         ImGui::RenderFrame(bb.Min, bb.Max, lineColor, false, 0);
     }
@@ -1199,6 +1145,14 @@ void DataPanels::doBrickPanel(const char* label, const i32 startLine)
 }
 #endif
 
+UiStyle* g_uiStyle = nullptr;
+
+void SetUiStyleLight()
+{
+	static UiStyle style;
+	g_uiStyle = &style;
+}
+
 void UiHexRowHeader(i64 firstRow, i32 rowStep, f32 textOffsetY, const SelectionState& selection)
 {
 	const UiStyle& style = GetUiStyle();
@@ -1264,10 +1218,37 @@ void UiHexRowHeader(i64 firstRow, i32 rowStep, f32 textOffsetY, const SelectionS
 	}
 }
 
-UiStyle* g_uiStyle = nullptr;
-
-void SetUiStyleLight()
+void UiHexColumnHeader(i32 columnCount, const SelectionState& selection)
 {
-	static UiStyle style;
-	g_uiStyle = &style;
+	const UiStyle& style = GetUiStyle();
+
+	ImVec2 headerPos =  ImGui::GetCursorScreenPos();
+	const f32 width = ImGui::GetContentRegionAvailWidth();
+	const f32 columnWidth = width / columnCount;
+	ImRect colHeadBb(headerPos, headerPos + ImVec2(width, style.columnHeaderHeight));
+	const ImU32 headerColor = ImGui::ColorConvertFloat4ToU32(ImVec4(0.9, 0.9, 0.9, 1));
+	const ImU32 headerColorOdd = ImGui::ColorConvertFloat4ToU32(ImVec4(0.85, 0.85, 0.85, 1));
+	ImGui::ItemSize(colHeadBb);
+	ImGui::RenderFrame(colHeadBb.Min, colHeadBb.Max, headerColor, false, 0);
+
+	for(i64 i = 0; i < columnCount; ++i) {
+		u32 hex = toHexStr(i);
+		const char* label = (const char*)&hex;
+		const ImVec2 label_size = ImGui::CalcTextSize(label, label+2);
+		const ImVec2 size = ImGui::CalcItemSize(ImVec2(columnWidth, style.columnHeaderHeight),
+												label_size.x, label_size.y);
+
+		ImVec2 cellPos(i * columnWidth, 0);
+		cellPos += headerPos;
+		const ImRect bb(cellPos, cellPos + size);
+
+		if(i & 1) {
+			ImGui::RenderFrame(bb.Min, bb.Max, headerColorOdd, false, 0);
+		}
+
+		ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.5, 0.5, 0.5, 1));
+		ImGui::RenderTextClipped(bb.Min, bb.Max, label, label+2,
+						  &label_size, ImVec2(0.5, 0.5), &bb);
+		ImGui::PopStyleColor();
+	}
 }
