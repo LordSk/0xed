@@ -286,27 +286,6 @@ void doUI()
 						 dataPanels.selectionState);
 	ImGui::End();
 
-	// Brick wall
-	ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
-	ImGui::Begin("Bricks", nullptr, 0/*|ImGuiWindowFlags_NoTitleBar|ImGuiWindowFlags_NoResize|
-				 ImGuiWindowFlags_NoMove|ImGuiWindowFlags_NoScrollbar*/);
-	ImGui::PopStyleVar(1);
-
-		ui_brickWall(&brickWall, curFileBuff.data);
-
-	ImGui::End();
-
-	// Scripts
-	ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
-	ImGui::Begin("Scripts", nullptr, 0/*|ImGuiWindowFlags_NoTitleBar|ImGuiWindowFlags_NoResize|
-				 ImGuiWindowFlags_NoMove|ImGuiWindowFlags_NoScrollbar*/);
-	ImGui::PopStyleVar(1);
-
-		toolsDoOptions(&dataPanels.columnCount);
-		toolsDoScript(&script, &brickWall);
-
-	ImGui::End();
-
 	// Search
 	ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
 	ImGui::Begin("Search", nullptr, 0/*|ImGuiWindowFlags_NoTitleBar|ImGuiWindowFlags_NoResize|
@@ -329,6 +308,27 @@ void doUI()
 
 	ImGui::End();
 
+	// Brick wall
+	ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
+	ImGui::Begin("Bricks", nullptr, 0/*|ImGuiWindowFlags_NoTitleBar|ImGuiWindowFlags_NoResize|
+				 ImGuiWindowFlags_NoMove|ImGuiWindowFlags_NoScrollbar*/);
+	ImGui::PopStyleVar(1);
+
+		ui_brickWall(&brickWall, curFileBuff.data);
+
+	ImGui::End();
+
+	// Scripts
+	ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
+	ImGui::Begin("Scripts", nullptr, 0/*|ImGuiWindowFlags_NoTitleBar|ImGuiWindowFlags_NoResize|
+				 ImGuiWindowFlags_NoMove|ImGuiWindowFlags_NoScrollbar*/);
+	ImGui::PopStyleVar(1);
+
+		toolsDoOptions(&dataPanels.columnCount);
+		toolsDoScript(&script, &brickWall);
+
+	ImGui::End();
+
 	// Default layout (applies after first frame (sizes are correct afer the first frame))
 	if(!ImGui::DockBuilderGetNode(dockspaceMain)->IsSplitNode() && ImGui::GetFrameCount() > 1) {
 		ImGuiID dockspaceMainLeft, dockspaceMainRight;
@@ -341,9 +341,9 @@ void doUI()
 
 		ImGui::DockBuilderDockWindow("Hex view", dockspaceMainLeft);
 		ImGui::DockBuilderDockWindow("Inspector", dockspaceMainRight);
+		ImGui::DockBuilderDockWindow("Search", dockspaceMainRight);
 		ImGui::DockBuilderDockWindow("Bricks", dockspaceMainRight);
 		ImGui::DockBuilderDockWindow("Scripts", dockspaceMainRight);
-		ImGui::DockBuilderDockWindow("Search", dockspaceMainRight);
 		ImGui::DockBuilderFinish(dockspaceMain);
 	}
 

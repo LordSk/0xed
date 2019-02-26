@@ -270,7 +270,7 @@ bool IsAnyPopupOpen()
 }
 
 void TextBox(ImU32 frameColor, ImU32 textColor, ImVec2 size, ImVec2 align, ImVec2 textOffset,
-                    const char* fmt, ...)
+			 const char* fmt, ...)
 {
     ImGuiWindow* window = GetCurrentWindow();
     ImVec2 pos = window->DC.CursorPos;
