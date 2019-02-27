@@ -135,7 +135,7 @@ struct DataPanels
 
     ImGuiWindow* mainWindow;
 
-    void processMouseInput(ImRect winRect);
+	bool processMouseInput(i32 panelID, i32 panelType, SelectionState* outSelectionState, i32 firstLine, i32 columnCount);
     inline void selectionProcessMouseInput(const i32 panelId, ImVec2 mousePos, ImRect rect,
                                const i32 columnWidth_, const i32 rowHeight_,
                                const i32 startLine, const i32 hoverLen);

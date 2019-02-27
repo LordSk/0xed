@@ -91,85 +91,70 @@ inline u32 toHexStr(u8 val)
 }
 
 // TODO: might not be such a good idea to generalize this function...
-void DataPanels::processMouseInput(ImRect winRect)
+bool DataPanels::processMouseInput(i32 panelID, i32 panelType, SelectionState* outSelectionState,
+								   i32 firstLine, i32 columnCount)
 {
-    winRect.Max.x -= ImGui::GetStyle().ScrollbarSize;
-    winRect.Max.y -= ImGui::GetStyle().ScrollbarSize;
+	// TODO: move this out?
+	if(ImGui::IsAnyPopupOpen()) {
+		return false;
+	}
 
-    selectionState.hoverStart = -1;
+	const ImVec2 contentSize = ImGui::GetContentRegionAvail();
+	const ImVec2 cursorPos = ImGui::GetCursorScreenPos();
+	const ImRect winRect = ImRect(cursorPos, cursorPos + contentSize);
+	//LOG("winRect = {(%g, %g), (%g, %g)}", winRect.Min.x, winRect.Min.y, winRect.Max.x, winRect.Max.y);
 
     ImGuiIO& io = ImGui::GetIO();
-    if(!(io.MouseDown[0] && selectionState.selectStart >= 0 && selectionState.lockedPanelId >= 0) &&
-       (!winRect.Contains(io.MousePos) || !ImGui::IsWindowHovered())) {
-        return;
-    }
-    if(ImGui::IsAnyPopupOpen()) {
-        return;
+	if(!winRect.Contains(io.MousePos) || !ImGui::IsWindowHovered()) {
+		return false;
     }
 
-    f32 panelOffX = 0;
-    bool mouseClickedOutsidePanel = io.MouseClicked[0] && winRect.Contains(io.MousePos);
-    ImVec2 mousePos = io.MousePos - winRect.Min; // window space
+	ImVec2 mousePos = io.MousePos - winRect.Min; // window space
 
-    ImRect panelRect[PANEL_MAX_COUNT];
-    const f32 scrollX = ImGui::GetScrollX();
+	// clamp mouse x if a panel is selection-locked (we started selecting on this panel)
+	if(outSelectionState->lockedPanelId >= 0) {
+		if(outSelectionState->lockedPanelId != panelID) {
+			if(outSelectionState->lockedPanelId > panelID)
+				mousePos.x = 0;
+			else
+				mousePos.x = winRect.Max.x - winRect.Min.x - 1;
+		}
+	}
 
-    for(i32 p = 0; p < panelCount; ++p) {
-        const f32 panelWidth = panelRectWidth[p];
-        panelRect[p] = {ImVec2(0,columnHeaderHeight), ImVec2(panelWidth, winRect.GetHeight())};
-        panelRect[p].Translate(ImVec2(panelOffX - scrollX, 0));
-        panelOffX += panelWidth + panelSpacing;
-    }
+	switch(panelType) {
+		case PanelType::HEX:
+			selectionProcessMouseInput(panelID, mousePos, winRect, columnWidth,
+									   rowHeight, firstLine, 1);
+			break;
+		case PanelType::ASCII:
+			selectionProcessMouseInput(panelID, mousePos, winRect, asciiCharWidth,
+									   rowHeight, firstLine, 1);
+			break;
+		case PanelType::INT8:
+		case PanelType::UINT8:
+			selectionProcessMouseInput(panelID, mousePos, winRect, intColumnWidth * 1,
+									   rowHeight, firstLine, 1);
+			break;
+		case PanelType::INT16:
+		case PanelType::UINT16:
+			selectionProcessMouseInput(panelID, mousePos, winRect, intColumnWidth * 2,
+									   rowHeight, firstLine, 2);
+			break;
+		case PanelType::INT32:
+		case PanelType::UINT32:
+		case PanelType::FLOAT32:
+			selectionProcessMouseInput(panelID, mousePos, winRect, intColumnWidth * 4,
+									   rowHeight, scrollCurrentLine, 4);
+			break;
+		case PanelType::INT64:
+		case PanelType::UINT64:
+		case PanelType::FLOAT64:
+			selectionProcessMouseInput(panelID, mousePos, winRect, intColumnWidth * 8,
+									   rowHeight, scrollCurrentLine, 8);
+			break;
+	}
 
-    for(i32 p = 0; p < panelCount; ++p) {
-        ImRect prect = panelRect[p];
-        mouseClickedOutsidePanel &= !prect.Contains(mousePos);
-
-        // TODO: should be able to know every panel rect, all the time
-        if(selectionState.lockedPanelId >= 0) {
-            const auto& rect = panelRect[selectionState.lockedPanelId];
-            mousePos.x = clamp(mousePos.x, rect.Min.x, rect.Max.x-1);
-            mousePos.y = clamp(mousePos.y, rect.Min.y, rect.Max.y-1);
-        }
-
-        switch(panelType[p]) {
-            case PanelType::HEX:
-                selectionProcessMouseInput(p, mousePos, prect, columnWidth,
-                                           rowHeight, scrollCurrentLine, 1);
-                break;
-            case PanelType::ASCII:
-                selectionProcessMouseInput(p, mousePos, prect, asciiCharWidth,
-                                           rowHeight, scrollCurrentLine, 1);
-                break;
-            case PanelType::INT8:
-            case PanelType::UINT8:
-                selectionProcessMouseInput(p, mousePos, prect, intColumnWidth * 1,
-                                           rowHeight, scrollCurrentLine, 1);
-                break;
-            case PanelType::INT16:
-            case PanelType::UINT16:
-                selectionProcessMouseInput(p, mousePos, prect, intColumnWidth * 2,
-                                           rowHeight, scrollCurrentLine, 2);
-                break;
-            case PanelType::INT32:
-            case PanelType::UINT32:
-            case PanelType::FLOAT32:
-                selectionProcessMouseInput(p, mousePos, prect, intColumnWidth * 4,
-                                           rowHeight, scrollCurrentLine, 4);
-                break;
-            case PanelType::INT64:
-            case PanelType::UINT64:
-            case PanelType::FLOAT64:
-                selectionProcessMouseInput(p, mousePos, prect, intColumnWidth * 8,
-                                           rowHeight, scrollCurrentLine, 8);
-                break;
-        }
-    }
-
-    // clear selection
-    if(mouseClickedOutsidePanel || io.MouseClicked[1]) {
-        deselect();
-    }
+	return true;
 }
 
 void DataPanels::selectionProcessMouseInput(const i32 panelId, ImVec2 mousePos, ImRect rect,
@@ -177,14 +162,10 @@ void DataPanels::selectionProcessMouseInput(const i32 panelId, ImVec2 mousePos, 
                                             const i32 startLine, const i32 hoverLen)
 {
     const auto& io = ImGui::GetIO();
-    ImVec2 relMousePos = mousePos - rect.Min;
-    if(!rect.Contains(mousePos)) {
-        return;
-    }
 
     // hover
-    i32 hoverColumn = relMousePos.x / columnWidth_;
-    i32 hoverLine = relMousePos.y / rowHeight_;
+	i32 hoverColumn = mousePos.x / columnWidth_;
+	i32 hoverLine = mousePos.y / rowHeight_;
     selectionState.hoverStart = (startLine + hoverLine) * columnCount + hoverColumn * hoverLen;
     selectionState.hoverEnd = selectionState.hoverStart + hoverLen;
 
@@ -200,8 +181,8 @@ void DataPanels::selectionProcessMouseInput(const i32 panelId, ImVec2 mousePos, 
         selectionState.lockedPanelId = -1;
     }
 
-    hoverColumn = relMousePos.x / columnWidth_;
-    hoverLine = relMousePos.y / rowHeight_;
+	hoverColumn = mousePos.x / columnWidth_;
+	hoverLine = mousePos.y / rowHeight_;
 
     if(io.MouseDown[0] && selectionState.selectStart >= 0 && selectionState.lockedPanelId >= 0) {
         i64 startCell = selectionState.selectStart & ~(hoverLen-1);
@@ -358,6 +339,16 @@ void DataPanels::calculatePanelWidth()
 
 void DataPanels::doUi()
 {
+	ImGuiIO& io = ImGui::GetIO();
+
+	// clear selection (on right click)
+	if(io.MouseClicked[1]) {
+		deselect();
+		return;
+	}
+
+	bool mouseInsideAnyPanel = false;
+
     if(!fileBuffer) {
         return;
     }
@@ -368,7 +359,6 @@ void DataPanels::doUi()
     calculatePanelWidth();
     static i32 panelParamWindowOpenId = -1;
     static ImVec2 panelParamWindowPos;
-    ImGuiIO& io = ImGui::GetIO();
     bool openPanelParamPopup = false;
 
 	SetUiStyleLight(); // TODO: remove
@@ -465,13 +455,15 @@ void DataPanels::doUi()
 			ImGui::NextColumn();
 		}
 
-		/*for(i32 p = 0; p < panelCount; ++p) {
-			const f32 panelWidth = panelRectWidth[p];
-			ImGui::ItemSize(ImVec2(panelSpacing, 10));
-			ImGui::SameLine();
-
+		// reset hover state
+		selectionState.hoverStart = -1;
+		// process mouse input over panels before displaying them
+		for(i32 p = 0; p < panelCount; ++p) {
+			ImGui::NextColumn(); // skip spacing column
+			mouseInsideAnyPanel |= processMouseInput(p, panelType[p], &selectionState,
+													 scrollCurrentLine, columnCount);
 			ImGui::NextColumn();
-		}*/
+		}
 
 		for(i32 p = 0; p < panelCount; ++p) {
 			ImGui::NextColumn(); // skip spacing column
@@ -530,6 +522,10 @@ void DataPanels::doUi()
     if(panelMarkedForDelete >= 0 && panelCount > 1) {
         removePanel(panelMarkedForDelete);
     }
+
+	if(!mouseInsideAnyPanel && io.MouseClicked[0]) {
+		deselect();
+	}
 }
 
 void DataPanels::doHexPanel(i32 pid, f32 panelWidth, const i32 startLine)
