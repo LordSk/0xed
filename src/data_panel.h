@@ -135,10 +135,6 @@ struct DataPanels
 
     ImGuiWindow* mainWindow;
 
-	bool processMouseInput(i32 panelID, i32 panelType, SelectionState* outSelectionState, i32 firstLine, i32 columnCount);
-    inline void selectionProcessMouseInput(const i32 panelId, ImVec2 mousePos, ImRect rect,
-                               const i32 columnWidth_, const i32 rowHeight_,
-                               const i32 startLine, const i32 hoverLen);
     inline bool selectionInHoverRange(i64 dataOffset);
     inline bool selectionInSelectionRange(i64 dataOffset);
     bool selectionIsEmpty();
@@ -194,3 +190,5 @@ inline const UiStyle& GetUiStyle() { assert(g_uiStyle); return *g_uiStyle; }
 
 void UiHexRowHeader(i64 firstRow, i32 rowStep, f32 textOffsetY, const SelectionState& selection);
 void UiHexColumnHeader(i32 columnCount, const SelectionState& selection);
+bool UiHexPanelDoSelection(i32 panelID, i32 panelType, SelectionState* outSelectionState, i32 firstLine, i32 columnCount);
+void UiHexPanelTypeDoSelection(SelectionState* outSelectionState, i32 panelId, ImVec2 mousePos, ImRect rect, i32 columnWidth_, i32 rowHeight_, i32 startLine, i32 columnCount, i32 hoverLen);

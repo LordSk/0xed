@@ -90,115 +90,6 @@ inline u32 toHexStr(u8 val)
     return hex;
 }
 
-// TODO: might not be such a good idea to generalize this function...
-bool DataPanels::processMouseInput(i32 panelID, i32 panelType, SelectionState* outSelectionState,
-								   i32 firstLine, i32 columnCount)
-{
-	// TODO: move this out?
-	if(ImGui::IsAnyPopupOpen()) {
-		return false;
-	}
-
-	const ImVec2 contentSize = ImGui::GetContentRegionAvail();
-	const ImVec2 cursorPos = ImGui::GetCursorScreenPos();
-	const ImRect winRect = ImRect(cursorPos, cursorPos + contentSize);
-	//LOG("winRect = {(%g, %g), (%g, %g)}", winRect.Min.x, winRect.Min.y, winRect.Max.x, winRect.Max.y);
-
-    ImGuiIO& io = ImGui::GetIO();
-	if(!winRect.Contains(io.MousePos) || !ImGui::IsWindowHovered()) {
-		return false;
-    }
-
-	ImVec2 mousePos = io.MousePos - winRect.Min; // window space
-
-	// clamp mouse x if a panel is selection-locked (we started selecting on this panel)
-	if(outSelectionState->lockedPanelId >= 0) {
-		if(outSelectionState->lockedPanelId != panelID) {
-			if(outSelectionState->lockedPanelId > panelID)
-				mousePos.x = 0;
-			else
-				mousePos.x = winRect.Max.x - winRect.Min.x - 1;
-		}
-	}
-
-	switch(panelType) {
-		case PanelType::HEX:
-			selectionProcessMouseInput(panelID, mousePos, winRect, columnWidth,
-									   rowHeight, firstLine, 1);
-			break;
-		case PanelType::ASCII:
-			selectionProcessMouseInput(panelID, mousePos, winRect, asciiCharWidth,
-									   rowHeight, firstLine, 1);
-			break;
-		case PanelType::INT8:
-		case PanelType::UINT8:
-			selectionProcessMouseInput(panelID, mousePos, winRect, intColumnWidth * 1,
-									   rowHeight, firstLine, 1);
-			break;
-		case PanelType::INT16:
-		case PanelType::UINT16:
-			selectionProcessMouseInput(panelID, mousePos, winRect, intColumnWidth * 2,
-									   rowHeight, firstLine, 2);
-			break;
-		case PanelType::INT32:
-		case PanelType::UINT32:
-		case PanelType::FLOAT32:
-			selectionProcessMouseInput(panelID, mousePos, winRect, intColumnWidth * 4,
-									   rowHeight, scrollCurrentLine, 4);
-			break;
-		case PanelType::INT64:
-		case PanelType::UINT64:
-		case PanelType::FLOAT64:
-			selectionProcessMouseInput(panelID, mousePos, winRect, intColumnWidth * 8,
-									   rowHeight, scrollCurrentLine, 8);
-			break;
-	}
-
-	return true;
-}
-
-void DataPanels::selectionProcessMouseInput(const i32 panelId, ImVec2 mousePos, ImRect rect,
-                                            const i32 columnWidth_, const i32 rowHeight_,
-                                            const i32 startLine, const i32 hoverLen)
-{
-    const auto& io = ImGui::GetIO();
-
-    // hover
-	i32 hoverColumn = mousePos.x / columnWidth_;
-	i32 hoverLine = mousePos.y / rowHeight_;
-    selectionState.hoverStart = (startLine + hoverLine) * columnCount + hoverColumn * hoverLen;
-    selectionState.hoverEnd = selectionState.hoverStart + hoverLen;
-
-    // selection
-    if(io.MouseClicked[0]) {
-        selectionState.selectStart = (startLine + hoverLine) * columnCount + hoverColumn * hoverLen;
-        selectionState.selectEnd = selectionState.selectStart + hoverLen-1;
-        selectionState.lockedPanelId = panelId;
-        return;
-    }
-
-    if(!io.MouseDown[0]) {
-        selectionState.lockedPanelId = -1;
-    }
-
-	hoverColumn = mousePos.x / columnWidth_;
-	hoverLine = mousePos.y / rowHeight_;
-
-    if(io.MouseDown[0] && selectionState.selectStart >= 0 && selectionState.lockedPanelId >= 0) {
-        i64 startCell = selectionState.selectStart & ~(hoverLen-1);
-        i64 hoveredCell = (startLine + hoverLine) * columnCount + hoverColumn * hoverLen;
-        if(hoveredCell < startCell) {
-            selectionState.selectEnd = (startLine + hoverLine) * columnCount + hoverColumn * hoverLen;
-            selectionState.selectStart = startCell + hoverLen - 1;
-        }
-        else {
-            selectionState.selectEnd = (startLine + hoverLine) * columnCount + hoverColumn * hoverLen
-                    + hoverLen-1;
-            selectionState.selectStart = startCell;
-        }
-    }
-}
-
 bool DataPanels::selectionInHoverRange(i64 dataOffset)
 {
     if(selectionState.hoverStart < 0) return false;
@@ -460,8 +351,7 @@ void DataPanels::doUi()
 		// process mouse input over panels before displaying them
 		for(i32 p = 0; p < panelCount; ++p) {
 			ImGui::NextColumn(); // skip spacing column
-			mouseInsideAnyPanel |= processMouseInput(p, panelType[p], &selectionState,
-													 scrollCurrentLine, columnCount);
+			mouseInsideAnyPanel |= UiHexPanelDoSelection(p, panelType[p], &selectionState, scrollCurrentLine, columnCount);
 			ImGui::NextColumn();
 		}
 
@@ -1256,5 +1146,105 @@ void UiHexColumnHeader(i32 columnCount, const SelectionState& selection)
 		ImGui::RenderTextClipped(bb.Min, bb.Max, label, label+2,
 						  &label_size, ImVec2(0.5, 0.5), &bb);
 		ImGui::PopStyleColor();
+	}
+}
+
+bool UiHexPanelDoSelection(i32 panelID, i32 panelType, SelectionState* outSelectionState, i32 firstLine, i32 columnCount)
+{
+	// TODO: move this out?
+	if(ImGui::IsAnyPopupOpen()) {
+		return false;
+	}
+
+	const ImVec2 contentSize = ImGui::GetContentRegionAvail();
+	const ImVec2 cursorPos = ImGui::GetCursorScreenPos();
+	const ImRect winRect = ImRect(cursorPos, cursorPos + contentSize);
+
+	ImGuiIO& io = ImGui::GetIO();
+	if(!winRect.Contains(io.MousePos) || !ImGui::IsWindowHovered()) {
+		return false;
+	}
+
+	ImVec2 mousePos = io.MousePos - winRect.Min; // window space
+
+	// clamp mouse x if a panel is selection-locked (we started selecting on this panel)
+	if(outSelectionState->lockedPanelId >= 0) {
+		if(outSelectionState->lockedPanelId != panelID) {
+			if(outSelectionState->lockedPanelId > panelID)
+				mousePos.x = 0;
+			else
+				mousePos.x = winRect.Max.x - winRect.Min.x - 1;
+		}
+	}
+
+	const UiStyle& style = GetUiStyle();
+
+	switch(panelType) {
+		case PanelType::HEX:
+			UiHexPanelTypeDoSelection(outSelectionState, panelID, mousePos, winRect, style.columnWidth, style.rowHeight, firstLine, columnCount, 1);
+			break;
+		case PanelType::ASCII:
+			UiHexPanelTypeDoSelection(outSelectionState, panelID, mousePos, winRect, style.asciiCharWidth, style.rowHeight, firstLine, columnCount, 1);
+			break;
+		case PanelType::INT8:
+		case PanelType::UINT8:
+			UiHexPanelTypeDoSelection(outSelectionState, panelID, mousePos, winRect, style.intColumnWidth * 1, style.rowHeight, firstLine, columnCount, 1);
+			break;
+		case PanelType::INT16:
+		case PanelType::UINT16:
+			UiHexPanelTypeDoSelection(outSelectionState, panelID, mousePos, winRect, style.intColumnWidth * 2, style.rowHeight, firstLine, columnCount, 2);
+			break;
+		case PanelType::INT32:
+		case PanelType::UINT32:
+		case PanelType::FLOAT32:
+			UiHexPanelTypeDoSelection(outSelectionState, panelID, mousePos, winRect, style.intColumnWidth * 4, style.rowHeight, firstLine, columnCount, 4);
+			break;
+		case PanelType::INT64:
+		case PanelType::UINT64:
+		case PanelType::FLOAT64:
+			UiHexPanelTypeDoSelection(outSelectionState, panelID, mousePos, winRect, style.intColumnWidth * 8, style.rowHeight, firstLine, columnCount, 8);
+			break;
+	}
+
+	return true;
+}
+
+void UiHexPanelTypeDoSelection(SelectionState* outSelectionState, i32 panelId, ImVec2 mousePos, ImRect rect, i32 columnWidth_, i32 rowHeight_, i32 startLine, i32 columnCount, i32 hoverLen)
+{
+	const ImGuiIO& io = ImGui::GetIO();
+
+	// hover
+	i32 hoverColumn = mousePos.x / columnWidth_;
+	i32 hoverLine = mousePos.y / rowHeight_;
+	outSelectionState->hoverStart = (startLine + hoverLine) * columnCount + hoverColumn * hoverLen;
+	outSelectionState->hoverEnd = outSelectionState->hoverStart + hoverLen;
+
+	// selection
+	if(io.MouseClicked[0]) {
+		outSelectionState->selectStart = (startLine + hoverLine) * columnCount + hoverColumn * hoverLen;
+		outSelectionState->selectEnd = outSelectionState->selectStart + hoverLen-1;
+		outSelectionState->lockedPanelId = panelId;
+		return;
+	}
+
+	if(!io.MouseDown[0]) {
+		outSelectionState->lockedPanelId = -1;
+	}
+
+	hoverColumn = mousePos.x / columnWidth_;
+	hoverLine = mousePos.y / rowHeight_;
+
+	if(io.MouseDown[0] && outSelectionState->selectStart >= 0 && outSelectionState->lockedPanelId >= 0) {
+		i64 startCell = outSelectionState->selectStart & ~(hoverLen-1);
+		i64 hoveredCell = (startLine + hoverLine) * columnCount + hoverColumn * hoverLen;
+		if(hoveredCell < startCell) {
+			outSelectionState->selectEnd = (startLine + hoverLine) * columnCount + hoverColumn * hoverLen;
+			outSelectionState->selectStart = startCell + hoverLen - 1;
+		}
+		else {
+			outSelectionState->selectEnd = (startLine + hoverLine) * columnCount + hoverColumn * hoverLen
+					+ hoverLen-1;
+			outSelectionState->selectStart = startCell;
+		}
 	}
 }
