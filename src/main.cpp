@@ -174,7 +174,7 @@ void handleEvent(const SDL_Event& event)
 
 void userTryAddBrick()
 {
-    if(dataPanels.selectionIsEmpty()) return;
+	if(dataPanels.selectionState.isEmpty()) return;
     intptr_t selMin = min(dataPanels.selectionState.selectStart, dataPanels.selectionState.selectEnd);
     intptr_t selMax = max(dataPanels.selectionState.selectStart, dataPanels.selectionState.selectEnd);
     popupBrickSelStart = selMin;
@@ -302,7 +302,7 @@ void doUI()
 		u64 searchGotoOffset;
 		if(toolsSearchResults(lastSearchParams, searchResults, &searchGotoOffset)) {
 			dataPanels.goTo(searchGotoOffset);
-			dataPanels.select(searchGotoOffset, searchGotoOffset + lastSearchParams.dataSize - 1);
+			dataPanels.selectionState.select(searchGotoOffset, searchGotoOffset + lastSearchParams.dataSize - 1);
 		}
 		ImGuiWindow* searchWindow = ImGui::GetCurrentWindowRead();
 

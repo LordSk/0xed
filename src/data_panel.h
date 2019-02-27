@@ -15,6 +15,39 @@ struct SelectionState
     i64 selectStart = -1;
     i64 selectEnd = -1;
     i32 lockedPanelId = -1;
+
+	inline bool isInHoverRange(i64 dataOffset) const
+	{
+		if(hoverStart < 0) return false;
+		return dataOffset >= hoverStart && dataOffset < hoverEnd;
+	}
+
+	inline bool isInSelectionRange(i64 dataOffset) const
+	{
+		if(selectStart < 0) return false;
+		i64 selMin = min(selectStart, selectEnd);
+		i64 selMax = max(selectStart, selectEnd);
+		return dataOffset >= selMin && dataOffset <= selMax;
+	}
+
+	inline bool isEmpty() const
+	{
+		if(selectStart < 0) return true;
+		return false;
+	}
+
+	inline void deselect()
+	{
+		selectStart = -1;
+		selectEnd = -1;
+		lockedPanelId = -1;
+	}
+
+	inline void select(i64 start, i64 end)
+	{
+		selectStart = start;
+		selectEnd = end;
+	}
 };
 
 struct PanelType
@@ -135,12 +168,6 @@ struct DataPanels
 
     ImGuiWindow* mainWindow;
 
-    inline bool selectionInHoverRange(i64 dataOffset);
-    inline bool selectionInSelectionRange(i64 dataOffset);
-    bool selectionIsEmpty();
-    void deselect();
-    void select(i64 start, i64 end);
-
     DataPanels();
     void setFileBuffer(u8* buff, i64 buffSize);
     void addNewPanel();
@@ -152,7 +179,6 @@ struct DataPanels
 
     void doUi();
 
-    void doHexPanel(i32 pid, f32 panelWidth, const i32 startLine);
     void doAsciiPanel(i32 pid, f32 panelWidth, const i32 startLine);
 
     template<typename T>
@@ -192,3 +218,4 @@ void UiHexRowHeader(i64 firstRow, i32 rowStep, f32 textOffsetY, const SelectionS
 void UiHexColumnHeader(i32 columnCount, const SelectionState& selection);
 bool UiHexPanelDoSelection(i32 panelID, i32 panelType, SelectionState* outSelectionState, i32 firstLine, i32 columnCount);
 void UiHexPanelTypeDoSelection(SelectionState* outSelectionState, i32 panelId, ImVec2 mousePos, ImRect rect, i32 columnWidth_, i32 rowHeight_, i32 startLine, i32 columnCount, i32 hoverLen);
+void UiHexDoHexPanel(ImGuiID imguiID, i32 panelID, const PanelParams& panelParams, i32 startLine, const u8* data, i64 dataSize, i32 columnCount, const SelectionState& selection);
