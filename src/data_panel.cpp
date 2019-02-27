@@ -404,20 +404,24 @@ void DataPanels::doUi()
 
 		// TODO: report bug? Columns don't increase content size even when width is forced to overflow
 		// Thus no horitontal scrollbar is displayed. Width has to be forced beforehand.
-		ImGui::Columns(panelCount, nullptr, false);
+		// NOTE: 1st column is spacing, second is panel, and it repeats
+		ImGui::Columns(panelCount * 2, nullptr, false);
 
 		for(i32 p = 0; p < panelCount; ++p) {
 			const f32 panelWidth = panelRectWidth[p];
-			ImGui::SetColumnWidth(p, panelWidth + panelSpacing + 1);
+			ImGui::SetColumnWidth(p * 2, panelSpacing);
+			ImGui::SetColumnWidth(p * 2 + 1, panelWidth);
+		}
 
-			ImGui::ItemSize(ImVec2(panelSpacing, 10));
-			ImGui::SameLine();
+		for(i32 p = 0; p < panelCount; ++p) {
+			ImGui::NextColumn(); // skip spacing column
 
 			ImVec2 csp = ImGui::GetCursorScreenPos();
 			csp.y = window->Rect().Min.y + 1;
 			ImGui::SetCursorScreenPos(csp);
 
-			const f32 comboWidth = panelWidth - panelCloseButtonWidth - panelColorButtonWidth;
+			const f32 comboWidth = ImGui::GetContentRegionAvailWidth() -
+								   panelCloseButtonWidth - panelColorButtonWidth - 1;
 			ImGui::PushItemWidth(comboWidth);
 			ImGui::PushID(&panelType[p]);
 			ImGui::Combo("##PanelType", (i32*)&panelType[p], panelComboItems, IM_ARRAYSIZE(panelComboItems),
@@ -456,16 +460,22 @@ void DataPanels::doUi()
 		}
 
 		for(i32 p = 0; p < panelCount; ++p) {
-			ImGui::ItemSize(ImVec2(panelSpacing, 10));
-			ImGui::SameLine();
+			ImGui::NextColumn(); // skip spacing column
 			UiHexColumnHeader(columnCount, selectionState);
 			ImGui::NextColumn();
 		}
 
-		for(i32 p = 0; p < panelCount; ++p) {
+		/*for(i32 p = 0; p < panelCount; ++p) {
 			const f32 panelWidth = panelRectWidth[p];
 			ImGui::ItemSize(ImVec2(panelSpacing, 10));
 			ImGui::SameLine();
+
+			ImGui::NextColumn();
+		}*/
+
+		for(i32 p = 0; p < panelCount; ++p) {
+			ImGui::NextColumn(); // skip spacing column
+			const f32 panelWidth = panelRectWidth[p];
 
 			switch(panelType[p]) {
 				case PanelType::HEX:
