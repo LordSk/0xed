@@ -379,9 +379,10 @@ void DataPanels::doUi()
         removePanel(panelMarkedForDelete);
     }
 
-	if(!mouseInsideAnyPanel && io.MouseClicked[0]) {
+	// FIXME: clicking outside the hex view window will deselect
+	/*if(!mouseInsideAnyPanel && io.MouseClicked[0]) {
 		selectionState.deselect();
-	}
+	}*/
 }
 
 void DataPanels::doAsciiPanel(i32 pid, f32 panelWidth, const i32 startLine)
@@ -1033,20 +1034,26 @@ bool UiHexPanelDoSelection(i32 panelID, i32 panelType, SelectionState* outSelect
 	const ImRect winRect = ImRect(cursorPos, cursorPos + contentSize);
 
 	ImGuiIO& io = ImGui::GetIO();
-	if(!winRect.Contains(io.MousePos) || !ImGui::IsWindowHovered()) {
+	const bool isLockedPanel = outSelectionState->lockedPanelId == panelID;
+	const bool isAnyPanelLocked = outSelectionState->lockedPanelId > -1;
+
+	if(isAnyPanelLocked) {
+		if(!isLockedPanel)
+			return false;
+	}
+	else if(!winRect.Contains(io.MousePos))
+		return false;
+
+	if(!ImGui::IsWindowHovered()) {
 		return false;
 	}
 
 	ImVec2 mousePos = io.MousePos - winRect.Min; // window space
 
-	// clamp mouse x if a panel is selection-locked (we started selecting on this panel)
-	if(outSelectionState->lockedPanelId >= 0) {
-		if(outSelectionState->lockedPanelId != panelID) {
-			if(outSelectionState->lockedPanelId > panelID)
-				mousePos.x = 0;
-			else
-				mousePos.x = winRect.Max.x - winRect.Min.x - 1;
-		}
+	// clamp mouse pos if a panel is selection-locked (we started selecting on this panel)
+	if(isLockedPanel) {
+		mousePos.x = clamp(mousePos.x, 0.0f, winRect.Max.x - winRect.Min.x - 1);
+		mousePos.y = clamp(mousePos.y, 0.0f, winRect.Max.y - winRect.Min.y - 1);
 	}
 
 	const UiStyle& style = GetUiStyle();
