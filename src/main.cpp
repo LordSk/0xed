@@ -176,9 +176,9 @@ void handleEvent(const SDL_Event& event)
 
 void userTryAddBrick()
 {
-	if(hexView.selectionState.isEmpty()) return;
-	intptr_t selMin = min(hexView.selectionState.selectStart, hexView.selectionState.selectEnd);
-	intptr_t selMax = max(hexView.selectionState.selectStart, hexView.selectionState.selectEnd);
+	if(hexView.selection.isEmpty()) return;
+	intptr_t selMin = min(hexView.selection.selectStart, hexView.selection.selectEnd);
+	intptr_t selMax = max(hexView.selection.selectStart, hexView.selection.selectEnd);
     popupBrickSelStart = selMin;
     popupBrickSelLength = selMax - selMin + 1;
     popupBrickWantOpen = true;
@@ -274,7 +274,7 @@ void doUI()
 	// Tool windows
 
 	// Inspector
-	toolsDoInspectorWindow(curFileBuff.data, curFileBuff.size, hexView.selectionState);
+	toolsDoInspectorWindow(curFileBuff.data, curFileBuff.size, hexView.selection);
 
 	// Search
 	ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
@@ -291,7 +291,7 @@ void doUI()
 		u64 searchGotoOffset;
 		if(toolsSearchResults(lastSearchParams, searchResults, &searchGotoOffset)) {
 			hexView.goTo(searchGotoOffset);
-			hexView.selectionState.select(searchGotoOffset, searchGotoOffset + lastSearchParams.dataSize - 1);
+			hexView.selection.select(searchGotoOffset, searchGotoOffset + lastSearchParams.dataSize - 1);
 		}
 		ImGuiWindow* searchWindow = ImGui::GetCurrentWindowRead();
 

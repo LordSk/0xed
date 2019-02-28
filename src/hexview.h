@@ -104,6 +104,40 @@ struct ColorDisplay
     };
 };
 
+struct CellColor
+{
+	u8 bgR;
+	u8 bgG;
+	u8 bgB;
+	u8 txtR;
+	u8 txtG;
+	u8 txtB;
+};
+
+inline void cellColorToU32(CellColor c, u32* bg32, u32* text32)
+{
+	*bg32 = (u32)0xff000000 | (u32)(c.bgB << 16) | (u32)(c.bgG << 8) | (u32)c.bgR;
+	*text32 = (u32)0xff000000 | (u32)(c.txtB << 16) | (u32)(c.txtG << 8) | (u32)c.txtR;
+}
+
+inline CellColor cellColorFromU32(u32 bg32, u32 text32)
+{
+	CellColor c;
+	c.bgR = bg32 & 0xff;
+	c.bgG = (bg32 & 0xff00) >> 8;
+	c.bgB = (bg32 & 0xff0000) >> 16;
+	c.txtR = text32 & 0xff;
+	c.txtG = (text32 & 0xff00) >> 8;
+	c.txtB = (text32 & 0xff0000) >> 16;
+	return c;
+}
+
+struct CellColorBuffer
+{
+	CellColor* buff;
+	i64 count;
+};
+
 struct PanelParams
 {
     ColorDisplay::Enum colorDisplay = ColorDisplay::GRADIENT;
@@ -135,6 +169,7 @@ struct HexView
 {
     PanelType::Enum panelType[PANEL_MAX_COUNT] = {};
     PanelParams panelParams[PANEL_MAX_COUNT] = {};
+	CellColorBuffer panelColorBuffer[PANEL_MAX_COUNT];
     i32 panelCount = 3;
 
     u8* fileBuffer;
@@ -144,9 +179,10 @@ struct HexView
     struct BrickWall* brickWall = nullptr;
 
     i32 columnCount = 16;
-    SelectionState selectionState;
+	SelectionState selection;
 
 	HexView();
+	~HexView();
     void setFileBuffer(u8* buff, i64 buffSize);
     void addNewPanel();
     void removePanel(const i32 pid);
@@ -155,6 +191,9 @@ struct HexView
 
 	void doUiHexViewWindow();
     void doPanelParamPopup(bool open, i32* panelId, ImVec2 popupPos);
+
+	template<typename T>
+	void fillColorBuffer(i32 panelID, i32 itemCount, i32 startLine);
 };
 
 struct UiStyle
@@ -171,6 +210,7 @@ struct UiStyle
 
 	const u32 textColor = 0xff000000;
 	const u32 hoverFrameColor = 0xffff9c4c;
+	const u32 hoverTextColor = 0xff000000;
 	const u32 selectedFrameColor = 0xffff7200;
 	const u32 selectedTextColor = 0xffffffff;
 
@@ -184,13 +224,13 @@ struct UiStyle
 
 extern UiStyle* g_uiStyle;
 void setUiStyleLight(ImFont* asciiFont);
-inline const UiStyle& setUiStyle() { assert(g_uiStyle); return *g_uiStyle; }
+inline const UiStyle& getUiStyle() { assert(g_uiStyle); return *g_uiStyle; }
 
 void uiHexRowHeader(i64 firstRow, i32 rowStep, f32 textOffsetY, const SelectionState& selection);
 void uiHexColumnHeader(i32 columnCount, const SelectionState& selection);
 bool uiHexPanelDoSelection(i32 panelID, i32 panelType, SelectionState* outSelectionState, i32 firstLine, i32 columnCount);
 void uiHexPanelTypeDoSelection(SelectionState* outSelectionState, i32 panelId, ImVec2 mousePos, ImRect rect, i32 columnWidth_, i32 rowHeight_, i32 startLine, i32 columnCount, i32 hoverLen);
-void uiHexDoHexPanel(ImGuiID imguiID, const PanelParams& panelParams, i32 startLine, const u8* data, i64 dataSize, i32 columnCount, const SelectionState& selection);
+void uiHexDoHexPanel(ImGuiID imguiID, i32 startLine, const u8* data, i64 dataSize, i32 columnCount, const CellColorBuffer& colorBuffer);
 void uiHexDoAsciiPanel(ImGuiID imguiID, const PanelParams& panelParams, i32 startLine, const u8* data, i64 dataSize, i32 columnCount, const SelectionState& selection);
 
 template<typename T>
