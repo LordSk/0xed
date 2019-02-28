@@ -162,8 +162,6 @@ struct DataPanels
     const ImU32 selectedFrameColor = 0xffff7200;
     const ImU32 selectedTextColor = 0xffffffff;
 
-    struct ImFont* fontMono;
-
     SelectionState selectionState;
 
     ImGuiWindow* mainWindow;
@@ -179,13 +177,13 @@ struct DataPanels
 
     void doUi();
 
-    void doAsciiPanel(i32 pid, f32 panelWidth, const i32 startLine);
-
     template<typename T>
     void doFormatPanel(i32 pid, f32 panelWidth, const i32 startLine, const char* format);
 
     void doPanelParamPopup(bool open, i32* panelId, ImVec2 popupPos);
 };
+
+struct ImFont;
 
 struct UiStyle
 {
@@ -208,14 +206,17 @@ struct UiStyle
 	const u32 headerBgColorEven = 0xffe5e5e5;
 	const u32 headerTextColorOdd = 0xff808080;
 	const u32 headerTextColorEven = 0xff737373;
+
+	ImFont* fontAscii;
 };
 
 extern UiStyle* g_uiStyle;
-void SetUiStyleLight();
+void SetUiStyleLight(ImFont* asciiFont);
 inline const UiStyle& GetUiStyle() { assert(g_uiStyle); return *g_uiStyle; }
 
 void UiHexRowHeader(i64 firstRow, i32 rowStep, f32 textOffsetY, const SelectionState& selection);
 void UiHexColumnHeader(i32 columnCount, const SelectionState& selection);
 bool UiHexPanelDoSelection(i32 panelID, i32 panelType, SelectionState* outSelectionState, i32 firstLine, i32 columnCount);
 void UiHexPanelTypeDoSelection(SelectionState* outSelectionState, i32 panelId, ImVec2 mousePos, ImRect rect, i32 columnWidth_, i32 rowHeight_, i32 startLine, i32 columnCount, i32 hoverLen);
-void UiHexDoHexPanel(ImGuiID imguiID, i32 panelID, const PanelParams& panelParams, i32 startLine, const u8* data, i64 dataSize, i32 columnCount, const SelectionState& selection);
+void UiHexDoHexPanel(ImGuiID imguiID, const PanelParams& panelParams, i32 startLine, const u8* data, i64 dataSize, i32 columnCount, const SelectionState& selection);
+void UiHexDoAsciiPanel(ImGuiID imguiID, const PanelParams& panelParams, i32 startLine, const u8* data, i64 dataSize, i32 columnCount, const SelectionState& selection);

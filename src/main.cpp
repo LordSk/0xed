@@ -72,9 +72,11 @@ bool init()
 
     dataPanels.fileBuffer = 0;
     dataPanels.fileBufferSize = 0;
-    dataPanels.fontMono = win.fontMono;
     dataPanels.panelCount = clamp(config.panelCount, 1, PANEL_MAX_COUNT);
     dataPanels.brickWall = &brickWall;
+
+	// init style
+	SetUiStyleLight(win.fontMono);
 
     if(openFileReadAll("C:\\Prog\\Projets\\sacred_remake\\sacred_data\\mixed.pak", &curFileBuff)) {
         dataPanels.setFileBuffer(curFileBuff.data, curFileBuff.size);
