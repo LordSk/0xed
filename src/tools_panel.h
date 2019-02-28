@@ -1,5 +1,5 @@
 #pragma once
-#include "data_panel.h"
+#include "hexview.h"
 #include "search.h"
 
 void toolsDoInspectorWindow(const u8* fileBuffer, const i64 fileBufferSize, const SelectionState& selection);

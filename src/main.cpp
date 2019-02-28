@@ -7,7 +7,7 @@
 #include <stdio.h>
 #include "window.h"
 #include "imgui_extended.h"
-#include "data_panel.h"
+#include "hexview.h"
 #include "tools_panel.h"
 #include "config.h"
 #include "utils.h"
