@@ -165,35 +165,6 @@ i32 DataPanels::getSelectedInt()
     return 0;
 }
 
-void DataPanels::calculatePanelWidth()
-{
-    childPanelWidth = 0;
-    for(i32 p = 0; p < panelCount; ++p) {
-        switch(panelType[p]) {
-            case PanelType::HEX:
-                panelRectWidth[p] = columnCount * columnWidth;
-                break;
-            case PanelType::ASCII:
-                panelRectWidth[p] = columnCount * asciiCharWidth;
-                break;
-            case PanelType::INT8:
-            case PanelType::UINT8:
-            case PanelType::INT16:
-            case PanelType::UINT16:
-            case PanelType::INT32:
-            case PanelType::UINT32:
-            case PanelType::INT64:
-            case PanelType::UINT64:
-            case PanelType::FLOAT32:
-            case PanelType::FLOAT64:
-                panelRectWidth[p] = intColumnWidth * columnCount;
-                break;
-
-           childPanelWidth += panelRectWidth[p] + panelSpacing;
-        }
-    }
-}
-
 void DataPanels::doUi()
 {
 	ImGuiIO& io = ImGui::GetIO();
@@ -213,10 +184,13 @@ void DataPanels::doUi()
     const i32 totalLineCount = fileBufferSize/columnCount + 4;
     i32 panelMarkedForDelete = -1;
     const f32 panelHeaderHeight = ImGui::GetComboHeight();
-    calculatePanelWidth();
     static i32 panelParamWindowOpenId = -1;
     static ImVec2 panelParamWindowPos;
     bool openPanelParamPopup = false;
+
+	f32 panelRectWidth[PANEL_MAX_COUNT];
+	for(i32 p = 0; p < panelCount; ++p)
+		panelRectWidth[p] = HexViewCalculatePanelWidth(panelType[p], columnCount);
 
 	const UiStyle& style = GetUiStyle();
 
@@ -228,20 +202,20 @@ void DataPanels::doUi()
     ImGui::SameLine();
 
 	// force appropriate content size
-	f32 windowWidth = panelSpacing + ImGui::GetStyle().ScrollbarSize;
+	f32 windowWidth = style.panelSpacing + ImGui::GetStyle().ScrollbarSize;
 	for(i32 p = 0; p < panelCount; ++p)
-		windowWidth += panelRectWidth[p] + panelSpacing;
+		windowWidth += panelRectWidth[p] + style.panelSpacing;
 
-	ImGui::SetNextWindowContentSize(ImVec2(windowWidth, totalLineCount * rowHeight));
+	ImGui::SetNextWindowContentSize(ImVec2(windowWidth, totalLineCount * style.rowHeight));
 	ImGui::BeginChild("#child_panel", ImVec2(0, 0), false,
 					  ImGuiWindowFlags_HorizontalScrollbar);
 
 		ImGuiWindow* window = ImGui::GetCurrentWindow();
 		if(goToLine != -1) {
-			ImGui::SetScrollY(goToLine * rowHeight);
+			ImGui::SetScrollY(goToLine * style.rowHeight);
 			goToLine = -1;
 		}
-		scrollCurrentLine = window->Scroll.y / rowHeight;
+		scrollCurrentLine = window->Scroll.y / style.rowHeight;
 
 		/*ImRect inputRect = window->Rect();
 		inputRect.Min.y += panelHeaderHeight;
@@ -255,7 +229,7 @@ void DataPanels::doUi()
 
 		for(i32 p = 0; p < panelCount; ++p) {
 			const f32 panelWidth = panelRectWidth[p];
-			ImGui::SetColumnWidth(p * 2, panelSpacing);
+			ImGui::SetColumnWidth(p * 2, style.panelSpacing);
 			ImGui::SetColumnWidth(p * 2 + 1, panelWidth);
 		}
 
@@ -268,7 +242,7 @@ void DataPanels::doUi()
 			ImGui::SetCursorScreenPos(csp);
 
 			const f32 comboWidth = ImGui::GetContentRegionAvailWidth() -
-								   panelCloseButtonWidth - panelColorButtonWidth - 1;
+								   style.panelCloseButtonWidth - style.panelColorButtonWidth - 1;
 			ImGui::PushItemWidth(comboWidth);
 			ImGui::PushID(&panelType[p]);
 			ImGui::Combo("##PanelType", (i32*)&panelType[p], panelComboItems, IM_ARRAYSIZE(panelComboItems),
@@ -284,7 +258,7 @@ void DataPanels::doUi()
 			sprintf(paramPopupStr, "PanelParamsPopup%d", p);
 
 			// TODO: make toggle button
-			if(ImGui::ButtonEx(paramButStr, ImVec2(panelColorButtonWidth, 0))) {
+			if(ImGui::ButtonEx(paramButStr, ImVec2(style.panelColorButtonWidth, 0))) {
 				if(panelParamWindowOpenId != p) {
 					panelParamWindowOpenId = p;
 					panelParamWindowPos = ImGui::GetCursorScreenPos() + ImVec2(comboWidth, 0);
@@ -298,7 +272,7 @@ void DataPanels::doUi()
 			ImGui::SameLine();
 
 			ImGui::PushID(&panelType[p] + 0xb00b + 'X');
-			if(ImGui::Button("X", ImVec2(panelCloseButtonWidth, 0))) {
+			if(ImGui::Button("X", ImVec2(style.panelCloseButtonWidth, 0))) {
 				panelMarkedForDelete = p;
 			}
 			ImGui::PopID();
@@ -324,7 +298,6 @@ void DataPanels::doUi()
 		// data panels
 		for(i32 p = 0; p < panelCount; ++p) {
 			ImGui::NextColumn(); // skip spacing column
-			const f32 panelWidth = panelRectWidth[p];
 
 			switch(panelType[p]) {
 				case PanelType::HEX:
@@ -1256,4 +1229,30 @@ void UiHexDoFormatPanel(ImGuiID imguiID, const PanelParams& panelParams, i32 sta
 				  winPos.x + panelSize.x + 1, winPos.y + cellSize.y * l + 1);
 		ImGui::RenderFrame(bb.Min, bb.Max, lineColor, false, 0);
 	}
+}
+
+f32 HexViewCalculatePanelWidth(i32 panelType, i32 columnCount)
+{
+	const UiStyle& style = GetUiStyle();
+
+	switch(panelType) {
+		case PanelType::HEX:
+			return columnCount * style.columnWidth;
+		case PanelType::ASCII:
+			return columnCount * style.asciiCharWidth;
+		case PanelType::INT8:
+		case PanelType::UINT8:
+		case PanelType::INT16:
+		case PanelType::UINT16:
+		case PanelType::INT32:
+		case PanelType::UINT32:
+		case PanelType::INT64:
+		case PanelType::UINT64:
+		case PanelType::FLOAT32:
+		case PanelType::FLOAT64:
+			return columnCount * style.intColumnWidth;
+	}
+
+	assert(0); // should not reach here
+	return -1;
 }

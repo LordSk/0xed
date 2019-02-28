@@ -2,6 +2,9 @@
 #include "bricks.h"
 #include <gl3w.h>
 
+#define IMGUI_DEFINE_MATH_OPERATORS
+#include "imgui_internal.h"
+
 namespace ImGui {
 
 void DoScrollbarVertical(i64* outScrollVal, i64 scrollPageSize, i64 scrollTotalSize)

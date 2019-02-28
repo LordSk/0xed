@@ -3,8 +3,8 @@
 #include "utils.h"
 
 #define IMGUI_DEFINE_MATH_OPERATORS
-#include "imgui.h" // ImVec2
-#include "imgui_internal.h" // ImRect, ImGuiWindow
+#include "imgui.h"
+#include "imgui_internal.h"
 
 #define PANEL_MAX_COUNT 10
 
@@ -133,9 +133,6 @@ struct PanelParams
 
 struct DataPanels
 {
-    f32 childPanelWidth;
-    f32 panelRectWidth[PANEL_MAX_COUNT];
-
     PanelType::Enum panelType[PANEL_MAX_COUNT] = {};
     PanelParams panelParams[PANEL_MAX_COUNT] = {};
     i32 panelCount = 3;
@@ -147,24 +144,7 @@ struct DataPanels
     struct BrickWall* brickWall = nullptr;
 
     i32 columnCount = 16;
-    const i32 columnWidth = 22;
-    const f32 rowHeight = 22;
-    const i32 columnHeaderHeight = 24;
-    i32 rowHeaderWidth = 32;
-    const i32 panelSpacing = 10;
-    const f32 panelCloseButtonWidth = 20;
-    const f32 panelColorButtonWidth = 30;
-
-    const i32 asciiCharWidth = 14;
-    const i32 intColumnWidth = 34;
-
-    const ImU32 hoverFrameColor = 0xffff9c4c;
-    const ImU32 selectedFrameColor = 0xffff7200;
-    const ImU32 selectedTextColor = 0xffffffff;
-
     SelectionState selectionState;
-
-    ImGuiWindow* mainWindow;
 
     DataPanels();
     void setFileBuffer(u8* buff, i64 buffSize);
@@ -173,14 +153,10 @@ struct DataPanels
     void goTo(i32 offset);
     i32 getSelectedInt();
 
-    void calculatePanelWidth();
-
     void doUi();
 
     void doPanelParamPopup(bool open, i32* panelId, ImVec2 popupPos);
 };
-
-struct ImFont;
 
 struct UiStyle
 {
@@ -220,4 +196,6 @@ void UiHexDoAsciiPanel(ImGuiID imguiID, const PanelParams& panelParams, i32 star
 
 template<typename T>
 void UiHexDoFormatPanel(ImGuiID imguiID, const PanelParams& panelParams, i32 startLine, const u8* data, i64 dataSize, i32 columnCount, const SelectionState& selection, i32 panelType, const char* format);
+
+f32 HexViewCalculatePanelWidth(i32 panelType, i32 columnCount);
 
