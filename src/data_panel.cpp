@@ -894,6 +894,23 @@ void UiHexColumnHeader(i32 columnCount, const SelectionState& selection)
 {
 	const UiStyle& style = GetUiStyle();
 
+	i32 hoverStart = min(selection.hoverStart, selection.hoverEnd);
+	i32 hoverEnd = (max(selection.hoverStart, selection.hoverEnd)-1);
+	const i32 hoverSize = hoverEnd - hoverStart;
+	hoverStart = hoverStart % columnCount;
+	hoverEnd = hoverStart + hoverSize;
+	if(hoverEnd > columnCount)
+		hoverStart = -1;
+	const bool hovered = hoverStart >= 0;
+	i32 selectStart = min(selection.selectStart, selection.selectEnd);
+	i32 selectEnd = max(selection.selectStart, selection.selectEnd);
+	const i32 selectSize = selectEnd - selectStart;
+	selectStart = selectStart % columnCount;
+	selectEnd = selectStart + selectSize;
+	if(selectEnd > columnCount)
+		selectStart = -1;
+	const bool selected = selectStart >= 0;
+
 	ImVec2 headerPos =  ImGui::GetCursorScreenPos();
 	const f32 width = ImGui::GetContentRegionAvailWidth();
 	const f32 columnWidth = width / columnCount;
@@ -903,8 +920,8 @@ void UiHexColumnHeader(i32 columnCount, const SelectionState& selection)
 	ImGui::ItemSize(colHeadBb);
 	ImGui::RenderFrame(colHeadBb.Min, colHeadBb.Max, headerColor, false, 0);
 
-	for(i64 i = 0; i < columnCount; ++i) {
-		u32 hex = toHexStr(i);
+	for(i32 i = 0; i < columnCount; ++i) {
+		const u32 hex = toHexStr(i);
 		const char* label = (const char*)&hex;
 		const ImVec2 label_size = ImGui::CalcTextSize(label, label+2);
 		const ImVec2 size = ImGui::CalcItemSize(ImVec2(columnWidth, style.columnHeaderHeight),
@@ -914,11 +931,26 @@ void UiHexColumnHeader(i32 columnCount, const SelectionState& selection)
 		cellPos += headerPos;
 		const ImRect bb(cellPos, cellPos + size);
 
-		if(i & 1) {
-			ImGui::RenderFrame(bb.Min, bb.Max, headerColorOdd, false, 0);
+		const bool isOdd = i & 1;
+		u32 frameColor = isOdd ? style.headerBgColorOdd : style.headerBgColorEven;
+		u32 textColor = isOdd ? style.headerTextColorOdd : style.headerTextColorEven;
+
+#if 0
+		if(selected && i >= selectStart && i <= selectEnd) {
+			frameColor = style.selectedFrameColor;
+			textColor = style.selectedTextColor;
+		}
+		else if(hovered && i >= hoverStart && i <= hoverEnd) {
+			frameColor = style.hoverFrameColor;
+			textColor = style.textColor;
+		}
+#endif
+
+		if(frameColor != style.headerTextColorEven) {
+		   ImGui::RenderFrame(bb.Min, bb.Max, frameColor, false, 0);
 		}
 
-		ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.5, 0.5, 0.5, 1));
+		ImGui::PushStyleColor(ImGuiCol_Text, textColor);
 		ImGui::RenderTextClipped(bb.Min, bb.Max, label, label+2,
 						  &label_size, ImVec2(0.5, 0.5), &bb);
 		ImGui::PopStyleColor();
