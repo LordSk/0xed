@@ -131,7 +131,7 @@ struct PanelParams
     }
 };
 
-struct DataPanels
+struct HexView
 {
     PanelType::Enum panelType[PANEL_MAX_COUNT] = {};
     PanelParams panelParams[PANEL_MAX_COUNT] = {};
@@ -146,15 +146,14 @@ struct DataPanels
     i32 columnCount = 16;
     SelectionState selectionState;
 
-    DataPanels();
+	HexView();
     void setFileBuffer(u8* buff, i64 buffSize);
     void addNewPanel();
     void removePanel(const i32 pid);
     void goTo(i32 offset);
     i32 getSelectedInt();
 
-    void doUi();
-
+	void doUiHexViewWindow();
     void doPanelParamPopup(bool open, i32* panelId, ImVec2 popupPos);
 };
 
@@ -184,18 +183,18 @@ struct UiStyle
 };
 
 extern UiStyle* g_uiStyle;
-void SetUiStyleLight(ImFont* asciiFont);
-inline const UiStyle& GetUiStyle() { assert(g_uiStyle); return *g_uiStyle; }
+void setUiStyleLight(ImFont* asciiFont);
+inline const UiStyle& setUiStyle() { assert(g_uiStyle); return *g_uiStyle; }
 
-void UiHexRowHeader(i64 firstRow, i32 rowStep, f32 textOffsetY, const SelectionState& selection);
-void UiHexColumnHeader(i32 columnCount, const SelectionState& selection);
-bool UiHexPanelDoSelection(i32 panelID, i32 panelType, SelectionState* outSelectionState, i32 firstLine, i32 columnCount);
-void UiHexPanelTypeDoSelection(SelectionState* outSelectionState, i32 panelId, ImVec2 mousePos, ImRect rect, i32 columnWidth_, i32 rowHeight_, i32 startLine, i32 columnCount, i32 hoverLen);
-void UiHexDoHexPanel(ImGuiID imguiID, const PanelParams& panelParams, i32 startLine, const u8* data, i64 dataSize, i32 columnCount, const SelectionState& selection);
-void UiHexDoAsciiPanel(ImGuiID imguiID, const PanelParams& panelParams, i32 startLine, const u8* data, i64 dataSize, i32 columnCount, const SelectionState& selection);
+void uiHexRowHeader(i64 firstRow, i32 rowStep, f32 textOffsetY, const SelectionState& selection);
+void uiHexColumnHeader(i32 columnCount, const SelectionState& selection);
+bool uiHexPanelDoSelection(i32 panelID, i32 panelType, SelectionState* outSelectionState, i32 firstLine, i32 columnCount);
+void uiHexPanelTypeDoSelection(SelectionState* outSelectionState, i32 panelId, ImVec2 mousePos, ImRect rect, i32 columnWidth_, i32 rowHeight_, i32 startLine, i32 columnCount, i32 hoverLen);
+void uiHexDoHexPanel(ImGuiID imguiID, const PanelParams& panelParams, i32 startLine, const u8* data, i64 dataSize, i32 columnCount, const SelectionState& selection);
+void uiHexDoAsciiPanel(ImGuiID imguiID, const PanelParams& panelParams, i32 startLine, const u8* data, i64 dataSize, i32 columnCount, const SelectionState& selection);
 
 template<typename T>
-void UiHexDoFormatPanel(ImGuiID imguiID, const PanelParams& panelParams, i32 startLine, const u8* data, i64 dataSize, i32 columnCount, const SelectionState& selection, i32 panelType, const char* format);
+void uiHexDoFormatPanel(ImGuiID imguiID, const PanelParams& panelParams, i32 startLine, const u8* data, i64 dataSize, i32 columnCount, const SelectionState& selection, i32 panelType, const char* format);
 
-f32 HexViewCalculatePanelWidth(i32 panelType, i32 columnCount);
+f32 hexViewCalculatePanelWidth(i32 panelType, i32 columnCount);
 

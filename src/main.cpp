@@ -34,7 +34,7 @@ struct Application {
 AppWindow win;
 Config config;
 FileBuffer curFileBuff;
-DataPanels dataPanels;
+HexView hexView;
 BrickWall brickWall;
 
 f32 toolsPanelWidth = 400;
@@ -70,16 +70,16 @@ bool init()
         this->handleEvent(e);
     };
 
-    dataPanels.fileBuffer = 0;
-    dataPanels.fileBufferSize = 0;
-    dataPanels.panelCount = clamp(config.panelCount, 1, PANEL_MAX_COUNT);
-    dataPanels.brickWall = &brickWall;
+	hexView.fileBuffer = 0;
+	hexView.fileBufferSize = 0;
+	hexView.panelCount = clamp(config.panelCount, 1, PANEL_MAX_COUNT);
+	hexView.brickWall = &brickWall;
 
 	// init style
-	SetUiStyleLight(win.fontMono);
+	setUiStyleLight(win.fontMono);
 
     if(openFileReadAll("C:\\Prog\\Projets\\sacred_remake\\sacred_data\\mixed.pak", &curFileBuff)) {
-        dataPanels.setFileBuffer(curFileBuff.data, curFileBuff.size);
+		hexView.setFileBuffer(curFileBuff.data, curFileBuff.size);
 		// TODO: onFileLoaded
     }
 
@@ -125,7 +125,7 @@ void cleanUp()
         config.windowHeight = win.winHeight;
     }
 
-    config.panelCount = dataPanels.panelCount;
+	config.panelCount = hexView.panelCount;
 
     win.cleanUp();
 
@@ -156,7 +156,7 @@ void handleEvent(const SDL_Event& event)
         char* droppedFilepath = event.drop.file;
 
         if(openFileReadAll(droppedFilepath, &curFileBuff)) {
-            dataPanels.setFileBuffer(curFileBuff.data, curFileBuff.size);
+			hexView.setFileBuffer(curFileBuff.data, curFileBuff.size);
 			searchSetNewFileBuffer(curFileBuff);
         }
 
@@ -176,9 +176,9 @@ void handleEvent(const SDL_Event& event)
 
 void userTryAddBrick()
 {
-	if(dataPanels.selectionState.isEmpty()) return;
-    intptr_t selMin = min(dataPanels.selectionState.selectStart, dataPanels.selectionState.selectEnd);
-    intptr_t selMax = max(dataPanels.selectionState.selectStart, dataPanels.selectionState.selectEnd);
+	if(hexView.selectionState.isEmpty()) return;
+	intptr_t selMin = min(hexView.selectionState.selectStart, hexView.selectionState.selectEnd);
+	intptr_t selMax = max(hexView.selectionState.selectStart, hexView.selectionState.selectEnd);
     popupBrickSelStart = selMin;
     popupBrickSelLength = selMax - selMin + 1;
     popupBrickWantOpen = true;
@@ -236,7 +236,7 @@ void doUI()
 				const char* filepath = noc_file_dialog_open(NOC_FILE_DIALOG_OPEN, "*", "", "");
 				if(filepath) {
 					if(openFileReadAll(filepath, &curFileBuff)) {
-						dataPanels.setFileBuffer(curFileBuff.data, curFileBuff.size);
+						hexView.setFileBuffer(curFileBuff.data, curFileBuff.size);
 					}
 				}
 			}
@@ -256,7 +256,7 @@ void doUI()
 		}
 
 		if(ImGui::Button("Add panel")) {
-			dataPanels.addNewPanel();
+			hexView.addNewPanel();
 		}
 
 		if(ImGui::Button("Goto")) {
@@ -268,30 +268,17 @@ void doUI()
 
 	ImGui::End();
 
-	ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
-	ImGui::Begin("Hex view", nullptr, 0/*|ImGuiWindowFlags_NoTitleBar|ImGuiWindowFlags_NoResize|
-				 ImGuiWindowFlags_NoMove|ImGuiWindowFlags_NoScrollbar*/);
-	ImGui::PopStyleVar(1);
-
-        dataPanels.doUi();
-
-	ImGui::End();
+	// Hex view window
+	hexView.doUiHexViewWindow();
 
 	// Tool windows
-	// Inspector
-	ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
-	ImGui::Begin("Inspector", nullptr, 0/*|ImGuiWindowFlags_NoTitleBar|ImGuiWindowFlags_NoResize|
-				 ImGuiWindowFlags_NoMove|ImGuiWindowFlags_NoScrollbar*/);
-	ImGui::PopStyleVar(1);
 
-		toolsDoInspector(dataPanels.fileBuffer, dataPanels.fileBufferSize,
-						 dataPanels.selectionState);
-	ImGui::End();
+	// Inspector
+	toolsDoInspectorWindow(curFileBuff.data, curFileBuff.size, hexView.selectionState);
 
 	// Search
 	ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
-	ImGui::Begin("Search", nullptr, 0/*|ImGuiWindowFlags_NoTitleBar|ImGuiWindowFlags_NoResize|
-				 ImGuiWindowFlags_NoMove|ImGuiWindowFlags_NoScrollbar*/);
+	ImGui::Begin("Search");
 	ImGui::PopStyleVar(1);
 
 		// search params
@@ -303,30 +290,22 @@ void doUI()
 		// search results here
 		u64 searchGotoOffset;
 		if(toolsSearchResults(lastSearchParams, searchResults, &searchGotoOffset)) {
-			dataPanels.goTo(searchGotoOffset);
-			dataPanels.selectionState.select(searchGotoOffset, searchGotoOffset + lastSearchParams.dataSize - 1);
+			hexView.goTo(searchGotoOffset);
+			hexView.selectionState.select(searchGotoOffset, searchGotoOffset + lastSearchParams.dataSize - 1);
 		}
 		ImGuiWindow* searchWindow = ImGui::GetCurrentWindowRead();
 
 	ImGui::End();
 
 	// Brick wall
-	ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
-	ImGui::Begin("Bricks", nullptr, 0/*|ImGuiWindowFlags_NoTitleBar|ImGuiWindowFlags_NoResize|
-				 ImGuiWindowFlags_NoMove|ImGuiWindowFlags_NoScrollbar*/);
-	ImGui::PopStyleVar(1);
-
-		ui_brickWall(&brickWall, curFileBuff.data);
-
-	ImGui::End();
+	uiBrickWallWindow(&brickWall, curFileBuff.data);
 
 	// Scripts
 	ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
-	ImGui::Begin("Scripts", nullptr, 0/*|ImGuiWindowFlags_NoTitleBar|ImGuiWindowFlags_NoResize|
-				 ImGuiWindowFlags_NoMove|ImGuiWindowFlags_NoScrollbar*/);
+	ImGui::Begin("Scripts");
 	ImGui::PopStyleVar(1);
 
-		toolsDoOptions(&dataPanels.columnCount);
+		toolsDoOptions(&hexView.columnCount);
 		toolsDoScript(&script, &brickWall);
 
 	ImGui::End();
@@ -352,7 +331,7 @@ void doUI()
     static i32 gotoOffset = 0;
     if(openGoto) {
         ImGui::OpenPopup("Go to file offset");
-        gotoOffset = dataPanels.getSelectedInt();
+		gotoOffset = hexView.getSelectedInt();
     }
     if(ImGui::BeginPopupModal("Go to file offset", NULL, ImGuiWindowFlags_AlwaysAutoResize)) {
         ImGui::Text("Go to");
@@ -361,7 +340,7 @@ void doUI()
         ImGui::InputInt("##offset", &gotoOffset);
 
         if(ImGui::Button("OK", ImVec2(120,0))) {
-            dataPanels.goTo(gotoOffset);
+			hexView.goTo(gotoOffset);
             ImGui::CloseCurrentPopup();
         }
         ImGui::SameLine();

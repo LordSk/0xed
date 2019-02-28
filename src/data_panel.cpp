@@ -89,7 +89,7 @@ inline u32 toHexStr(u8 val)
     return hex;
 }
 
-DataPanels::DataPanels()
+HexView::HexView()
 {
     memset(panelType, 0, sizeof(panelType));
     panelType[0] = PanelType::HEX;
@@ -113,7 +113,7 @@ DataPanels::DataPanels()
     }
 }
 
-void DataPanels::setFileBuffer(u8* buff, i64 buffSize)
+void HexView::setFileBuffer(u8* buff, i64 buffSize)
 {
     fileBuffer = buff;
     fileBufferSize = buffSize;
@@ -121,7 +121,7 @@ void DataPanels::setFileBuffer(u8* buff, i64 buffSize)
     scrollCurrentLine = 0;
 }
 
-void DataPanels::addNewPanel()
+void HexView::addNewPanel()
 {
     if(panelCount >= PANEL_MAX_COUNT) {
         return;
@@ -135,7 +135,7 @@ void DataPanels::addNewPanel()
     }
 }
 
-void DataPanels::removePanel(const i32 pid)
+void HexView::removePanel(const i32 pid)
 {
     if(pid+1 < panelCount) {
         panelType[pid] = panelType[pid+1];
@@ -146,14 +146,14 @@ void DataPanels::removePanel(const i32 pid)
     panelCount--;
 }
 
-void DataPanels::goTo(i32 offset)
+void HexView::goTo(i32 offset)
 {
     if(offset >= 0 && offset < fileBufferSize) {
         goToLine = offset / columnCount;
     }
 }
 
-i32 DataPanels::getSelectedInt()
+i32 HexView::getSelectedInt()
 {
     if(selectionState.selectStart > -1) {
         i64 selMin = min(selectionState.selectStart, selectionState.selectEnd);
@@ -165,7 +165,7 @@ i32 DataPanels::getSelectedInt()
     return 0;
 }
 
-void DataPanels::doUi()
+void HexView::doUiHexViewWindow()
 {
 	ImGuiIO& io = ImGui::GetIO();
 
@@ -190,13 +190,18 @@ void DataPanels::doUi()
 
 	f32 panelRectWidth[PANEL_MAX_COUNT];
 	for(i32 p = 0; p < panelCount; ++p)
-		panelRectWidth[p] = HexViewCalculatePanelWidth(panelType[p], columnCount);
+		panelRectWidth[p] = hexViewCalculatePanelWidth(panelType[p], columnCount);
 
-	const UiStyle& style = GetUiStyle();
+	const UiStyle& style = setUiStyle();
+
+	// window begin
+	ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
+	ImGui::Begin("Hex view");
+	ImGui::PopStyleVar(1);
 
 	ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(0, 0));
 
-	UiHexRowHeader(scrollCurrentLine, columnCount, style.columnHeaderHeight + panelHeaderHeight,
+	uiHexRowHeader(scrollCurrentLine, columnCount, style.columnHeaderHeight + panelHeaderHeight,
 				   selectionState);
 
     ImGui::SameLine();
@@ -282,7 +287,7 @@ void DataPanels::doUi()
 
 		for(i32 p = 0; p < panelCount; ++p) {
 			ImGui::NextColumn(); // skip spacing column
-			UiHexColumnHeader(columnCount, selectionState);
+			uiHexColumnHeader(columnCount, selectionState);
 			ImGui::NextColumn();
 		}
 
@@ -291,7 +296,7 @@ void DataPanels::doUi()
 		// process mouse input over panels before displaying them
 		for(i32 p = 0; p < panelCount; ++p) {
 			ImGui::NextColumn(); // skip spacing column
-			mouseInsideAnyPanel |= UiHexPanelDoSelection(p, panelType[p], &selectionState, scrollCurrentLine, columnCount);
+			mouseInsideAnyPanel |= uiHexPanelDoSelection(p, panelType[p], &selectionState, scrollCurrentLine, columnCount);
 			ImGui::NextColumn();
 		}
 
@@ -301,40 +306,40 @@ void DataPanels::doUi()
 
 			switch(panelType[p]) {
 				case PanelType::HEX:
-					UiHexDoHexPanel(p, panelParams[p], scrollCurrentLine, fileBuffer, fileBufferSize, columnCount, selectionState);
+					uiHexDoHexPanel(p, panelParams[p], scrollCurrentLine, fileBuffer, fileBufferSize, columnCount, selectionState);
 					break;
 				case PanelType::ASCII:
-					UiHexDoAsciiPanel(p, panelParams[p], scrollCurrentLine, fileBuffer, fileBufferSize, columnCount, selectionState);
+					uiHexDoAsciiPanel(p, panelParams[p], scrollCurrentLine, fileBuffer, fileBufferSize, columnCount, selectionState);
 					break;
 				case PanelType::INT8:
-					UiHexDoFormatPanel<i8>(p, panelParams[p], scrollCurrentLine, fileBuffer, fileBufferSize, columnCount, selectionState, PanelType::INT8, "%d");
+					uiHexDoFormatPanel<i8>(p, panelParams[p], scrollCurrentLine, fileBuffer, fileBufferSize, columnCount, selectionState, PanelType::INT8, "%d");
 					break;
 				case PanelType::UINT8:
-					UiHexDoFormatPanel<u8>(p, panelParams[p], scrollCurrentLine, fileBuffer, fileBufferSize, columnCount, selectionState, PanelType::INT8, "%u");
+					uiHexDoFormatPanel<u8>(p, panelParams[p], scrollCurrentLine, fileBuffer, fileBufferSize, columnCount, selectionState, PanelType::INT8, "%u");
 					break;
 				case PanelType::INT16:
-					UiHexDoFormatPanel<i16>(p, panelParams[p], scrollCurrentLine, fileBuffer, fileBufferSize, columnCount, selectionState, PanelType::INT16, "%d");
+					uiHexDoFormatPanel<i16>(p, panelParams[p], scrollCurrentLine, fileBuffer, fileBufferSize, columnCount, selectionState, PanelType::INT16, "%d");
 					break;
 				case PanelType::UINT16:
-					UiHexDoFormatPanel<u16>(p, panelParams[p], scrollCurrentLine, fileBuffer, fileBufferSize, columnCount, selectionState, PanelType::UINT16, "%u");
+					uiHexDoFormatPanel<u16>(p, panelParams[p], scrollCurrentLine, fileBuffer, fileBufferSize, columnCount, selectionState, PanelType::UINT16, "%u");
 					break;
 				case PanelType::INT32:
-					UiHexDoFormatPanel<i32>(p, panelParams[p], scrollCurrentLine, fileBuffer, fileBufferSize, columnCount, selectionState, PanelType::INT32, "%d");
+					uiHexDoFormatPanel<i32>(p, panelParams[p], scrollCurrentLine, fileBuffer, fileBufferSize, columnCount, selectionState, PanelType::INT32, "%d");
 					break;
 				case PanelType::UINT32:
-					UiHexDoFormatPanel<u32>(p, panelParams[p], scrollCurrentLine, fileBuffer, fileBufferSize, columnCount, selectionState, PanelType::UINT32, "%u");
+					uiHexDoFormatPanel<u32>(p, panelParams[p], scrollCurrentLine, fileBuffer, fileBufferSize, columnCount, selectionState, PanelType::UINT32, "%u");
 					break;
 				case PanelType::INT64:
-					UiHexDoFormatPanel<i64>(p, panelParams[p], scrollCurrentLine, fileBuffer, fileBufferSize, columnCount, selectionState, PanelType::INT64, "%lld");
+					uiHexDoFormatPanel<i64>(p, panelParams[p], scrollCurrentLine, fileBuffer, fileBufferSize, columnCount, selectionState, PanelType::INT64, "%lld");
 					break;
 				case PanelType::UINT64:
-					UiHexDoFormatPanel<u64>(p, panelParams[p], scrollCurrentLine, fileBuffer, fileBufferSize, columnCount, selectionState, PanelType::UINT64, "%llu");
+					uiHexDoFormatPanel<u64>(p, panelParams[p], scrollCurrentLine, fileBuffer, fileBufferSize, columnCount, selectionState, PanelType::UINT64, "%llu");
 					break;
 				case PanelType::FLOAT32:
-					UiHexDoFormatPanel<f32>(p, panelParams[p], scrollCurrentLine, fileBuffer, fileBufferSize, columnCount, selectionState, PanelType::FLOAT32, "%g");
+					uiHexDoFormatPanel<f32>(p, panelParams[p], scrollCurrentLine, fileBuffer, fileBufferSize, columnCount, selectionState, PanelType::FLOAT32, "%g");
 					break;
 				case PanelType::FLOAT64:
-					UiHexDoFormatPanel<f64>(p, panelParams[p], scrollCurrentLine, fileBuffer, fileBufferSize, columnCount, selectionState, PanelType::FLOAT64, "%g");
+					uiHexDoFormatPanel<f64>(p, panelParams[p], scrollCurrentLine, fileBuffer, fileBufferSize, columnCount, selectionState, PanelType::FLOAT64, "%g");
 					break;
 				default:
 					assert(0);
@@ -357,9 +362,11 @@ void DataPanels::doUi()
 	/*if(!mouseInsideAnyPanel && io.MouseClicked[0]) {
 		selectionState.deselect();
 	}*/
+
+	ImGui::End(); // window end
 }
 
-void DataPanels::doPanelParamPopup(bool open, i32* panelId, ImVec2 popupPos)
+void HexView::doPanelParamPopup(bool open, i32* panelId, ImVec2 popupPos)
 {
     if(open && *panelId != -1) {
         ImGui::OpenPopup("Panel parameters");
@@ -669,16 +676,16 @@ void DataPanels::doBrickPanel(const char* label, const i32 startLine)
 
 UiStyle* g_uiStyle = nullptr;
 
-void SetUiStyleLight(ImFont* asciiFont)
+void setUiStyleLight(ImFont* asciiFont)
 {
 	static UiStyle style;
 	style.fontAscii = asciiFont;
 	g_uiStyle = &style;
 }
 
-void UiHexRowHeader(i64 firstRow, i32 rowStep, f32 textOffsetY, const SelectionState& selection)
+void uiHexRowHeader(i64 firstRow, i32 rowStep, f32 textOffsetY, const SelectionState& selection)
 {
-	const UiStyle& style = GetUiStyle();
+	const UiStyle& style = setUiStyle();
 
 	// row header
 	const ImVec2 winPos = ImGui::GetCurrentWindow()->DC.CursorPos;
@@ -741,9 +748,9 @@ void UiHexRowHeader(i64 firstRow, i32 rowStep, f32 textOffsetY, const SelectionS
 	}
 }
 
-void UiHexColumnHeader(i32 columnCount, const SelectionState& selection)
+void uiHexColumnHeader(i32 columnCount, const SelectionState& selection)
 {
-	const UiStyle& style = GetUiStyle();
+	const UiStyle& style = setUiStyle();
 
 	i32 hoverStart = min(selection.hoverStart, selection.hoverEnd);
 	i32 hoverEnd = (max(selection.hoverStart, selection.hoverEnd)-1);
@@ -808,7 +815,7 @@ void UiHexColumnHeader(i32 columnCount, const SelectionState& selection)
 	}
 }
 
-bool UiHexPanelDoSelection(i32 panelID, i32 panelType, SelectionState* outSelectionState, i32 firstLine, i32 columnCount)
+bool uiHexPanelDoSelection(i32 panelID, i32 panelType, SelectionState* outSelectionState, i32 firstLine, i32 columnCount)
 {
 	// TODO: move this out?
 	if(ImGui::IsAnyPopupOpen()) {
@@ -842,39 +849,39 @@ bool UiHexPanelDoSelection(i32 panelID, i32 panelType, SelectionState* outSelect
 		mousePos.y = clamp(mousePos.y, 0.0f, winRect.Max.y - winRect.Min.y - 1);
 	}
 
-	const UiStyle& style = GetUiStyle();
+	const UiStyle& style = setUiStyle();
 
 	switch(panelType) {
 		case PanelType::HEX:
-			UiHexPanelTypeDoSelection(outSelectionState, panelID, mousePos, winRect, style.columnWidth, style.rowHeight, firstLine, columnCount, 1);
+			uiHexPanelTypeDoSelection(outSelectionState, panelID, mousePos, winRect, style.columnWidth, style.rowHeight, firstLine, columnCount, 1);
 			break;
 		case PanelType::ASCII:
-			UiHexPanelTypeDoSelection(outSelectionState, panelID, mousePos, winRect, style.asciiCharWidth, style.rowHeight, firstLine, columnCount, 1);
+			uiHexPanelTypeDoSelection(outSelectionState, panelID, mousePos, winRect, style.asciiCharWidth, style.rowHeight, firstLine, columnCount, 1);
 			break;
 		case PanelType::INT8:
 		case PanelType::UINT8:
-			UiHexPanelTypeDoSelection(outSelectionState, panelID, mousePos, winRect, style.intColumnWidth * 1, style.rowHeight, firstLine, columnCount, 1);
+			uiHexPanelTypeDoSelection(outSelectionState, panelID, mousePos, winRect, style.intColumnWidth * 1, style.rowHeight, firstLine, columnCount, 1);
 			break;
 		case PanelType::INT16:
 		case PanelType::UINT16:
-			UiHexPanelTypeDoSelection(outSelectionState, panelID, mousePos, winRect, style.intColumnWidth * 2, style.rowHeight, firstLine, columnCount, 2);
+			uiHexPanelTypeDoSelection(outSelectionState, panelID, mousePos, winRect, style.intColumnWidth * 2, style.rowHeight, firstLine, columnCount, 2);
 			break;
 		case PanelType::INT32:
 		case PanelType::UINT32:
 		case PanelType::FLOAT32:
-			UiHexPanelTypeDoSelection(outSelectionState, panelID, mousePos, winRect, style.intColumnWidth * 4, style.rowHeight, firstLine, columnCount, 4);
+			uiHexPanelTypeDoSelection(outSelectionState, panelID, mousePos, winRect, style.intColumnWidth * 4, style.rowHeight, firstLine, columnCount, 4);
 			break;
 		case PanelType::INT64:
 		case PanelType::UINT64:
 		case PanelType::FLOAT64:
-			UiHexPanelTypeDoSelection(outSelectionState, panelID, mousePos, winRect, style.intColumnWidth * 8, style.rowHeight, firstLine, columnCount, 8);
+			uiHexPanelTypeDoSelection(outSelectionState, panelID, mousePos, winRect, style.intColumnWidth * 8, style.rowHeight, firstLine, columnCount, 8);
 			break;
 	}
 
 	return true;
 }
 
-void UiHexPanelTypeDoSelection(SelectionState* outSelectionState, i32 panelId, ImVec2 mousePos, ImRect rect, i32 columnWidth_, i32 rowHeight_, i32 startLine, i32 columnCount, i32 hoverLen)
+void uiHexPanelTypeDoSelection(SelectionState* outSelectionState, i32 panelId, ImVec2 mousePos, ImRect rect, i32 columnWidth_, i32 rowHeight_, i32 startLine, i32 columnCount, i32 hoverLen)
 {
 	const ImGuiIO& io = ImGui::GetIO();
 
@@ -914,11 +921,11 @@ void UiHexPanelTypeDoSelection(SelectionState* outSelectionState, i32 panelId, I
 	}
 }
 
-void UiHexDoHexPanel(ImGuiID imguiID, const PanelParams& panelParams, i32 startLine, const u8* data, i64 dataSize, i32 columnCount, const SelectionState& selection)
+void uiHexDoHexPanel(ImGuiID imguiID, const PanelParams& panelParams, i32 startLine, const u8* data, i64 dataSize, i32 columnCount, const SelectionState& selection)
 {
 	// TODO: there are a LOT of arguments here
 	// Remove selection & gradient depedency? Replace with a color buffer?
-	const UiStyle& style = GetUiStyle();
+	const UiStyle& style = setUiStyle();
 
 	const float panelWidth = ImGui::GetContentRegionAvailWidth();
 	ImGuiWindow* window = ImGui::GetCurrentWindow();
@@ -1011,11 +1018,11 @@ void UiHexDoHexPanel(ImGuiID imguiID, const PanelParams& panelParams, i32 startL
 	}
 }
 
-void UiHexDoAsciiPanel(ImGuiID imguiID, const PanelParams& panelParams, i32 startLine, const u8* data, i64 dataSize, i32 columnCount, const SelectionState& selection)
+void uiHexDoAsciiPanel(ImGuiID imguiID, const PanelParams& panelParams, i32 startLine, const u8* data, i64 dataSize, i32 columnCount, const SelectionState& selection)
 {
 	// TODO: there are a LOT of arguments here
 	// Remove selection & gradient depedency? Replace with a color buffer?
-	const UiStyle& style = GetUiStyle();
+	const UiStyle& style = setUiStyle();
 
 	const float panelWidth = ImGui::GetContentRegionAvailWidth();
 	ImGuiWindow* window = ImGui::GetCurrentWindow();
@@ -1107,11 +1114,11 @@ void UiHexDoAsciiPanel(ImGuiID imguiID, const PanelParams& panelParams, i32 star
 }
 
 template<typename T>
-void UiHexDoFormatPanel(ImGuiID imguiID, const PanelParams& panelParams, i32 startLine, const u8* data, i64 dataSize, i32 columnCount, const SelectionState& selection, i32 panelType, const char* format)
+void uiHexDoFormatPanel(ImGuiID imguiID, const PanelParams& panelParams, i32 startLine, const u8* data, i64 dataSize, i32 columnCount, const SelectionState& selection, i32 panelType, const char* format)
 {
 	// TODO: there are a LOT of arguments here
 	// Remove selection & gradient depedency? Replace with a color buffer?
-	const UiStyle& style = GetUiStyle();
+	const UiStyle& style = setUiStyle();
 
 	if(columnCount % sizeof(T)) {
 		ImGui::TextColored(ImVec4(0.8, 0, 0, 1), "\nColumn count is not divisible by %d", sizeof(T));
@@ -1231,9 +1238,9 @@ void UiHexDoFormatPanel(ImGuiID imguiID, const PanelParams& panelParams, i32 sta
 	}
 }
 
-f32 HexViewCalculatePanelWidth(i32 panelType, i32 columnCount)
+f32 hexViewCalculatePanelWidth(i32 panelType, i32 columnCount)
 {
-	const UiStyle& style = GetUiStyle();
+	const UiStyle& style = setUiStyle();
 
 	switch(panelType) {
 		case PanelType::HEX:

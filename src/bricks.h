@@ -98,4 +98,4 @@ struct BrickWall
 
 void ui_brickPopup(const char* popupId, intptr_t selStart, i64 selLength, BrickWall* wall);
 void ui_brickStructList(BrickWall* brickWall);
-void ui_brickWall(BrickWall* brickWall, const u8* fileData);
+void uiBrickWallWindow(BrickWall* brickWall, const u8* fileData);

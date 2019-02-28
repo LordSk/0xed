@@ -4,8 +4,13 @@
 #include "script.h"
 #include "search.h"
 
-void toolsDoInspector(const u8* fileBuffer, const i64 fileBufferSize, const SelectionState& selection)
+void toolsDoInspectorWindow(const u8* fileBuffer, const i64 fileBufferSize, const SelectionState& selection)
 {
+	// window begin
+	ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
+	ImGui::Begin("Inspector");
+	ImGui::PopStyleVar(1);
+
 	ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(0, 0));
 
     const u8* dataStart = &fileBuffer[min(selection.selectStart, selection.selectEnd)];
@@ -203,6 +208,8 @@ void toolsDoInspector(const u8* fileBuffer, const i64 fileBufferSize, const Sele
 
 	ImGui::Columns(1);
 	ImGui::PopStyleVar(1); // ItemSpacing
+
+	ImGui::End(); // window end
 }
 
 void toolsDoTemplate(BrickWall* brickWall)

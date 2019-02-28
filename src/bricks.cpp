@@ -751,9 +751,13 @@ static bool doBrickNode(Brick brick, const Array<BrickWall::TypeInfo>& typeCache
     return false;
 }
 
-void ui_brickWall(BrickWall* brickWall, const u8* fileData)
+void uiBrickWallWindow(BrickWall* brickWall, const u8* fileData)
 {
     EASY_FUNCTION(profiler::colors::Yellow);
+
+	ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
+	ImGui::Begin("Bricks");
+	ImGui::PopStyleVar(1);
 
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
     ImGui::BeginChild("#tab_brickwall", ImVec2(0, 0), false, ImGuiWindowFlags_AlwaysUseWindowPadding);
@@ -775,4 +779,6 @@ void ui_brickWall(BrickWall* brickWall, const u8* fileData)
 
     ImGui::EndChild();
     ImGui::PopStyleVar(1);
+
+	ImGui::End();
 }
