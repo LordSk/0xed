@@ -39,5 +39,6 @@ struct SearchResult
 };
 
 bool searchStartThread();
+void searchTerminateThread();
 void searchSetNewFileBuffer(FileBuffer nfb);
 void searchNewRequest(const SearchParams& params, Array<SearchResult>* results);

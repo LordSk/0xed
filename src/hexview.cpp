@@ -1,6 +1,7 @@
 #include "hexview.h"
 #include "bricks.h"
 #include "imgui_extended.h"
+#include "search.h"
 #include <stdlib.h>
 #include <float.h>
 #include <limits.h>
@@ -135,7 +136,13 @@ void HexView::setFileBuffer(u8* buff, i64 buffSize)
     fileBuffer = buff;
     fileBufferSize = buffSize;
 	selection = {};
-    scrollCurrentLine = 0;
+	scrollCurrentLine = 0;
+}
+
+void HexView::setSearchResults(SearchResult* searchResultsBuffer, i32 count)
+{
+	searchResults = searchResultsBuffer;
+	searchResultsCount = count;
 }
 
 void HexView::addNewPanel()
@@ -737,6 +744,7 @@ void HexView::fillColorBuffer(i32 panelID, i32 itemCount, i32 startLine)
 
 	const i32 itemCount2 = itemCount;
 	const i64 startDataOff = startLine * columnCount;
+	const i64 endDataOff = startDataOff + itemCount2;
 
 	// gradient
 	if(colorDisplay == ColorDisplay::GRADIENT) {
@@ -781,6 +789,28 @@ void HexView::fillColorBuffer(i32 panelID, i32 itemCount, i32 startLine)
 			u32 textColor = 0xff000000;
 			colorBuffer.buff[i] = cellColorFromU32(frameColor, textColor);
 		}
+	}
+
+	// search
+	const i32 searchCount = searchResultsCount;
+	const SearchResult* searchList = searchResults;
+
+	const u32 searchFrameColor = style.searchHighlightFrameColor;
+	const u32 searchTextColor = style.searchHighlightTextColor;
+
+	for(i32 s = 0; s < searchCount; s++)
+	{
+		const SearchResult& sr = searchList[s];
+		if(sr.offset+sr.len < startDataOff)
+			continue;
+		if(sr.offset > endDataOff)
+			break;
+
+		i64 start = max(sr.offset - startDataOff, 0);
+		i64 end = min(start + sr.len, itemCount2);
+
+		for(i64 i = start; i < end; i++)
+			colorBuffer.buff[i] = cellColorFromU32(searchFrameColor, searchTextColor);
 	}
 
 	// selection

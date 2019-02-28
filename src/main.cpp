@@ -47,6 +47,7 @@ Script script;
 SearchParams searchParams = {};
 SearchParams lastSearchParams = {};
 Array<SearchResult> searchResults;
+Array<SearchResult> lastSearchResults;
 
 bool init()
 {
@@ -87,11 +88,10 @@ bool init()
     searchStartThread();
     searchSetNewFileBuffer(curFileBuff);
 
-    lastSearchParams.dataType = SearchDataType::Integer;
-    lastSearchParams.intSigned = true;
-    lastSearchParams.vint = 0;
-    lastSearchParams.dataSize = 4;
-    lastSearchParams.strideKind = SearchParams::Stride::Even;
+	lastSearchParams.dataType = SearchDataType::ASCII_String;
+	lastSearchParams.dataSize = 3;
+	lastSearchParams.strideKind = SearchParams::Stride::Full;
+	memmove(lastSearchParams.str, "MIX", 3);
     searchNewRequest(lastSearchParams, &searchResults);
 
     /*u8* fileData = (u8*)malloc(256);
@@ -130,6 +130,8 @@ void cleanUp()
     win.cleanUp();
 
     saveConfigFile(CONFIG_FILENAME, config);
+
+	searchTerminateThread();
 
     if(curFileBuff.data) {
         free(curFileBuff.data);
@@ -268,6 +270,8 @@ void doUI()
 
 	ImGui::End();
 
+	hexView.setSearchResults(lastSearchResults.data(), lastSearchResults.count());
+
 	// Hex view window
 	hexView.doUiHexViewWindow();
 
@@ -283,6 +287,7 @@ void doUI()
 
 		// search params
 		if(toolsSearchParams(&searchParams)) {
+			lastSearchResults = searchResults;
 			searchResults.clear();
 			lastSearchParams = searchParams;
 			searchNewRequest(lastSearchParams, &searchResults);

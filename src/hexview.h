@@ -165,6 +165,8 @@ struct PanelParams
     }
 };
 
+struct SearchResult;
+
 struct HexView
 {
     PanelType::Enum panelType[PANEL_MAX_COUNT] = {};
@@ -181,9 +183,13 @@ struct HexView
     i32 columnCount = 16;
 	SelectionState selection;
 
+	i32 searchResultsCount = 0;
+	const SearchResult* searchResults = nullptr;
+
 	HexView();
 	~HexView();
     void setFileBuffer(u8* buff, i64 buffSize);
+	void setSearchResults(SearchResult* searchResultsBuffer, i32 count);
     void addNewPanel();
     void removePanel(const i32 pid);
     void goTo(i32 offset);
@@ -213,6 +219,8 @@ struct UiStyle
 	const u32 hoverTextColor = 0xff000000;
 	const u32 selectedFrameColor = 0xffff7200;
 	const u32 selectedTextColor = 0xffffffff;
+	const u32 searchHighlightFrameColor = 0xff6c00e0;
+	const u32 searchHighlightTextColor = 0xffffffff;
 
 	const u32 headerBgColorOdd = 0xffd8d8d8;
 	const u32 headerBgColorEven = 0xffe5e5e5;

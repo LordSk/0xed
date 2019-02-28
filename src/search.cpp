@@ -101,6 +101,13 @@ bool searchStartThread()
     return true;
 }
 
+void searchTerminateThread()
+{
+	g_searchQueue->running = false;
+	i32 status;
+	SDL_WaitThread(g_searchThread, &status);
+}
+
 void searchSetNewFileBuffer(FileBuffer nfb)
 {
     SearchQueue& sq = *g_searchQueue;
