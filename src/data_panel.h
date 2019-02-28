@@ -177,9 +177,6 @@ struct DataPanels
 
     void doUi();
 
-    template<typename T>
-    void doFormatPanel(i32 pid, f32 panelWidth, const i32 startLine, const char* format);
-
     void doPanelParamPopup(bool open, i32* panelId, ImVec2 popupPos);
 };
 
@@ -220,3 +217,7 @@ bool UiHexPanelDoSelection(i32 panelID, i32 panelType, SelectionState* outSelect
 void UiHexPanelTypeDoSelection(SelectionState* outSelectionState, i32 panelId, ImVec2 mousePos, ImRect rect, i32 columnWidth_, i32 rowHeight_, i32 startLine, i32 columnCount, i32 hoverLen);
 void UiHexDoHexPanel(ImGuiID imguiID, const PanelParams& panelParams, i32 startLine, const u8* data, i64 dataSize, i32 columnCount, const SelectionState& selection);
 void UiHexDoAsciiPanel(ImGuiID imguiID, const PanelParams& panelParams, i32 startLine, const u8* data, i64 dataSize, i32 columnCount, const SelectionState& selection);
+
+template<typename T>
+void UiHexDoFormatPanel(ImGuiID imguiID, const PanelParams& panelParams, i32 startLine, const u8* data, i64 dataSize, i32 columnCount, const SelectionState& selection, i32 panelType, const char* format);
+

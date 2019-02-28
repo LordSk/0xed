@@ -334,34 +334,34 @@ void DataPanels::doUi()
 					UiHexDoAsciiPanel(p, panelParams[p], scrollCurrentLine, fileBuffer, fileBufferSize, columnCount, selectionState);
 					break;
 				case PanelType::INT8:
-					doFormatPanel<i8>(p, panelWidth, scrollCurrentLine, "%d");
+					UiHexDoFormatPanel<i8>(p, panelParams[p], scrollCurrentLine, fileBuffer, fileBufferSize, columnCount, selectionState, PanelType::INT8, "%d");
 					break;
 				case PanelType::UINT8:
-					doFormatPanel<u8>(p, panelWidth, scrollCurrentLine, "%u");
+					UiHexDoFormatPanel<u8>(p, panelParams[p], scrollCurrentLine, fileBuffer, fileBufferSize, columnCount, selectionState, PanelType::INT8, "%u");
 					break;
 				case PanelType::INT16:
-					doFormatPanel<i16>(p, panelWidth, scrollCurrentLine, "%d");
+					UiHexDoFormatPanel<i16>(p, panelParams[p], scrollCurrentLine, fileBuffer, fileBufferSize, columnCount, selectionState, PanelType::INT16, "%d");
 					break;
 				case PanelType::UINT16:
-					doFormatPanel<u16>(p, panelWidth, scrollCurrentLine, "%u");
+					UiHexDoFormatPanel<u16>(p, panelParams[p], scrollCurrentLine, fileBuffer, fileBufferSize, columnCount, selectionState, PanelType::UINT16, "%u");
 					break;
 				case PanelType::INT32:
-					doFormatPanel<i32>(p, panelWidth, scrollCurrentLine, "%d");
+					UiHexDoFormatPanel<i32>(p, panelParams[p], scrollCurrentLine, fileBuffer, fileBufferSize, columnCount, selectionState, PanelType::INT32, "%d");
 					break;
 				case PanelType::UINT32:
-					doFormatPanel<u32>(p, panelWidth, scrollCurrentLine, "%u");
+					UiHexDoFormatPanel<u32>(p, panelParams[p], scrollCurrentLine, fileBuffer, fileBufferSize, columnCount, selectionState, PanelType::UINT32, "%u");
 					break;
 				case PanelType::INT64:
-					doFormatPanel<i64>(p, panelWidth, scrollCurrentLine, "%lld");
+					UiHexDoFormatPanel<i64>(p, panelParams[p], scrollCurrentLine, fileBuffer, fileBufferSize, columnCount, selectionState, PanelType::INT64, "%lld");
 					break;
 				case PanelType::UINT64:
-					doFormatPanel<u64>(p, panelWidth, scrollCurrentLine, "%llu");
+					UiHexDoFormatPanel<u64>(p, panelParams[p], scrollCurrentLine, fileBuffer, fileBufferSize, columnCount, selectionState, PanelType::UINT64, "%llu");
 					break;
 				case PanelType::FLOAT32:
-					doFormatPanel<f32>(p, panelWidth, scrollCurrentLine, "%g");
+					UiHexDoFormatPanel<f32>(p, panelParams[p], scrollCurrentLine, fileBuffer, fileBufferSize, columnCount, selectionState, PanelType::FLOAT32, "%g");
 					break;
 				case PanelType::FLOAT64:
-					doFormatPanel<f64>(p, panelWidth, scrollCurrentLine, "%g");
+					UiHexDoFormatPanel<f64>(p, panelParams[p], scrollCurrentLine, fileBuffer, fileBufferSize, columnCount, selectionState, PanelType::FLOAT64, "%g");
 					break;
 				default:
 					assert(0);
@@ -596,128 +596,6 @@ void DataPanels::doPanelParamPopup(bool open, i32* panelId, ImVec2 popupPos)
     }
 
     ImGui::PopStyleVar(4);
-}
-
-template<typename T>
-void DataPanels::doFormatPanel(i32 pid, f32 panelWidth, const i32 startLine, const char* format)
-{
-    if(columnCount % sizeof(T)) {
-        ImGui::TextColored(ImVec4(0.8, 0, 0, 1), "\nColumn count is not divisible by %d", sizeof(T));
-        return;
-    }
-
-    ImGuiWindow* window = ImGui::GetCurrentWindow();
-    ImVec2 winPos = ImGui::GetCursorScreenPos();
-    const ImVec2 panelPos = winPos;
-    const ImVec2 panelSize = {panelWidth, 10}; // height doesnt really matter here
-    const ImRect panelRect = {winPos, winPos + panelSize};
-
-    const i32 byteSize = sizeof(T);
-    const i32 bitSize = byteSize << 3;
-
-    const i32 lineCount = window->Rect().GetHeight() / rowHeight;
-    i64 itemCount = min(fileBufferSize - (i64)startLine * columnCount, lineCount * columnCount);
-	itemCount &= ~(itemCount & (byteSize-1)); // round off item count based on byteSize
-    const i64 itemCount2 = itemCount;
-
-    const ImGuiID imid = window->GetID(&panelRectWidth[pid]);
-    ImGui::ItemSize(panelRect, 0);
-    if(!ImGui::ItemAdd(panelRect, imid))
-        return;
-
-    const ImVec2 cellSize(intColumnWidth * byteSize, rowHeight);
-
-    const PanelParams& pparams = panelParams[pid];
-    const ColorDisplay::Enum colorDisplay = pparams.colorDisplay;
-    const GradientRange& grad = pparams.gradRange[panelType[pid]];
-
-    const i64 startLineOff = (i64)startLine * columnCount;
-    for(i64 i = 0; i < itemCount2; i += byteSize) {
-        const i64 dataOff = i + startLineOff;
-        char integerStr[32];
-        sprintf(integerStr, format, *(T*)&fileBuffer[dataOff]);
-
-        const ImVec2 labelSize = ImGui::CalcTextSize(integerStr, NULL, true);
-        ImVec2 size = ImGui::CalcItemSize(cellSize, labelSize.x, labelSize.y);
-
-        i32 col = i % columnCount;
-        i32 line = i / columnCount;
-        ImVec2 cellPos(col * intColumnWidth, line * cellSize.y);
-        ImRect bb(winPos + cellPos, winPos + cellPos + size);
-
-        f32 avgByteVal = fileBuffer[dataOff];
-        for(i32 a = 1; a < byteSize; ++a) {
-            avgByteVal += fileBuffer[dataOff + a];
-        }
-        avgByteVal /= byteSize;
-
-        ImU32 frameColor = ImGui::GetColorU32(ImGuiCol_FrameBg);
-        ImU32 textColor = ImGui::GetColorU32(ImGuiCol_Text);
-
-        if(colorDisplay == ColorDisplay::GRADIENT) {
-            T val = *(T*)&fileBuffer[dataOff];
-            if(!(val == val)) { // check for NaN
-                val = 0;
-            }
-            const f32 ga = grad.getLerpVal(val);
-
-            const Color3 rgbCol = pparams.gradLerpColor(ga);
-            const f32 brightness = rgbGetBrightness(rgbCol);
-            const u32 gradientColor = rgbToU32(rgbCol);
-            u32 fixedTextColor = textColor;
-
-            if(brightness < 0.25) {
-                fixedTextColor = rgbToU32(rgbGetLighterColor(rgbCol, 0.6f));
-            }
-
-            frameColor = gradientColor;
-            textColor = fixedTextColor;
-        }
-
-        // TODO: find a better way to do this (overlapping ranges)
-        bool hovered = false;
-        bool selected = false;
-        for(i32 h = 0; h < byteSize; ++h) {
-			hovered |= selectionState.isInHoverRange(dataOff+h);
-			selected |= selectionState.isInSelectionRange(dataOff+h);
-        }
-
-        if(selected) {
-            frameColor = selectedFrameColor;
-            textColor = selectedTextColor;
-        }
-        else if(hovered) {
-            frameColor = hoverFrameColor;
-        }
-
-
-        ImGui::RenderFrame(bb.Min, bb.Max, frameColor, false, 0);
-
-        bb.Translate(ImVec2(-4, 0));
-
-        ImGui::PushStyleColor(ImGuiCol_Text, textColor);
-        ImGui::RenderTextClipped(bb.Min, bb.Max, integerStr, NULL,
-                                 &labelSize, ImVec2(1, 0.5), &bb);
-        ImGui::PopStyleColor();
-    }
-
-
-    ImU32 lineColor = 0xff808080;
-    const i32 actualLineCount = (itemCount/columnCount)+1;
-    const f32 colHeight = actualLineCount * rowHeight;
-	const i32 typeColumnCount = columnCount/byteSize;
-
-	for(i32 c = 0; c <= typeColumnCount; ++c) {
-		ImRect bb(panelPos.x + cellSize.x * c, panelPos.y,
-                  panelPos.x + cellSize.x * c + 1, panelPos.y + colHeight + 2);
-        ImGui::RenderFrame(bb.Min, bb.Max, lineColor, false, 0);
-    }
-
-    for(i32 l = 0; l < actualLineCount; ++l) {
-        ImRect bb(winPos.x, winPos.y + cellSize.y * l,
-                  winPos.x + panelSize.x + 1, winPos.y + cellSize.y * l + 1);
-        ImGui::RenderFrame(bb.Min, bb.Max, lineColor, false, 0);
-    }
 }
 
 #if 0
@@ -1253,4 +1131,129 @@ void UiHexDoAsciiPanel(ImGuiID imguiID, const PanelParams& panelParams, i32 star
 	}
 
 	ImGui::PopFont();
+}
+
+template<typename T>
+void UiHexDoFormatPanel(ImGuiID imguiID, const PanelParams& panelParams, i32 startLine, const u8* data, i64 dataSize, i32 columnCount, const SelectionState& selection, i32 panelType, const char* format)
+{
+	// TODO: there are a LOT of arguments here
+	// Remove selection & gradient depedency? Replace with a color buffer?
+	const UiStyle& style = GetUiStyle();
+
+	if(columnCount % sizeof(T)) {
+		ImGui::TextColored(ImVec4(0.8, 0, 0, 1), "\nColumn count is not divisible by %d", sizeof(T));
+		return;
+	}
+
+	const float panelWidth = ImGui::GetContentRegionAvailWidth();
+	ImGuiWindow* window = ImGui::GetCurrentWindow();
+	ImVec2 winPos = ImGui::GetCursorScreenPos();
+	const ImVec2 panelPos = winPos;
+	const ImVec2 panelSize = {panelWidth, 10}; // height doesnt really matter here
+	const ImRect panelRect = {winPos, winPos + panelSize};
+
+	const i32 byteSize = sizeof(T);
+	const i32 bitSize = byteSize << 3;
+
+	const i32 lineCount = window->Rect().GetHeight() / style.rowHeight;
+	i64 itemCount = min(dataSize - (i64)startLine * columnCount, lineCount * columnCount);
+	itemCount &= ~(itemCount & (byteSize-1)); // round off item count based on byteSize
+	const i64 itemCount2 = itemCount;
+
+	ImGui::ItemSize(panelRect, 0);
+	if(!ImGui::ItemAdd(panelRect, imguiID)) // TODO: is this useful?
+		return;
+
+	const ImVec2 cellSize(style.intColumnWidth * byteSize, style.rowHeight);
+
+	const ColorDisplay::Enum colorDisplay = panelParams.colorDisplay;
+	const GradientRange& grad = panelParams.gradRange[panelType];
+
+	const i64 startLineOff = (i64)startLine * columnCount;
+	for(i64 i = 0; i < itemCount2; i += byteSize) {
+		const i64 dataOff = i + startLineOff;
+		char integerStr[32];
+		sprintf(integerStr, format, *(T*)&data[dataOff]);
+
+		const ImVec2 labelSize = ImGui::CalcTextSize(integerStr, NULL, true);
+		ImVec2 size = ImGui::CalcItemSize(cellSize, labelSize.x, labelSize.y);
+
+		i32 col = i % columnCount;
+		i32 line = i / columnCount;
+		ImVec2 cellPos(col * style.intColumnWidth, line * cellSize.y);
+		ImRect bb(winPos + cellPos, winPos + cellPos + size);
+
+		f32 avgByteVal = data[dataOff];
+		for(i32 a = 1; a < byteSize; ++a) {
+			avgByteVal += data[dataOff + a];
+		}
+		avgByteVal /= byteSize;
+
+		ImU32 frameColor = ImGui::GetColorU32(ImGuiCol_FrameBg);
+		ImU32 textColor = ImGui::GetColorU32(ImGuiCol_Text);
+
+		if(colorDisplay == ColorDisplay::GRADIENT) {
+			T val = *(T*)&data[dataOff];
+			if(!(val == val)) { // check for NaN
+				val = 0;
+			}
+			const f32 ga = grad.getLerpVal(val);
+
+			const Color3 rgbCol = panelParams.gradLerpColor(ga);
+			const f32 brightness = rgbGetBrightness(rgbCol);
+			const u32 gradientColor = rgbToU32(rgbCol);
+			u32 fixedTextColor = textColor;
+
+			if(brightness < 0.25) {
+				fixedTextColor = rgbToU32(rgbGetLighterColor(rgbCol, 0.6f));
+			}
+
+			frameColor = gradientColor;
+			textColor = fixedTextColor;
+		}
+
+		// TODO: find a better way to do this (overlapping ranges)
+		bool hovered = false;
+		bool selected = false;
+		for(i32 h = 0; h < byteSize; ++h) {
+			hovered |= selection.isInHoverRange(dataOff+h);
+			selected |= selection.isInSelectionRange(dataOff+h);
+		}
+
+		if(selected) {
+			frameColor = style.selectedFrameColor;
+			textColor = style.selectedTextColor;
+		}
+		else if(hovered) {
+			frameColor = style.hoverFrameColor;
+		}
+
+
+		ImGui::RenderFrame(bb.Min, bb.Max, frameColor, false, 0);
+
+		bb.Translate(ImVec2(-4, 0));
+
+		ImGui::PushStyleColor(ImGuiCol_Text, textColor);
+		ImGui::RenderTextClipped(bb.Min, bb.Max, integerStr, NULL,
+								 &labelSize, ImVec2(1, 0.5), &bb);
+		ImGui::PopStyleColor();
+	}
+
+
+	ImU32 lineColor = 0xff808080;
+	const i32 actualLineCount = (itemCount/columnCount)+1;
+	const f32 colHeight = actualLineCount * style.rowHeight;
+	const i32 typeColumnCount = columnCount/byteSize;
+
+	for(i32 c = 0; c <= typeColumnCount; ++c) {
+		ImRect bb(panelPos.x + cellSize.x * c, panelPos.y,
+				  panelPos.x + cellSize.x * c + 1, panelPos.y + colHeight + 2);
+		ImGui::RenderFrame(bb.Min, bb.Max, lineColor, false, 0);
+	}
+
+	for(i32 l = 0; l < actualLineCount; ++l) {
+		ImRect bb(winPos.x, winPos.y + cellSize.y * l,
+				  winPos.x + panelSize.x + 1, winPos.y + cellSize.y * l + 1);
+		ImGui::RenderFrame(bb.Min, bb.Max, lineColor, false, 0);
+	}
 }
