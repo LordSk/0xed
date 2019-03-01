@@ -7,8 +7,8 @@ struct SearchQueue
     bool8 running = true;
     u32 searchHashCurrent = 0;
     u32 searchHashRequest = 0;
-    Array<SearchResult>* resultListCurrent = nullptr;
-    Array<SearchResult>* resultListRequest = nullptr;
+	ArrayTS<SearchResult>* resultListCurrent = nullptr;
+	ArrayTS<SearchResult>* resultListRequest = nullptr;
     SearchParams paramsCurrent;
     SearchParams paramsRequest;
     FileBuffer fileBuff = {};
@@ -29,7 +29,7 @@ static i32 thread_search(void* ptr)
         else {
             LOG("Search> new request, hash=%x", sq.searchHashRequest);
             sq.searchHashCurrent = sq.searchHashRequest;
-            sq.resultListCurrent = sq.resultListRequest;
+			sq.resultListCurrent = sq.resultListRequest;
             sq.paramsCurrent = sq.paramsRequest;
 
             const i64 fileSize = sq.fileBuff.size;
@@ -116,7 +116,7 @@ void searchSetNewFileBuffer(FileBuffer nfb)
     sq.fileBuff = nfb;
 }
 
-void searchNewRequest(const SearchParams& params, Array<SearchResult>* results)
+void searchNewRequest(const SearchParams& params, ArrayTS<SearchResult>* results)
 {
     SearchQueue& sq = *g_searchQueue;
     sq.paramsRequest = params;

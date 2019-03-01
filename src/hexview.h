@@ -183,13 +183,12 @@ struct HexView
     i32 columnCount = 16;
 	SelectionState selection;
 
-	i32 searchResultsCount = 0;
-	const SearchResult* searchResults = nullptr;
+	const ArrayTS<SearchResult>* searchResultList = nullptr;
 
 	HexView();
 	~HexView();
     void setFileBuffer(u8* buff, i64 buffSize);
-	void setSearchResults(SearchResult* searchResultsBuffer, i32 count);
+	void setSearchResults(const ArrayTS<SearchResult>* searchResultList_);
     void addNewPanel();
     void removePanel(const i32 pid);
     void goTo(i32 offset);

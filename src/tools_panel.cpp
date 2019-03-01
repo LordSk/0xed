@@ -358,7 +358,7 @@ bool toolsSearchParams(SearchParams* params)
 	return doSearch;
 }
 
-bool toolsSearchResults(const SearchParams& params, const Array<SearchResult>& results, u64* gotoOffset)
+bool toolsSearchResults(const SearchParams& params, const ArrayTS<SearchResult>& results, u64* gotoOffset)
 {
 	ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(0, 0));
 

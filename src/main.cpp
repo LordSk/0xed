@@ -46,8 +46,7 @@ i64 popupBrickSelLength;
 Script script;
 SearchParams searchParams = {};
 SearchParams lastSearchParams = {};
-Array<SearchResult> searchResults;
-Array<SearchResult> lastSearchResults;
+ArrayTS<SearchResult> searchResults;
 
 bool init()
 {
@@ -84,15 +83,16 @@ bool init()
 		// TODO: onFileLoaded
     }
 
-    searchResults.reserve(1024);
+	searchResults.reserve(1024);
+
     searchStartThread();
     searchSetNewFileBuffer(curFileBuff);
 
-	lastSearchParams.dataType = SearchDataType::ASCII_String;
+	/*lastSearchParams.dataType = SearchDataType::ASCII_String;
 	lastSearchParams.dataSize = 3;
 	lastSearchParams.strideKind = SearchParams::Stride::Full;
 	memmove(lastSearchParams.str, "MIX", 3);
-    searchNewRequest(lastSearchParams, &searchResults);
+	searchNewRequest(lastSearchParams, &searchResults);*/
 
     /*u8* fileData = (u8*)malloc(256);
     curFileBuff.data = fileData;
@@ -270,7 +270,7 @@ void doUI()
 
 	ImGui::End();
 
-	hexView.setSearchResults(lastSearchResults.data(), lastSearchResults.count());
+	hexView.setSearchResults(&searchResults);
 
 	// Hex view window
 	hexView.doUiHexViewWindow();
@@ -287,7 +287,6 @@ void doUI()
 
 		// search params
 		if(toolsSearchParams(&searchParams)) {
-			lastSearchResults = searchResults;
 			searchResults.clear();
 			lastSearchParams = searchParams;
 			searchNewRequest(lastSearchParams, &searchResults);

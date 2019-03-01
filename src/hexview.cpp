@@ -124,7 +124,7 @@ HexView::HexView()
 HexView::~HexView()
 {
 	for(i32 p = 0; p < PANEL_MAX_COUNT; p++) {
-		if(panelColorBuffer[p].buff) {
+		if(panelColorBuffer[p].buff) { // FIXME: properly grow/ allocate those
 			free(panelColorBuffer[p].buff);
 			panelColorBuffer[p].buff = nullptr;
 		}
@@ -139,10 +139,9 @@ void HexView::setFileBuffer(u8* buff, i64 buffSize)
 	scrollCurrentLine = 0;
 }
 
-void HexView::setSearchResults(SearchResult* searchResultsBuffer, i32 count)
+void HexView::setSearchResults(const ArrayTS<SearchResult>* searchResultList_)
 {
-	searchResults = searchResultsBuffer;
-	searchResultsCount = count;
+	searchResultList = searchResultList_;
 }
 
 void HexView::addNewPanel()
@@ -792,8 +791,8 @@ void HexView::fillColorBuffer(i32 panelID, i32 itemCount, i32 startLine)
 	}
 
 	// search
-	const i32 searchCount = searchResultsCount;
-	const SearchResult* searchList = searchResults;
+	const i32 searchCount = searchResultList->count();
+	const ArrayTS<SearchResult>& searchList = *searchResultList;
 
 	const u32 searchFrameColor = style.searchHighlightFrameColor;
 	const u32 searchTextColor = style.searchHighlightTextColor;
@@ -817,7 +816,6 @@ void HexView::fillColorBuffer(i32 panelID, i32 itemCount, i32 startLine)
 	for(i32 i = 0; i < itemCount2; i++)
 	{
 		const i64 dataOffset = i + startDataOff;
-		const T val = *(T*)&(fileBuffer[dataOffset]);
 
 		if(selection.isInSelectionRange(dataOffset)) {
 			u32 frameColor = style.selectedFrameColor;

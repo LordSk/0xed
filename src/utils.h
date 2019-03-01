@@ -1,6 +1,7 @@
 #pragma once
 #include "base.h"
 #include <vector>
+#include <intrin.h>
 
 // TODO: replace this with our own "lsk array"
 template<typename T>
@@ -40,8 +41,8 @@ struct List
     struct Bucket
     {
         T* buffer;
-        u32 count;
-        u32 capacity;
+		i32 count;
+		i32 capacity;
     };
 
     T stackData[BUCKET_ELT_COUNT];
@@ -92,6 +93,87 @@ struct List
         buckets.clear();
         buckets.push(first);
     }
+};
+
+typedef volatile long int vli32;
+
+struct MutexSpin
+{
+	vli32 _inUse = 0;
+
+	void lock() {
+		while(_InterlockedExchange(&_inUse, 1) == 1) {
+			// block
+			_mm_pause();
+		}
+	}
+
+	void unlock() {
+		_InterlockedExchange(&_inUse, 0);
+	}
+};
+
+// Thread safe growable array
+template<typename T>
+struct ArrayTS
+{
+	MutexSpin mutexWrite;
+	T* bufferRead = nullptr;
+	T* buffer = nullptr;
+	i32 eltCount = 0;
+	i32 capacity;
+
+	~ArrayTS()
+	{
+		if(buffer) {
+			free(buffer);
+		}
+	}
+
+	inline void reserve(i32 newCapacity)
+	{
+		if(newCapacity < capacity) return;
+		bufferRead = buffer;
+
+		mutexWrite.lock();
+		capacity = newCapacity;
+		buffer = (T*)malloc(sizeof(T) * capacity);
+		memmove(buffer, bufferRead, sizeof(T) * eltCount);
+		T* bufferToFree = bufferRead;
+		bufferRead = buffer;
+		mutexWrite.unlock();
+
+		free(bufferToFree);
+	}
+
+	inline T& push(T elt)
+	{
+		if(eltCount+1 > capacity)
+			reserve(capacity * 2);
+		return buffer[eltCount++] = elt;
+	}
+
+	inline void clear()
+	{
+		eltCount = 0;
+	}
+
+	inline i32 count() const
+	{
+		return eltCount;
+	}
+
+	inline T& operator[](i32 index)
+	{
+		assert(index < eltCount);
+		return bufferRead[index];
+	}
+
+	inline const T& operator[](i32 index) const
+	{
+		assert(index < eltCount);
+		return bufferRead[index];
+	}
 };
 
 struct FileBuffer
