@@ -797,7 +797,24 @@ void HexView::fillColorBuffer(i32 panelID, i32 itemCount, i32 startLine)
 	const u32 searchFrameColor = style.searchHighlightFrameColor;
 	const u32 searchTextColor = style.searchHighlightTextColor;
 
-	for(i32 s = 0; s < searchCount; s++)
+	// find approximate first and last search result, coresponding to viewed data range
+	i32 approxFirst = 0;
+	i32 approxLast = searchCount-1;
+	for(i32 s = 0; s < searchCount; s += 100)
+	{
+		const SearchResult& sr = searchList[s];
+		if(sr.offset+sr.len < startDataOff) {
+			approxFirst = s;
+			continue;
+		}
+		if(sr.offset > endDataOff) {
+			approxLast = s;
+			break;
+		}
+	}
+
+	const i32 approxLast2 = approxLast;
+	for(i32 s = approxFirst; s < approxLast2; s++)
 	{
 		const SearchResult& sr = searchList[s];
 		if(sr.offset+sr.len < startDataOff)
@@ -812,6 +829,7 @@ void HexView::fillColorBuffer(i32 panelID, i32 itemCount, i32 startLine)
 			colorBuffer.buff[i] = cellColorFromU32(searchFrameColor, searchTextColor);
 	}
 
+	// TODO: optimize this
 	// selection
 	for(i32 i = 0; i < itemCount2; i++)
 	{

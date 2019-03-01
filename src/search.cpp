@@ -72,6 +72,9 @@ static i32 thread_search(void* ptr)
                 if(sq.searchHashRequest != sq.searchHashCurrent) {
                     break; // cancel we have a new request
                 }
+				if(foundCount >= 10000000) {
+					break; // cap at 10 millions
+				}
                 // check if found
                 if(memcmp(fileData + i, cmpData, cmpDataSize) == 0) {
                     SearchResult r;
