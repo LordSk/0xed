@@ -1,5 +1,12 @@
 #include "bricks.h"
-#include <easy/profiler.h>
+
+#ifdef OXED_PROFILE
+    #include <easy/profiler.h>
+#else
+    #define EASY_FUNCTION(...)
+    #define EASY_BLOCK(...)
+    #define EASY_END_BLOCK
+#endif
 
 #define IMGUI_DEFINE_MATH_OPERATORS
 #include "imgui.h"
@@ -199,7 +206,7 @@ void ui_brickPopup(const char* popupId, intptr_t selStart, i64 selLength, BrickW
     static char popupBrickName[32] = {0};
     static bool popupOverrideSelLimit = false;
 
-    constexpr auto popupResetDefault = []() {
+    auto popupResetDefault = []() {
         popupType = 0;
         popupArraySize = -1;
         popupOverrideSelLimit = false;

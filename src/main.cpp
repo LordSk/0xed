@@ -14,8 +14,15 @@
 #include "bricks.h"
 #include "script.h"
 #include "search.h"
+
+#ifdef OXED_PROFILE
 #include <easy/profiler.h>
 #include <easy/reader.h>
+#else
+    #define EASY_FUNCTION(...)
+    #define EASY_BLOCK(...)
+    #define EASY_END_BLOCK
+#endif
 
 #define GL3W_IMPLEMENTATION
 #include "gl3w.h"
@@ -373,9 +380,11 @@ int main()
 {
     SDL_SetMainReady();
 
+#ifdef OXED_PROFILE
     EASY_PROFILER_ENABLE;
     EASY_MAIN_THREAD;
     profiler::startListen();
+#endif
 
     i32 sdl = SDL_Init(SDL_INIT_VIDEO|SDL_INIT_TIMER|SDL_INIT_EVENTS);
     if(sdl != 0) {
@@ -392,7 +401,9 @@ int main()
 
     SDL_Quit();
 
+#ifdef OXED_PROFILE
     //profiler::stopListen();
     profiler::dumpBlocksToFile("0XED_PROFILE.prof");
+#endif
     return r;
 }

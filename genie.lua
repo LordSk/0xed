@@ -45,7 +45,6 @@ solution "0xed solution"
 	includedirs {
 		"src",
 		SDL2_include,
-		easy_profiler_include,
 	}
 	
 	links {
@@ -63,7 +62,6 @@ solution "0xed solution"
 		"glu32",
 		"opengl32",
 		SDL2_lib,
-		easy_profiler_lib,
 	}
 	
 	flags {
