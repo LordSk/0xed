@@ -1,5 +1,6 @@
 #include "script.h"
 #include "bricks.h"
+#include "imgui_extended.h"
 
 enum class TokenType: i32 {
     _INVALID = 0,
@@ -414,9 +415,7 @@ constexpr char* ExecNodeTypeStr[] =
     "OP_DIV",
 };
 
-List<ASTNode> g_ast;
-ASTNode* g_firstNode;
-ASTNode* g_scopeLast;
+static List<ASTNode> g_ast;
 
 inline ASTNode* newNodeNext(Token token_, ASTNodeType::Enum type, ASTNode* parent)
 {
@@ -1209,15 +1208,16 @@ bool Script::openAndCompile(const char* path)
     if(!openFileReadAll(path, &file)) {
         return false;
     }
-    defer(free(file.data));
+	// TODO: restore file buffer free (ast display needs it for now)
+	//defer(free(file.data));
 
     execDataSize = 2048; // 2 Ko
     execData = (u8*)malloc(execDataSize);
     execDataCur = 0;
 
     g_ast.clear();
-    g_firstNode = newNodeNext(Token{}, ASTNodeType::_INVALID, nullptr); // first node;
-    g_scopeLast = g_firstNode;
+	pFirstNode = newNodeNext(Token{}, ASTNodeType::_INVALID, nullptr); // first node;
+	ASTNode* scopeLast = pFirstNode;
 
     bool parsing = true;
     Cursor cursor = { (char*)file.data };
@@ -1229,11 +1229,11 @@ bool Script::openAndCompile(const char* path)
             return false;
         }
         else {
-            g_scopeLast->next = node; // first
+			scopeLast->next = node; // first
             while(node->next) {
                 node = node->next;
             }
-            g_scopeLast = node; // last
+			scopeLast = node; // last
         }
         if(cursor.lastToken.type == TokenType::END_OF_FILE) {
             parsing = false;
@@ -1242,18 +1242,19 @@ bool Script::openAndCompile(const char* path)
 
     LOG("File parsed successfully (%s)", path);
 
-    g_firstNode = g_firstNode->next;
+	pFirstNode = pFirstNode->next;
 
     LOG("AST ----------");
-    printAstNode(g_firstNode);
+	printAstNode(pFirstNode);
     LOG("\n--------------");
 
 
+	/*
     execNodeList.clear();
     execTree = _pushExecNode(ExecNode{ ExecNodeType::_INVALID }); // first node
     ExecNode* lastExecNode = execTree;
 
-    ASTNode* curAst = g_firstNode;
+	ASTNode* curAst = pFirstNode;
     while(curAst && curAst->type != ASTNodeType::SCRIPT_END) {
         ASTNode* nextAst;
         ExecNode* expr = _execExpression(curAst, &nextAst);
@@ -1300,7 +1301,7 @@ bool Script::openAndCompile(const char* path)
     LOG("Execution tree -");
     printExecNode(execTree->next);
     LOG("\n--------------");
-
+*/
     return true;
 }
 
@@ -1366,4 +1367,29 @@ void* ExecNode::execute()
     }
 
     return nullptr;
+}
+
+void printAstNodeUi(ASTNode* node)
+{
+	if(ImGui::TreeNode(node, "%s '%.*s'", ASTNodeTypeStr[(i32)node->type], node->token.len, node->token.start)) {
+
+		if(node->param1) {
+			printAstNodeUi(node->param1);
+		}
+
+		if(node->param2) {
+			printAstNodeUi(node->param2);
+		}
+
+		ImGui::TreePop();
+	}
+
+	if(node->next) {
+		printAstNodeUi(node->next);
+	}
+}
+
+void scriptPrintAstAsUi(const Script &script)
+{
+	printAstNodeUi(script.pFirstNode);
 }

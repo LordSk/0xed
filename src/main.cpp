@@ -58,10 +58,10 @@ ArrayTS<SearchResult> searchResults;
 bool init()
 {
     // TODO: remove this
-    /*if(!script.openAndCompile("../test_script.0")) {
-        return false;
+	if(!script.openAndCompile("../test_script.0")) {
+		//return false;
     }
-    return false;*/
+	//return false;
 
     loadConfigFile(CONFIG_FILENAME, &config);
 
@@ -85,7 +85,7 @@ bool init()
 	// init style
 	setUiStyleLight(win.fontMono);
 
-    if(openFileReadAll("C:\\Prog\\Projets\\sacred_remake\\sacred_data\\mixed.pak", &curFileBuff)) {
+	if(openFileReadAll("SDL2.dll", &curFileBuff)) {
 		hexView.setFileBuffer(curFileBuff.data, curFileBuff.size);
 		// TODO: onFileLoaded
     }
@@ -288,7 +288,7 @@ void doUI()
 	toolsDoInspectorWindow(curFileBuff.data, curFileBuff.size, hexView.selection);
 
 	// Search
-	ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
+	ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(10, 10));
 	ImGui::Begin("Search");
 	ImGui::PopStyleVar(1);
 
@@ -358,6 +358,12 @@ void doUI()
         if(ImGui::Button("Cancel", ImVec2(120,0))) { ImGui::CloseCurrentPopup(); }
         ImGui::EndPopup();
     }
+
+	ImGui::Begin("Script AST");
+
+	scriptPrintAstAsUi(script);
+
+	ImGui::End();
 
     // TODO: remove
     if(popupBrickWantOpen) {

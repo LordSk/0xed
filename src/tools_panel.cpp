@@ -237,11 +237,6 @@ bool toolsSearchParams(SearchParams* params)
 	bool doSearch = false;
 
 	ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(10, 10));
-	ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(10, 10));
-
-	// TODO: so I didn't find a way to do a group with padding. A child seems required.
-	// Change child size to fit content (depending on search type)
-	ImGui::BeginChild("search_params", ImVec2(0, 270), false, ImGuiWindowFlags_AlwaysUseWindowPadding);
 
 	const char* dataTypeComboItems[] = {
 		"ASCII String",
@@ -353,8 +348,7 @@ bool toolsSearchParams(SearchParams* params)
 		doSearch = true;
 	}
 
-	ImGui::EndChild();
-	ImGui::PopStyleVar(2); // ItemSpacing, WindowPadding
+	ImGui::PopStyleVar(1); // ItemSpacing, WindowPadding
 	return doSearch;
 }
 

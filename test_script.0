@@ -26,9 +26,9 @@ PakHeader header;
 FileDesc[header.entryCount * 2 + 5] fileDescs;
 int32 test;
 
-// if((test + 1) == (1 * 4)) {
-    // test = 2;
-// }
-// else {
-    // test = 3;
-// }
+if((test + 1) == (1 * 4)) {
+  test = 2;
+}
+else {
+  test = 3;
+}

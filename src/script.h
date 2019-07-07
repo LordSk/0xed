@@ -71,10 +71,12 @@ struct ExecNode
 #define ExecNode_INVALID ExecNode{ ExecNodeType::_INVALID }
 
 struct ASTNode;
+struct BrickWall;
 
 struct Script
 {
     FileBuffer file;
+	ASTNode* pFirstNode;
     u8* execData = nullptr;
     u32 execDataCur = 0;
     u32 execDataSize = 0;
@@ -85,7 +87,7 @@ struct Script
     void release();
 
     bool openAndCompile(const char* path);
-    bool execute(struct BrickWall* wall);
+	bool execute(BrickWall* wall);
 
     u32 _pushExecData(const void* data, u32 dataSize);
     u32 _pushExecDataStr(const i32 len, const char* str);
@@ -99,3 +101,5 @@ struct Script
     ExecNode* _execLitteral(ASTNode* astNode, ASTNode** nextAstNode);
     ExecNode* _execExpression(ASTNode* astNode, ASTNode** nextAstNode);
 };
+
+void scriptPrintAstAsUi(const Script& script);
