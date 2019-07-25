@@ -8,133 +8,126 @@
 
 GradientRange getDefaultTypeGradientRange(PanelType::Enum ptype)
 {
-    GradientRange g;
-    switch(ptype) {
-        case PanelType::HEX: {
-            g.setBounds(u8(0x00), u8(0xff));
-        } break;
+	GradientRange g;
+	switch(ptype) {
+		case PanelType::HEX: {
+			g.setBounds(u8(0x00), u8(0xff));
+		} break;
 
-        case PanelType::ASCII: {
-            g.setBounds(u8(0x00), u8(0x20));
-        } break;
+		case PanelType::ASCII: {
+			g.setBounds(u8(0x00), u8(0x20));
+		} break;
 
-        case PanelType::INT8: {
-            g.setBounds(i8(-127), i8(127));
-        } break;
+		case PanelType::INT8: {
+			g.setBounds(i8(-127), i8(127));
+		} break;
 
-        case PanelType::UINT8: {
-            g.setBounds(u8(0), u8(255));
-        } break;
+		case PanelType::UINT8: {
+			g.setBounds(u8(0), u8(255));
+		} break;
 
-        case PanelType::INT16: {
-            g.setBounds(i16(SHRT_MIN), i16(SHRT_MAX));
-        } break;
+		case PanelType::INT16: {
+			g.setBounds(i16(SHRT_MIN), i16(SHRT_MAX));
+		} break;
 
-        case PanelType::UINT16: {
-            g.setBounds(u16(0), u16(USHRT_MAX));
-        } break;
+		case PanelType::UINT16: {
+			g.setBounds(u16(0), u16(USHRT_MAX));
+		} break;
 
-        case PanelType::INT32: {
-            g.setBounds(i32(-100000), i32(100000));
-        } break;
+		case PanelType::INT32: {
+			g.setBounds(i32(-100000), i32(100000));
+		} break;
 
-        case PanelType::UINT32: {
-            g.setBounds(u32(0), u32(100000));
-        } break;
+		case PanelType::UINT32: {
+			g.setBounds(u32(0), u32(100000));
+		} break;
 
-        case PanelType::INT64: {
-            g.setBounds(i32(-100000), i32(100000));
-        } break;
+		case PanelType::INT64: {
+			g.setBounds(i32(-100000), i32(100000));
+		} break;
 
-        case PanelType::UINT64: {
-            g.setBounds(u64(0), u64(100000));
-        } break;
+		case PanelType::UINT64: {
+			g.setBounds(u64(0), u64(100000));
+		} break;
 
-        case PanelType::FLOAT32: {
-            g.setBounds(f32(-10000.0f), f32(10000.0f));
-        } break;
+		case PanelType::FLOAT32: {
+			g.setBounds(f32(-10000.0f), f32(10000.0f));
+		} break;
 
-        case PanelType::FLOAT64: {
-            g.setBounds(f64(-10000.0), f64(10000.0));
-        } break;
+		case PanelType::FLOAT64: {
+			g.setBounds(f64(-10000.0), f64(10000.0));
+		} break;
 
-        default: assert(0); break;
-    }
-    return g;
+		default: assert(0); break;
+	}
+	return g;
 }
 
 constexpr char* panelComboItems[] = {
-    "Hex",
-    "ASCII",
+	"Hex",
+	"ASCII",
 
-    "Int8",
-    "Uint8",
-    "Int16",
-    "Uint16",
-    "Int32",
-    "Uint32",
-    "Int64",
-    "Uint64",
+	"Int8",
+	"Uint8",
+	"Int16",
+	"Uint16",
+	"Int32",
+	"Uint32",
+	"Int64",
+	"Uint64",
 
-    "Float32",
-    "Float64",
+	"Float32",
+	"Float64",
 };
 
 // https://johnnylee-sde.github.io/Fast-unsigned-integer-to-hex-string/
 inline u32 toHexStr(u8 val)
 {
-    u32 hex = (val & 15) << 8 | (val >> 4);
-    u32 mask = ((hex + 0x0606) >> 4) & 0x0101;
-    hex |= 0x3030;
-    hex += 0x07 * mask;
-    return hex;
+	u32 hex = (val & 15) << 8 | (val >> 4);
+	u32 mask = ((hex + 0x0606) >> 4) & 0x0101;
+	hex |= 0x3030;
+	hex += 0x07 * mask;
+	return hex;
 }
 
 HexView::HexView()
 {
-    memset(panelType, 0, sizeof(panelType));
-    panelType[0] = PanelType::HEX;
-    panelType[1] = PanelType::ASCII;
+	memset(panelType, 0, sizeof(panelType));
+	panelType[0] = PanelType::HEX;
+	panelType[1] = PanelType::ASCII;
 
-    for(i32 p = 0; p < PANEL_MAX_COUNT; p++) {
-        panelParams[p].gradSetDefaultColors();
-        for(i32 t = 0; t < (i32)PanelType::_COUNT; t++) {
-            panelParams[p].gradRange[t] = getDefaultTypeGradientRange((PanelType::Enum)t);
-        }
-    }
+	for(i32 p = 0; p < PANEL_MAX_COUNT; p++) {
+		panelParams[p].gradSetDefaultColors();
+		for(i32 t = 0; t < (i32)PanelType::_COUNT; t++) {
+			panelParams[p].gradRange[t] = getDefaultTypeGradientRange((PanelType::Enum)t);
+		}
+	}
 
-    // ascii panel
-    panelParams[1].gradSetColors(0xffcccccc, 0xffffffff);
+	// ascii panel
+	panelParams[1].gradSetColors(0xffcccccc, 0xffffffff);
 
-    for(i32 t = 0; t < (i32)PanelType::_COUNT; t++) {
-        panelParams[3].gradSetColors(0xff800000, 0xff0000ff);
-    }
-    for(i32 t = 0; t < (i32)PanelType::_COUNT; t++) {
-        panelParams[2].gradSetColors(0xff008000, 0xff0000ff);
-    }
+	for(i32 t = 0; t < (i32)PanelType::_COUNT; t++) {
+		panelParams[3].gradSetColors(0xff800000, 0xff0000ff);
+	}
+	for(i32 t = 0; t < (i32)PanelType::_COUNT; t++) {
+		panelParams[2].gradSetColors(0xff008000, 0xff0000ff);
+	}
 
 	memset(panelColorBuffer, 0, sizeof(panelColorBuffer));
 
 	for(i32 p = 0; p < panelCount; p++) {
-		panelColorBuffer[p].count = columnCount * 50;
-		panelColorBuffer[p].buff = (CellColor*)malloc(sizeof(CellColor) * panelColorBuffer[p].count);
+		panelColorBuffer[p].init(columnCount * 50 * sizeof(CellColor));
 	}
 }
 
 HexView::~HexView()
 {
-	for(i32 p = 0; p < PANEL_MAX_COUNT; p++) {
-		if(panelColorBuffer[p].buff) { // FIXME: properly grow/ allocate those
-			free(panelColorBuffer[p].buff);
-			panelColorBuffer[p].buff = nullptr;
-		}
-	}
 }
 
 void HexView::setFileBuffer(u8* buff, i64 buffSize)
 {
-    fileBuffer = buff;
-    fileBufferSize = buffSize;
+	fileBuffer = buff;
+	fileBufferSize = buffSize;
 	selection = {};
 	scrollCurrentLine = 0;
 }
@@ -146,34 +139,34 @@ void HexView::setSearchResults(const ArrayTS<SearchResult>* searchResultList_)
 
 void HexView::addNewPanel()
 {
-    if(panelCount >= PANEL_MAX_COUNT) {
-        return;
-    }
+	if(panelCount >= PANEL_MAX_COUNT) {
+		return;
+	}
 
-    const i32 pid = panelCount++;
-    panelType[pid] = PanelType::HEX;
-    panelParams[pid].colorDisplay = ColorDisplay::GRADIENT;
-    for(i32 t = 0; t < (i32)PanelType::_COUNT; t++) {
-        panelParams[pid].gradRange[t] = getDefaultTypeGradientRange((PanelType::Enum)t);
-    }
+	const i32 pid = panelCount++;
+	panelType[pid] = PanelType::HEX;
+	panelParams[pid].colorDisplay = ColorDisplay::GRADIENT;
+	for(i32 t = 0; t < (i32)PanelType::_COUNT; t++) {
+		panelParams[pid].gradRange[t] = getDefaultTypeGradientRange((PanelType::Enum)t);
+	}
 }
 
 void HexView::removePanel(const i32 pid)
 {
-    if(pid+1 < panelCount) {
-        panelType[pid] = panelType[pid+1];
-        memmove(panelType + pid, panelType + pid + 1, sizeof(panelType[0]) * (panelCount - pid - 1));
-        panelParams[pid] = panelParams[pid+1];
-        memmove(panelParams + pid, panelParams + pid + 1, sizeof(panelParams[0]) * (panelCount - pid - 1));
-    }
-    panelCount--;
+	if(pid+1 < panelCount) {
+		panelType[pid] = panelType[pid+1];
+		memmove(panelType + pid, panelType + pid + 1, sizeof(panelType[0]) * (panelCount - pid - 1));
+		panelParams[pid] = panelParams[pid+1];
+		memmove(panelParams + pid, panelParams + pid + 1, sizeof(panelParams[0]) * (panelCount - pid - 1));
+	}
+	panelCount--;
 }
 
 void HexView::goTo(i32 offset)
 {
-    if(offset >= 0 && offset < fileBufferSize) {
-        goToLine = offset / columnCount;
-    }
+	if(offset >= 0 && offset < fileBufferSize) {
+		goToLine = offset / columnCount;
+	}
 }
 
 i32 HexView::getSelectedInt()
@@ -181,11 +174,11 @@ i32 HexView::getSelectedInt()
 	if(selection.selectStart > -1) {
 		i64 selMin = min(selection.selectStart, selection.selectEnd);
 		i64 selMax = max(selection.selectStart, selection.selectEnd);
-        if((selMax - selMin + 1) == 4) {
-            return *(i32*)(fileBuffer + selMin);
-        }
-    }
-    return 0;
+		if((selMax - selMin + 1) == 4) {
+			return *(i32*)(fileBuffer + selMin);
+		}
+	}
+	return 0;
 }
 
 void HexView::doUiHexViewWindow()
@@ -200,16 +193,16 @@ void HexView::doUiHexViewWindow()
 
 	bool mouseInsideAnyPanel = false;
 
-    if(!fileBuffer) {
-        return;
-    }
+	if(!fileBuffer) {
+		return;
+	}
 
-    const i32 totalLineCount = fileBufferSize/columnCount + 4;
-    i32 panelMarkedForDelete = -1;
-    const f32 panelHeaderHeight = ImGui::GetComboHeight();
-    static i32 panelParamWindowOpenId = -1;
-    static ImVec2 panelParamWindowPos;
-    bool openPanelParamPopup = false;
+	const i32 totalLineCount = fileBufferSize/columnCount + 4;
+	i32 panelMarkedForDelete = -1;
+	const f32 panelHeaderHeight = ImGui::GetComboHeight();
+	static i32 panelParamWindowOpenId = -1;
+	static ImVec2 panelParamWindowPos;
+	bool openPanelParamPopup = false;
 
 	f32 panelRectWidth[PANEL_MAX_COUNT];
 	for(i32 p = 0; p < panelCount; ++p)
@@ -227,7 +220,7 @@ void HexView::doUiHexViewWindow()
 	uiHexRowHeader(scrollCurrentLine, columnCount, style.columnHeaderHeight + panelHeaderHeight,
 				   selection);
 
-    ImGui::SameLine();
+	ImGui::SameLine();
 
 	// force appropriate content size
 	f32 windowWidth = style.panelSpacing + ImGui::GetStyle().ScrollbarSize;
@@ -248,29 +241,40 @@ void HexView::doUiHexViewWindow()
 		for(i32 p = 0; p < panelCount; ++p) {
 			switch(panelType[p]) {
 				case PanelType::HEX:
-					fillColorBuffer<u8>(p, 800, scrollCurrentLine);
+					fillColorBuffer<u8>(p);
 					break;
 				case PanelType::ASCII:
+					fillColorBuffer<u8>(p);
 					break;
 				case PanelType::INT8:
+					fillColorBuffer<i8>(p);
 					break;
 				case PanelType::UINT8:
+					fillColorBuffer<u8>(p);
 					break;
 				case PanelType::INT16:
+					fillColorBuffer<i16>(p);
 					break;
 				case PanelType::UINT16:
+					fillColorBuffer<u16>(p);
 					break;
 				case PanelType::INT32:
+					fillColorBuffer<i32>(p);
 					break;
 				case PanelType::UINT32:
+					fillColorBuffer<u32>(p);
 					break;
 				case PanelType::INT64:
+					fillColorBuffer<i64>(p);
 					break;
 				case PanelType::UINT64:
+					fillColorBuffer<u64>(p);
 					break;
 				case PanelType::FLOAT32:
+					fillColorBuffer<f32>(p);
 					break;
 				case PanelType::FLOAT64:
+					fillColorBuffer<f64>(p);
 					break;
 				default:
 					assert(0);
@@ -365,7 +369,7 @@ void HexView::doUiHexViewWindow()
 					uiHexDoHexPanel(p, scrollCurrentLine, fileBuffer, fileBufferSize, columnCount, panelColorBuffer[p]);
 					break;
 				case PanelType::ASCII:
-					uiHexDoAsciiPanel(p, panelParams[p], scrollCurrentLine, fileBuffer, fileBufferSize, columnCount, selection);
+					uiHexDoAsciiPanel(p, panelParams[p], scrollCurrentLine, fileBuffer, fileBufferSize, columnCount, panelColorBuffer[p]);
 					break;
 				case PanelType::INT8:
 					uiHexDoFormatPanel<i8>(p, panelParams[p], scrollCurrentLine, fileBuffer, fileBufferSize, columnCount, selection, PanelType::INT8, "%d");
@@ -408,11 +412,11 @@ void HexView::doUiHexViewWindow()
 	ImGui::EndChild();
 	ImGui::PopStyleVar(1);
 
-    doPanelParamPopup(openPanelParamPopup, &panelParamWindowOpenId, panelParamWindowPos);
+	doPanelParamPopup(openPanelParamPopup, &panelParamWindowOpenId, panelParamWindowPos);
 
-    if(panelMarkedForDelete >= 0 && panelCount > 1) {
-        removePanel(panelMarkedForDelete);
-    }
+	if(panelMarkedForDelete >= 0 && panelCount > 1) {
+		removePanel(panelMarkedForDelete);
+	}
 
 	// FIXME: clicking outside the hex view window will deselect
 	/*if(!mouseInsideAnyPanel && io.MouseClicked[0]) {
@@ -424,212 +428,212 @@ void HexView::doUiHexViewWindow()
 
 void HexView::doPanelParamPopup(bool open, i32* panelId, ImVec2 popupPos)
 {
-    if(open && *panelId != -1) {
-        ImGui::OpenPopup("Panel parameters");
-    }
-    ImGui::SetNextWindowPos(popupPos);
-    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(15, 15));
-    ImGui::PushStyleVar(ImGuiStyleVar_PopupRounding, 5);
-    ImGui::PushStyleVar(ImGuiStyleVar_PopupBorderSize, 2);
-    ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(10, 10));
+	if(open && *panelId != -1) {
+		ImGui::OpenPopup("Panel parameters");
+	}
+	ImGui::SetNextWindowPos(popupPos);
+	ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(15, 15));
+	ImGui::PushStyleVar(ImGuiStyleVar_PopupRounding, 5);
+	ImGui::PushStyleVar(ImGuiStyleVar_PopupBorderSize, 2);
+	ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(10, 10));
 
-    if(ImGui::BeginPopup("Panel parameters",
-                    ImGuiWindowFlags_NoTitleBar|ImGuiWindowFlags_AlwaysAutoResize)) {
-        const i32 p = *panelId;
-        ImGui::Text("Color display:");
+	if(ImGui::BeginPopup("Panel parameters",
+					ImGuiWindowFlags_NoTitleBar|ImGuiWindowFlags_AlwaysAutoResize)) {
+		const i32 p = *panelId;
+		ImGui::Text("Color display:");
 
-        ColorDisplay::Enum& colorDisplay = panelParams[p].colorDisplay;
+		ColorDisplay::Enum& colorDisplay = panelParams[p].colorDisplay;
 
-        const char* colorTypeSelectList[] = {
-            "Gradient",
-            "Plain",
-            "Bricks",
-            "Search",
-        };
+		const char* colorTypeSelectList[] = {
+			"Gradient",
+			"Plain",
+			"Bricks",
+			"Search",
+		};
 
-        ImGui::ButtonListOne("color_type_select", colorTypeSelectList,
-                                arr_count(colorTypeSelectList), (i32*)&colorDisplay);
+		ImGui::ButtonListOne("color_type_select", colorTypeSelectList,
+								arr_count(colorTypeSelectList), (i32*)&colorDisplay);
 
-        ImGui::Separator();
+		ImGui::Separator();
 
-        ImGui::Text("Gradient:");
+		ImGui::Text("Gradient:");
 
-        const PanelType::Enum ptype = panelType[p];
-        GradientRange& grad = panelParams[p].gradRange[ptype];
+		const PanelType::Enum ptype = panelType[p];
+		GradientRange& grad = panelParams[p].gradRange[ptype];
 
-        switch(ptype) {
-            case PanelType::ASCII:
-            case PanelType::UINT8:
-            case PanelType::HEX: {
-                const u32 u8Min = 0;
-                const u32 u8Max = 255;
-                static u32 imin, imax;
-                imin = *(u8*)&grad.gmin;
-                imax = *(u8*)&grad.gmax;
-                if(ImGui::DragScalar("min", ImGuiDataType_U32, &imin, 1.0f, &u8Min, &u8Max)) {
-                    *(u8*)&grad.gmin = min(imin, imax-1);
-                }
-                if(ImGui::DragScalar("max", ImGuiDataType_U32, &imax, 1.0f, &u8Min, &u8Max)) {
-                    *(u8*)&grad.gmax = max(imin+1, imax);
-                }
-            } break;
+		switch(ptype) {
+			case PanelType::ASCII:
+			case PanelType::UINT8:
+			case PanelType::HEX: {
+				const u32 u8Min = 0;
+				const u32 u8Max = 255;
+				static u32 imin, imax;
+				imin = *(u8*)&grad.gmin;
+				imax = *(u8*)&grad.gmax;
+				if(ImGui::DragScalar("min", ImGuiDataType_U32, &imin, 1.0f, &u8Min, &u8Max)) {
+					*(u8*)&grad.gmin = min(imin, imax-1);
+				}
+				if(ImGui::DragScalar("max", ImGuiDataType_U32, &imax, 1.0f, &u8Min, &u8Max)) {
+					*(u8*)&grad.gmax = max(imin+1, imax);
+				}
+			} break;
 
-            case PanelType::INT8: {
-                static i32 imin, imax;
-                imin = *(i8*)&grad.gmin;
-                imax = *(i8*)&grad.gmax;
-                if(ImGui::DragInt("min", &imin, 1.0f, -127, 127)) {
-                    *(i8*)&grad.gmin = min(imin, imax-1);
-                }
-                if(ImGui::DragInt("max", &imax, 1.0f, imin+1, 127)) {
-                    *(i8*)&grad.gmax = max(imin+1, imax);
-                }
-            } break;
+			case PanelType::INT8: {
+				static i32 imin, imax;
+				imin = *(i8*)&grad.gmin;
+				imax = *(i8*)&grad.gmax;
+				if(ImGui::DragInt("min", &imin, 1.0f, -127, 127)) {
+					*(i8*)&grad.gmin = min(imin, imax-1);
+				}
+				if(ImGui::DragInt("max", &imax, 1.0f, imin+1, 127)) {
+					*(i8*)&grad.gmax = max(imin+1, imax);
+				}
+			} break;
 
-            case PanelType::INT16: {
-                static i32 imin, imax;
-                imin = *(i16*)&grad.gmin;
-                imax = *(i16*)&grad.gmax;
-                if(ImGui::DragInt("min", &imin, 1.0f, SHRT_MIN, SHRT_MAX)) {
-                    *(i16*)&grad.gmin = min(imin, imax-1);
-                }
-                if(ImGui::DragInt("max", &imax, 1.0f, imin+1, SHRT_MAX)) {
-                    *(i16*)&grad.gmax = max(imin+1, imax);
-                }
-            } break;
+			case PanelType::INT16: {
+				static i32 imin, imax;
+				imin = *(i16*)&grad.gmin;
+				imax = *(i16*)&grad.gmax;
+				if(ImGui::DragInt("min", &imin, 1.0f, SHRT_MIN, SHRT_MAX)) {
+					*(i16*)&grad.gmin = min(imin, imax-1);
+				}
+				if(ImGui::DragInt("max", &imax, 1.0f, imin+1, SHRT_MAX)) {
+					*(i16*)&grad.gmax = max(imin+1, imax);
+				}
+			} break;
 
-            case PanelType::UINT16: {
-                const u32 u16Min = 0;
-                const u32 u16Max = USHRT_MAX;
+			case PanelType::UINT16: {
+				const u32 u16Min = 0;
+				const u32 u16Max = USHRT_MAX;
 
-                static u32 imin, imax;
-                imin = *(u16*)&grad.gmin;
-                imax = *(u16*)&grad.gmax;
-                if(ImGui::DragScalar("min", ImGuiDataType_U32, &imin, 1.0f, &u16Min, &u16Max)) {
-                    *(u16*)&grad.gmin = min(imin, imax-1);
-                }
-                if(ImGui::DragScalar("max", ImGuiDataType_U32, &imax, 1.0f, &u16Min, &u16Max)) {
-                    *(u16*)&grad.gmax = max(imin+1, imax);
-                }
-            } break;
+				static u32 imin, imax;
+				imin = *(u16*)&grad.gmin;
+				imax = *(u16*)&grad.gmax;
+				if(ImGui::DragScalar("min", ImGuiDataType_U32, &imin, 1.0f, &u16Min, &u16Max)) {
+					*(u16*)&grad.gmin = min(imin, imax-1);
+				}
+				if(ImGui::DragScalar("max", ImGuiDataType_U32, &imax, 1.0f, &u16Min, &u16Max)) {
+					*(u16*)&grad.gmax = max(imin+1, imax);
+				}
+			} break;
 
-            case PanelType::INT32: {
-                static i32 imin, imax;
-                imin = *(i32*)&grad.gmin;
-                imax = *(i32*)&grad.gmax;
-                if(ImGui::DragInt("min", &imin, 1.0f, _I32_MIN, _I32_MAX)) {
-                    *(i32*)&grad.gmin = min(imin, imax-1);
-                }
-                if(ImGui::DragInt("max", &imax, 1.0f, imin+1, _I32_MAX)) {
-                    *(i32*)&grad.gmax = max(imin+1, imax);
-                }
-            } break;
+			case PanelType::INT32: {
+				static i32 imin, imax;
+				imin = *(i32*)&grad.gmin;
+				imax = *(i32*)&grad.gmax;
+				if(ImGui::DragInt("min", &imin, 1.0f, _I32_MIN, _I32_MAX)) {
+					*(i32*)&grad.gmin = min(imin, imax-1);
+				}
+				if(ImGui::DragInt("max", &imax, 1.0f, imin+1, _I32_MAX)) {
+					*(i32*)&grad.gmax = max(imin+1, imax);
+				}
+			} break;
 
-            case PanelType::UINT32: {
-                // TODO: use DragUint32 (new imgui version)
-                static u32 imin, imax;
-                imin = *(u32*)&grad.gmin;
-                imax = *(u32*)&grad.gmax;
-                if(ImGui::DragScalar("min", ImGuiDataType_U32, &imin, 1.0f)) {
-                    *(u32*)&grad.gmin = min(imin, imax-1);
-                }
-                if(ImGui::DragScalar("max", ImGuiDataType_U32,  &imax, 1.0f)) {
-                    *(u32*)&grad.gmax = max(imin+1, imax);
-                }
-            } break;
+			case PanelType::UINT32: {
+				// TODO: use DragUint32 (new imgui version)
+				static u32 imin, imax;
+				imin = *(u32*)&grad.gmin;
+				imax = *(u32*)&grad.gmax;
+				if(ImGui::DragScalar("min", ImGuiDataType_U32, &imin, 1.0f)) {
+					*(u32*)&grad.gmin = min(imin, imax-1);
+				}
+				if(ImGui::DragScalar("max", ImGuiDataType_U32,  &imax, 1.0f)) {
+					*(u32*)&grad.gmax = max(imin+1, imax);
+				}
+			} break;
 
-            case PanelType::INT64: {
-                const i64 i64Min = _I64_MIN;
-                const i64 i64Max = _I64_MAX;
+			case PanelType::INT64: {
+				const i64 i64Min = _I64_MIN;
+				const i64 i64Max = _I64_MAX;
 
-                static i64 imin, imax;
-                imin = *(i64*)&grad.gmin;
-                imax = *(i64*)&grad.gmax;
-                if(ImGui::DragScalar("min", ImGuiDataType_S64, &imin, 1.0f, &i64Min, &i64Max, "%lld")) {
-                    *(i64*)&grad.gmin = min(imin, imax-1);
-                }
-                if(ImGui::DragScalar("max", ImGuiDataType_S64, &imax, 1.0f, &i64Min, &i64Max, "%lld")) {
-                    *(i64*)&grad.gmax = max(imin+1, imax);
-                }
-            } break;
+				static i64 imin, imax;
+				imin = *(i64*)&grad.gmin;
+				imax = *(i64*)&grad.gmax;
+				if(ImGui::DragScalar("min", ImGuiDataType_S64, &imin, 1.0f, &i64Min, &i64Max, "%lld")) {
+					*(i64*)&grad.gmin = min(imin, imax-1);
+				}
+				if(ImGui::DragScalar("max", ImGuiDataType_S64, &imax, 1.0f, &i64Min, &i64Max, "%lld")) {
+					*(i64*)&grad.gmax = max(imin+1, imax);
+				}
+			} break;
 
-            case PanelType::UINT64: {
-                const i64 u64Min = 0;
-                const i64 u64Max = _UI64_MAX;
+			case PanelType::UINT64: {
+				const i64 u64Min = 0;
+				const i64 u64Max = _UI64_MAX;
 
-                static u64 imin, imax;
-                imin = *(u64*)&grad.gmin;
-                imax = *(u64*)&grad.gmax;
-                if(ImGui::DragScalar("min", ImGuiDataType_U64, &imin, 1.0f, &u64Min, &u64Max, "%llu")) {
-                    *(u64*)&grad.gmin = min(imin, imax-1);
-                }
-                if(ImGui::DragScalar("max", ImGuiDataType_U64, &imax, 1.0f, &u64Min, &u64Max, "%llu")) {
-                    *(u64*)&grad.gmax = max(imin+1, imax);
-                }
-            } break;
+				static u64 imin, imax;
+				imin = *(u64*)&grad.gmin;
+				imax = *(u64*)&grad.gmax;
+				if(ImGui::DragScalar("min", ImGuiDataType_U64, &imin, 1.0f, &u64Min, &u64Max, "%llu")) {
+					*(u64*)&grad.gmin = min(imin, imax-1);
+				}
+				if(ImGui::DragScalar("max", ImGuiDataType_U64, &imax, 1.0f, &u64Min, &u64Max, "%llu")) {
+					*(u64*)&grad.gmax = max(imin+1, imax);
+				}
+			} break;
 
-            case PanelType::FLOAT32: {
-                static f32 imin, imax;
-                imin = *(f32*)&grad.gmin;
-                imax = *(f32*)&grad.gmax;
-                if(ImGui::DragFloat("min", &imin, 1.0f, -FLT_MAX, FLT_MAX)) {
-                    *(f32*)&grad.gmin = min(imin, imax-1);
-                }
-                if(ImGui::DragFloat("max", &imax, 1.0f, imin+1, FLT_MAX)) {
-                    *(f32*)&grad.gmax = max(imin+1, imax);
-                }
-            } break;
+			case PanelType::FLOAT32: {
+				static f32 imin, imax;
+				imin = *(f32*)&grad.gmin;
+				imax = *(f32*)&grad.gmax;
+				if(ImGui::DragFloat("min", &imin, 1.0f, -FLT_MAX, FLT_MAX)) {
+					*(f32*)&grad.gmin = min(imin, imax-1);
+				}
+				if(ImGui::DragFloat("max", &imax, 1.0f, imin+1, FLT_MAX)) {
+					*(f32*)&grad.gmax = max(imin+1, imax);
+				}
+			} break;
 
-            case PanelType::FLOAT64: {
-                static f32 imin, imax;
-                imin = *(f64*)&grad.gmin;
-                imax = *(f64*)&grad.gmax;
-                if(ImGui::DragFloat("min", &imin, 1.0f, -FLT_MAX, FLT_MAX)) {
-                    *(f64*)&grad.gmin = min(imin, imax-1);
-                }
-                if(ImGui::DragFloat("max", &imax, 1.0f, imin+1, FLT_MAX)) {
-                    *(f64*)&grad.gmax = max(imin+1, imax);
-                }
-            } break;
-        }
+			case PanelType::FLOAT64: {
+				static f32 imin, imax;
+				imin = *(f64*)&grad.gmin;
+				imax = *(f64*)&grad.gmax;
+				if(ImGui::DragFloat("min", &imin, 1.0f, -FLT_MAX, FLT_MAX)) {
+					*(f64*)&grad.gmin = min(imin, imax-1);
+				}
+				if(ImGui::DragFloat("max", &imax, 1.0f, imin+1, FLT_MAX)) {
+					*(f64*)&grad.gmax = max(imin+1, imax);
+				}
+			} break;
+		}
 
-        static Color3 gradCol1;
-        static Color3 gradCol2;
-        Color3& rgb1 = panelParams[p].gradColor1;
-        Color3& rgb2 = panelParams[p].gradColor2;
-        gradCol1 = rgb1;
-        gradCol2 = rgb2;
+		static Color3 gradCol1;
+		static Color3 gradCol2;
+		Color3& rgb1 = panelParams[p].gradColor1;
+		Color3& rgb2 = panelParams[p].gradColor2;
+		gradCol1 = rgb1;
+		gradCol2 = rgb2;
 
-        if(ImGui::ColorEdit3("Color1", gradCol1.data)) {
-            rgb1 = gradCol1;
-        }
-        if(ImGui::ColorEdit3("Color2", gradCol2.data)) {
-            rgb2 = gradCol2;
-        }
+		if(ImGui::ColorEdit3("Color1", gradCol1.data)) {
+			rgb1 = gradCol1;
+		}
+		if(ImGui::ColorEdit3("Color2", gradCol2.data)) {
+			rgb2 = gradCol2;
+		}
 
-        if(ImGui::Button("Reset min/max", ImVec2(100, 25))) {
-            GradientRange defGrad = getDefaultTypeGradientRange(ptype);
-            grad.gmin = defGrad.gmin;
-            grad.gmax = defGrad.gmax;
-        }
+		if(ImGui::Button("Reset min/max", ImVec2(100, 25))) {
+			GradientRange defGrad = getDefaultTypeGradientRange(ptype);
+			grad.gmin = defGrad.gmin;
+			grad.gmax = defGrad.gmax;
+		}
 
-        ImGui::SameLine();
+		ImGui::SameLine();
 
-        if(ImGui::Button("Reset colors", ImVec2(100, 25))) {
-            panelParams[p].gradSetDefaultColors();
-        }
+		if(ImGui::Button("Reset colors", ImVec2(100, 25))) {
+			panelParams[p].gradSetDefaultColors();
+		}
 
-        ImGui::Separator();
+		ImGui::Separator();
 
-        if(ImGui::Button("Ok", ImVec2(300, 25))) {
-            ImGui::CloseCurrentPopup();
-        }
+		if(ImGui::Button("Ok", ImVec2(300, 25))) {
+			ImGui::CloseCurrentPopup();
+		}
 
-        ImGui::EndPopup();
-    }
-    else {
-        *panelId = -1;
-    }
+		ImGui::EndPopup();
+	}
+	else {
+		*panelId = -1;
+	}
 
 	ImGui::PopStyleVar(4);
 }
@@ -637,117 +641,120 @@ void HexView::doPanelParamPopup(bool open, i32* panelId, ImVec2 popupPos)
 #if 0
 void DataPanels::doBrickPanel(const char* label, const i32 startLine)
 {
-    assert(brickWall);
-    ImGuiWindow* window = ImGui::GetCurrentWindow();
-    ImRect panelRect = window->Rect();
+	assert(brickWall);
+	ImGuiWindow* window = ImGui::GetCurrentWindow();
+	ImRect panelRect = window->Rect();
 
-    const i32 lineCount = (panelRect.GetHeight() - columnHeaderHeight) / rowHeight;
-    const i32 itemCount = min(fileBufferSize - (i64)startLine * columnCount, lineCount * columnCount);
+	const i32 lineCount = (panelRect.GetHeight() - columnHeaderHeight) / rowHeight;
+	const i32 itemCount = min(fileBufferSize - (i64)startLine * columnCount, lineCount * columnCount);
 
-    ImVec2 winPos = window->DC.CursorPos;
-    const ImGuiID id = window->GetID(label);
-    ImGui::ItemSize(panelRect, 0);
-    if(!ImGui::ItemAdd(panelRect, id))
-        return;
+	ImVec2 winPos = window->DC.CursorPos;
+	const ImGuiID id = window->GetID(label);
+	ImGui::ItemSize(panelRect, 0);
+	if(!ImGui::ItemAdd(panelRect, id))
+		return;
 
-    const ImVec2 cellSize(columnWidth, rowHeight);
+	const ImVec2 cellSize(columnWidth, rowHeight);
 
-    // column header
-    ImRect colHeadBb(winPos, winPos + ImVec2(panelRect.GetWidth(), columnHeaderHeight));
-    const ImU32 headerColor = ImGui::ColorConvertFloat4ToU32(ImVec4(0.9, 0.9, 0.9, 1));
-    const ImU32 headerColorOdd = ImGui::ColorConvertFloat4ToU32(ImVec4(0.85, 0.85, 0.85, 1));
-    ImGui::RenderFrame(colHeadBb.Min, colHeadBb.Max, headerColor, false, 0);
+	// column header
+	ImRect colHeadBb(winPos, winPos + ImVec2(panelRect.GetWidth(), columnHeaderHeight));
+	const ImU32 headerColor = ImGui::ColorConvertFloat4ToU32(ImVec4(0.9, 0.9, 0.9, 1));
+	const ImU32 headerColorOdd = ImGui::ColorConvertFloat4ToU32(ImVec4(0.85, 0.85, 0.85, 1));
+	ImGui::RenderFrame(colHeadBb.Min, colHeadBb.Max, headerColor, false, 0);
 
-    for(i64 i = 0; i < columnCount; ++i) {
-        u32 hex = toHexStr(i);
-        const char* label = (const char*)&hex;
-        const ImVec2 label_size = ImGui::CalcTextSize(label, label+2);
-        const ImVec2 size = ImGui::CalcItemSize(ImVec2(columnWidth, columnHeaderHeight),
-                                                label_size.x, label_size.y);
+	for(i64 i = 0; i < columnCount; ++i) {
+		u32 hex = toHexStr(i);
+		const char* label = (const char*)&hex;
+		const ImVec2 label_size = ImGui::CalcTextSize(label, label+2);
+		const ImVec2 size = ImGui::CalcItemSize(ImVec2(columnWidth, columnHeaderHeight),
+												label_size.x, label_size.y);
 
-        ImVec2 cellPos(i * cellSize.x, 0);
-        cellPos += winPos;
-        const ImRect bb(cellPos, cellPos + size);
+		ImVec2 cellPos(i * cellSize.x, 0);
+		cellPos += winPos;
+		const ImRect bb(cellPos, cellPos + size);
 
-        if(i & 1) {
-            ImGui::RenderFrame(bb.Min, bb.Max, headerColorOdd, false, 0);
-        }
+		if(i & 1) {
+			ImGui::RenderFrame(bb.Min, bb.Max, headerColorOdd, false, 0);
+		}
 
-        ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.5, 0.5, 0.5, 1));
-        ImGui::RenderTextClipped(bb.Min, bb.Max, label, label+2,
-                          &label_size, ImVec2(0.5, 0.5), &bb);
-        ImGui::PopStyleColor();
-    }
-    winPos.y += columnHeaderHeight;
+		ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.5, 0.5, 0.5, 1));
+		ImGui::RenderTextClipped(bb.Min, bb.Max, label, label+2,
+						  &label_size, ImVec2(0.5, 0.5), &bb);
+		ImGui::PopStyleColor();
+	}
+	winPos.y += columnHeaderHeight;
 
-    // hex table
-    const i64 startLineOff = (i64)startLine * columnCount;
-    for(i64 i = 0; i < itemCount; ++i) {
-        const i64 dataOffset = i + startLineOff;
-        const Brick* b = brickWall->getBrick(dataOffset);
+	// hex table
+	const i64 startLineOff = (i64)startLine * columnCount;
+	for(i64 i = 0; i < itemCount; ++i) {
+		const i64 dataOffset = i + startLineOff;
+		const Brick* b = brickWall->getBrick(dataOffset);
 
-        if(b) {
-            //frameColor = b->color;
-        }
-        else {
-            u8 val = fileBuffer[dataOffset];
-            u32 hex = toHexStr(val);
+		if(b) {
+			//frameColor = b->color;
+		}
+		else {
+			u8 val = fileBuffer[dataOffset];
+			u32 hex = toHexStr(val);
 
-            ImU32 frameColor = 0xffffffff;
-            f32 geyScale = val/255.f * 0.7 + 0.3;
-            frameColor = ImGui::ColorConvertFloat4ToU32(ImVec4(geyScale, geyScale, geyScale, 1.0f));
+			ImU32 frameColor = 0xffffffff;
+			f32 geyScale = val/255.f * 0.7 + 0.3;
+			frameColor = ImGui::ColorConvertFloat4ToU32(ImVec4(geyScale, geyScale, geyScale, 1.0f));
 
-            constexpr f32 textColor = 0.0f;
+			constexpr f32 textColor = 0.0f;
 
-            const char* label = (const char*)&hex;
-            const ImVec2 label_size = ImGui::CalcTextSize(label, label+2);
-            const ImVec2 size = ImGui::CalcItemSize(cellSize, label_size.x, label_size.y);
+			const char* label = (const char*)&hex;
+			const ImVec2 label_size = ImGui::CalcTextSize(label, label+2);
+			const ImVec2 size = ImGui::CalcItemSize(cellSize, label_size.x, label_size.y);
 
-            i32 column = i % columnCount;
-            i32 line = i / columnCount;
-            ImVec2 cellPos(column * cellSize.x, line * cellSize.y);
-            cellPos += winPos;
-            const ImRect bb(cellPos, cellPos + size);
+			i32 column = i % columnCount;
+			i32 line = i / columnCount;
+			ImVec2 cellPos(column * cellSize.x, line * cellSize.y);
+			cellPos += winPos;
+			const ImRect bb(cellPos, cellPos + size);
 
-            if(selectionInSelectionRange(dataOffset)) {
-                ImGui::RenderFrame(bb.Min, bb.Max, selectedFrameColor, false, 0);
-                ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1, 1, 1, 1));
-            }
-            else if(selectionInHoverRange(dataOffset)) {
-                ImGui::RenderFrame(bb.Min, bb.Max, hoverFrameColor, false, 0);
-                ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(textColor, textColor, textColor, 1));
-            }
-            else {
-                ImGui::RenderFrame(bb.Min, bb.Max, frameColor, false, 0);
-                ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(textColor, textColor, textColor, 1));
-            }
+			if(selectionInSelectionRange(dataOffset)) {
+				ImGui::RenderFrame(bb.Min, bb.Max, selectedFrameColor, false, 0);
+				ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1, 1, 1, 1));
+			}
+			else if(selectionInHoverRange(dataOffset)) {
+				ImGui::RenderFrame(bb.Min, bb.Max, hoverFrameColor, false, 0);
+				ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(textColor, textColor, textColor, 1));
+			}
+			else {
+				ImGui::RenderFrame(bb.Min, bb.Max, frameColor, false, 0);
+				ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(textColor, textColor, textColor, 1));
+			}
 
-            ImGui::RenderTextClipped(bb.Min, bb.Max, label, label+2,
-                              &label_size, ImVec2(0.5, 0.5), &bb);
-            ImGui::PopStyleColor();
-        }
-    }
+			ImGui::RenderTextClipped(bb.Min, bb.Max, label, label+2,
+							  &label_size, ImVec2(0.5, 0.5), &bb);
+			ImGui::PopStyleColor();
+		}
+	}
 }
 #endif
 
 template<typename T>
-void HexView::fillColorBuffer(i32 panelID, i32 itemCount, i32 startLine)
+void HexView::fillColorBuffer(i32 panelID)
 {
 	CellColorBuffer& colorBuffer = panelColorBuffer[panelID];
-	assert(colorBuffer.count >= itemCount); // color buffer is too small
+	const i32 startLine = scrollCurrentLine;
+	const i64 dataSize = fileBufferSize;
+	const i64 itemCount = uiHexGetItemCount<T>(dataSize, startLine, columnCount);
+	colorBuffer.reserve(itemCount * sizeof(CellColor));
+
 	const UiStyle& style = getUiStyle();
 
 	const PanelParams& panelParamsOne = panelParams[panelID];
 	const ColorDisplay::Enum colorDisplay = panelParamsOne.colorDisplay;
 	const GradientRange& grad = panelParamsOne.gradRange[panelType[panelID]];
 
-	const i32 itemCount2 = itemCount;
 	const i64 startDataOff = startLine * columnCount;
-	const i64 endDataOff = startDataOff + itemCount2;
+	const i64 endDataOff = startDataOff + itemCount;
 
 	// gradient
 	if(colorDisplay == ColorDisplay::GRADIENT) {
-		for(i32 i = 0; i < itemCount2; i++)
+		for(i64 i = 0; i < itemCount; i += sizeof(T))
 		{
 			const i64 dataOffset = i + startDataOff;
 			const T val = *(T*)&(fileBuffer[dataOffset]);
@@ -773,12 +780,12 @@ void HexView::fillColorBuffer(i32 panelID, i32 itemCount, i32 startLine)
 				}
 			}
 
-			colorBuffer.buff[i] = cellColorFromU32(frameColor, textColor);
+			colorBuffer.data[i] = cellColorFromU32(frameColor, textColor);
 		}
 	}
 	// plain
 	else if(colorDisplay == ColorDisplay::PLAIN) {
-		for(i32 i = 0; i < itemCount2; i++)
+		for(i32 i = 0; i < itemCount; i++)
 		{
 			const i64 dataOffset = i + startDataOff;
 			const T val = *(T*)&(fileBuffer[dataOffset]);
@@ -786,7 +793,7 @@ void HexView::fillColorBuffer(i32 panelID, i32 itemCount, i32 startLine)
 			CellColor c;
 			u32 frameColor = 0xffffffff;
 			u32 textColor = 0xff000000;
-			colorBuffer.buff[i] = cellColorFromU32(frameColor, textColor);
+			colorBuffer.data[i] = cellColorFromU32(frameColor, textColor);
 		}
 	}
 
@@ -823,27 +830,27 @@ void HexView::fillColorBuffer(i32 panelID, i32 itemCount, i32 startLine)
 			break;
 
 		i64 start = max(sr.offset - startDataOff, 0);
-		i64 end = min(start + sr.len, itemCount2);
+		i64 end = min(start + sr.len, itemCount);
 
 		for(i64 i = start; i < end; i++)
-			colorBuffer.buff[i] = cellColorFromU32(searchFrameColor, searchTextColor);
+			colorBuffer.data[i] = cellColorFromU32(searchFrameColor, searchTextColor);
 	}
 
 	// TODO: optimize this
 	// selection
-	for(i32 i = 0; i < itemCount2; i++)
+	for(i32 i = 0; i < itemCount; i++)
 	{
 		const i64 dataOffset = i + startDataOff;
 
 		if(selection.isInSelectionRange(dataOffset)) {
 			u32 frameColor = style.selectedFrameColor;
 			u32 textColor = style.selectedTextColor;
-			colorBuffer.buff[i] = cellColorFromU32(frameColor, textColor);
+			colorBuffer.data[i] = cellColorFromU32(frameColor, textColor);
 		}
 		else if(selection.isInHoverRange(dataOffset)) {
 			u32 frameColor = style.hoverFrameColor;
 			u32 textColor = style.hoverTextColor;
-			colorBuffer.buff[i] = cellColorFromU32(frameColor, textColor);
+			colorBuffer.data[i] = cellColorFromU32(frameColor, textColor);
 		}
 	}
 
@@ -903,7 +910,7 @@ void HexView::fillColorBuffer(i32 panelID, i32 itemCount, i32 startLine)
 				}
 			}
 		}
-		colorBuffer.buff[i] = cellColorFromU32(frameColor, textColor);
+		colorBuffer.data[i] = cellColorFromU32(frameColor, textColor);
 	}
 #endif
 }
@@ -1167,10 +1174,8 @@ void uiHexDoHexPanel(ImGuiID imguiID, i32 startLine, const u8* data, i64 dataSiz
 	ImVec2 panelSize = {panelWidth, 10}; // height doesnt really matter here
 	ImRect panelRect = {winPos, winPos + panelSize};
 
-	const i32 lineCount = (window->Rect().GetHeight() - (window->DC.CursorPos.y - window->Pos.y)) / style.rowHeight;
+	const i32 lineCount = window->Rect().GetHeight() / style.rowHeight;
 	const i32 itemCount = min(dataSize - (i64)startLine * columnCount, lineCount * columnCount);
-
-	assert(colorBuffer.count >= itemCount); // color buffer is too small
 
 	ImGui::ItemSize(panelRect, 0);
 	if(!ImGui::ItemAdd(panelRect, imguiID)) // TODO: is this useful?
@@ -1187,7 +1192,7 @@ void uiHexDoHexPanel(ImGuiID imguiID, i32 startLine, const u8* data, i64 dataSiz
 
 		u32 frameColor = 0xffffffff;
 		u32 textColor = 0xff000000;
-		cellColorToU32(colorBuffer.buff[i], &frameColor, &textColor);
+		cellColorToU32(colorBuffer.data[i], &frameColor, &textColor);
 
 		const char* label = (const char*)&hex;
 		const ImVec2 label_size = ImGui::CalcTextSize(label, label+2);
@@ -1253,7 +1258,7 @@ void uiHexDoHexPanel(ImGuiID imguiID, i32 startLine, const u8* data, i64 dataSiz
 	}
 }
 
-void uiHexDoAsciiPanel(ImGuiID imguiID, const PanelParams& panelParams, i32 startLine, const u8* data, i64 dataSize, i32 columnCount, const SelectionState& selection)
+void uiHexDoAsciiPanel(ImGuiID imguiID, const PanelParams& panelParams, i32 startLine, const u8* data, i64 dataSize, i32 columnCount, const CellColorBuffer& colorBuffer)
 {
 	// TODO: there are a LOT of arguments here
 	// Remove selection & gradient depedency? Replace with a color buffer?
@@ -1289,20 +1294,18 @@ void uiHexDoAsciiPanel(ImGuiID imguiID, const PanelParams& panelParams, i32 star
 				  winPos.y + line * style.rowHeight + style.rowHeight);
 
 
-		ImU32 textColor = ImGui::GetColorU32(ImGuiCol_Text);
-		const bool isHovered = selection.isInHoverRange(dataOff);
-		const bool isSelected = selection.isInSelectionRange(dataOff);
-
+		ImU32 textColor =  0xff000000;
 		ImU32 frameColor = 0xffffffff;
+		cellColorToU32(colorBuffer.data[i], &frameColor, &textColor);
 
-		const f32 ga = grad.getLerpVal((u8)c);
+		/*const f32 ga = grad.getLerpVal((u8)c);
 
 		const Color3 rgbCol = panelParams.gradLerpColor(ga);
 		const f32 brightness = rgbGetBrightness(rgbCol);
 		const u32 gradientColor = rgbToU32(rgbCol);
 		if(brightness < 0.25) {
 			textColor = rgbToU32(rgbGetLighterColor(rgbCol, 0.6f));
-		}
+		}*/
 
 		/*if(colorDisplay == ColorDisplay::BRICK_COLOR) {
 			assert(brickWall);
@@ -1314,7 +1317,7 @@ void uiHexDoAsciiPanel(ImGuiID imguiID, const PanelParams& panelParams, i32 star
 				frameColor = gradientColor;
 			}
 		}
-		else */if(colorDisplay == ColorDisplay::GRADIENT) {
+		else if(colorDisplay == ColorDisplay::GRADIENT) {
 			frameColor = gradientColor;
 		}
 
@@ -1340,6 +1343,18 @@ void uiHexDoAsciiPanel(ImGuiID imguiID, const PanelParams& panelParams, i32 star
 									 ImVec2(0.5, 0.5), &bb);
 
 			ImGui::PopStyleColor();
+		}*/
+
+
+		ImGui::RenderFrame(bb.Min, bb.Max, frameColor, false, 0);
+
+		if((u8)c >= 0x20) {
+			ImGui::PushStyleColor(ImGuiCol_Text, textColor);
+			ImGui::RenderTextClipped(bb.Min,
+									 bb.Max,
+									 &c, (const char*)&c + 1, NULL,
+									 ImVec2(0.5, 0.5), &bb);
+			ImGui::PopStyleColor(1);
 		}
 
 		if((i+1) % columnCount) ImGui::SameLine();
@@ -1497,4 +1512,20 @@ f32 hexViewCalculatePanelWidth(i32 panelType, i32 columnCount)
 
 	assert(0); // should not reach here
 	return -1;
+}
+
+template<typename T>
+i64 uiHexGetItemCount(i64 dataSize, i32 startLine, i32 columnCount)
+{
+	const UiStyle& style = getUiStyle();
+
+	ImGuiWindow* window = ImGui::GetCurrentWindow();
+	const i32 lineCount = window->Rect().GetHeight() / style.rowHeight;
+	i64 itemCount = min(dataSize - (i64)startLine * columnCount, lineCount * columnCount);
+
+	if(sizeof(T) > 1) {
+		itemCount &= ~(itemCount & (sizeof(T)-1));
+	}
+
+	return itemCount;
 }

@@ -219,8 +219,8 @@ void toolsDoTemplate(BrickWall* brickWall)
 
 void toolsDoOptions(i32* columnCount)
 {
-    ImGui::SliderInt("Columns", columnCount, 8, 128);
-    *columnCount = clamp(*columnCount, 8, 128);
+	ImGui::SliderInt("Columns", columnCount, 8, 64);
+	*columnCount = clamp(*columnCount, 8, 64);
 }
 
 void toolsDoScript(Script* script, BrickWall* brickWall)

@@ -132,11 +132,7 @@ inline CellColor cellColorFromU32(u32 bg32, u32 text32)
 	return c;
 }
 
-struct CellColorBuffer
-{
-	CellColor* buff;
-	i64 count;
-};
+typedef GrowableBufferT<CellColor> CellColorBuffer;
 
 struct PanelParams
 {
@@ -198,7 +194,7 @@ struct HexView
     void doPanelParamPopup(bool open, i32* panelId, ImVec2 popupPos);
 
 	template<typename T>
-	void fillColorBuffer(i32 panelID, i32 itemCount, i32 startLine);
+	void fillColorBuffer(i32 panelID);
 };
 
 struct UiStyle
@@ -237,11 +233,16 @@ void uiHexRowHeader(i64 firstRow, i32 rowStep, f32 textOffsetY, const SelectionS
 void uiHexColumnHeader(i32 columnCount, const SelectionState& selection);
 bool uiHexPanelDoSelection(i32 panelID, i32 panelType, SelectionState* outSelectionState, i32 firstLine, i32 columnCount);
 void uiHexPanelTypeDoSelection(SelectionState* outSelectionState, i32 panelId, ImVec2 mousePos, ImRect rect, i32 columnWidth_, i32 rowHeight_, i32 startLine, i32 columnCount, i32 hoverLen);
-void uiHexDoHexPanel(ImGuiID imguiID, i32 startLine, const u8* data, i64 dataSize, i32 columnCount, const CellColorBuffer& colorBuffer);
-void uiHexDoAsciiPanel(ImGuiID imguiID, const PanelParams& panelParams, i32 startLine, const u8* data, i64 dataSize, i32 columnCount, const SelectionState& selection);
+
+void uiHexDoHexPanel(ImGuiID imguiID, i32 startLine, const u8* data, i64 dataSize, i32 columnCount, const CellColorBuffer &pColorBuffer);
+
+void uiHexDoAsciiPanel(ImGuiID imguiID, const PanelParams& panelParams, i32 startLine, const u8* data, i64 dataSize, i32 columnCount, const CellColorBuffer &colorBuffer);
 
 template<typename T>
 void uiHexDoFormatPanel(ImGuiID imguiID, const PanelParams& panelParams, i32 startLine, const u8* data, i64 dataSize, i32 columnCount, const SelectionState& selection, i32 panelType, const char* format);
 
 f32 hexViewCalculatePanelWidth(i32 panelType, i32 columnCount);
+
+template<typename T>
+i64 uiHexGetItemCount(i64 dataSize, i32 startLine, i32 columnCount);
 

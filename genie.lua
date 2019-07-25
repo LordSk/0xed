@@ -71,6 +71,7 @@ solution "0xed solution"
 		"EnableSSE2",
 		"EnableAVX",
 		"EnableAVX2",
+		"Cpp14"
 	}
 	
 	defines {

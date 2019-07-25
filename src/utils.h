@@ -440,3 +440,39 @@ inline Color3 rgbGetLighterColor(const Color3& rgbIn, const f32 lightVal)
     hsvToRgb(hsv, &rgbOut);
     return rgbOut;
 }
+
+template<typename T>
+struct GrowableBufferT
+{
+	T* data = nullptr;
+	i32 capacity = 0;
+	i32 size = 0;
+
+	~GrowableBufferT() {
+		release();
+	}
+
+	inline void init(i32 size_) {
+		assert(data == nullptr);
+		data = (T*)malloc(size_);
+		capacity = size_;
+		size = 0;
+	}
+
+	inline void reserve(i32 size_) {
+		if(capacity < size_) {
+			i32 newCapacity = max(capacity * 2, size_);
+			data = (T*)realloc(data, newCapacity);
+			capacity = newCapacity;
+		}
+	}
+
+	inline void release() {
+		if(data) {
+			free(data);
+			data = nullptr;
+		}
+	}
+};
+
+typedef GrowableBufferT<void> GrowableBuffer;

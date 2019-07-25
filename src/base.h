@@ -71,3 +71,5 @@ inline T lerp(T v1, T v2, f32 alpha)
 }
 
 #define arr_count(a) (sizeof(a)/sizeof(a[0]))
+
+#define assert_msg(cond, msg) assert((cond) && (msg))
