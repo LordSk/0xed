@@ -1,11 +1,10 @@
 --
 dofile("config.lua");
 
-PROJ_DIR = path.getabsolute("..")
-BUILD_DIR = path.join(PROJ_DIR, "build")
+BUILD_DIR = path.getabsolute("./build")
 
 solution "0xed solution"
-	location "build"
+	location(BUILD_DIR)
 	
 	configurations {
 		"Debug",
@@ -40,11 +39,15 @@ solution "0xed solution"
 	
 	configuration {}
 	
-	targetdir(BUILD_DIR)
+	targetdir("../build")
 	
 	includedirs {
 		"src",
 		SDL2_include,
+	}
+
+	libdirs {
+		SDL2_libdir
 	}
 	
 	links {
@@ -61,7 +64,7 @@ solution "0xed solution"
 		"gdi32",
 		"glu32",
 		"opengl32",
-		SDL2_lib,
+		"SDL2",
 	}
 	
 	flags {
@@ -75,18 +78,18 @@ solution "0xed solution"
 	}
 	
 	defines {
-		"NK_INCLUDE_FIXED_TYPES",
-		"NK_INCLUDE_STANDARD_IO",
-		"NK_INCLUDE_STANDARD_VARARGS",
-		"NK_INCLUDE_DEFAULT_ALLOCATOR",
-		"NK_INCLUDE_VERTEX_BUFFER_OUTPUT",
-		"NK_INCLUDE_FONT_BAKING",
+		--"NK_INCLUDE_FIXED_TYPES",
+		--"NK_INCLUDE_STANDARD_IO",
+		--"NK_INCLUDE_STANDARD_VARARGS",
+		--"NK_INCLUDE_DEFAULT_ALLOCATOR",
+		--"NK_INCLUDE_VERTEX_BUFFER_OUTPUT",
+		--"NK_INCLUDE_FONT_BAKING",
 		--"NK_INCLUDE_DEFAULT_FONT"
-		"EASY_PROFILER_VERSION_MAJOR=1",
-		"EASY_PROFILER_VERSION_MINOR=3",
-		"EASY_PROFILER_VERSION_PATCH=0",
-		"EASY_DEFAULT_PORT=28077",
-		"BUILD_WITH_EASY_PROFILER=1"
+		--"EASY_PROFILER_VERSION_MAJOR=1",
+		--"EASY_PROFILER_VERSION_MINOR=3",
+		--"EASY_PROFILER_VERSION_PATCH=0",
+		--"EASY_DEFAULT_PORT=28077",
+		--"BUILD_WITH_EASY_PROFILER=1"
 	}
 	
 	-- disable exception related warnings
@@ -94,7 +97,8 @@ solution "0xed solution"
 	
 
 project "0xed"
-	kind "WindowedApp" -- doesnt do anything?
+	kind "WindowedApp"
+	--kind "ConsoleApp"
 	
 	configuration {}
 	
@@ -104,5 +108,3 @@ project "0xed"
 		"src/**.cpp",
         "src/0xed.rc",
 	}
-    
-    linkoptions{ "/subsystem:windows" }

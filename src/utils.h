@@ -477,4 +477,7 @@ struct GrowableBufferT
 
 typedef GrowableBufferT<void> GrowableBuffer;
 
+void pathSetBasePath(const char* pBasePath);
 const char *pathGetFilename(const char* pPath);
+void pathAppend(char* pPath, i32 pathBuffSize, const char* toAppend);
+void pathRelative(char* pDest, i32 destSize, const char* pPath);

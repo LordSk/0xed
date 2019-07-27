@@ -57,16 +57,27 @@ ArrayTS<SearchResult> searchResults;
 
 bool init()
 {
-    // TODO: remove this
-	if(!script.openAndCompile("../test_script.0")) {
-		//return false;
-    }
-	//return false;
+	const char* basePath = SDL_GetBasePath();
+	pathSetBasePath(basePath);
 
-    loadConfigFile(CONFIG_FILENAME, &config);
+	LOG("Base path: '%s'", basePath);
+
+	// TODO: remove
+	static char scriptPath[256];
+	pathRelative(scriptPath, sizeof(scriptPath), "../test_script.0");
+	if(!script.openAndCompile(scriptPath)) {
+		return false;
+	}
+
+	static char configPath[256];
+	pathRelative(configPath, sizeof(configPath), CONFIG_FILENAME);
+	loadConfigFile(configPath, &config);
+
+	static char imguiIniPath[256];
+	pathRelative(imguiIniPath, sizeof(imguiIniPath), "0xed_imgui.ini");
 
     if(!win.init(WINDOW_BASE_TITLE, config.windowWidth, config.windowHeight,
-                 config.windowMaximized, "0xed_imgui.ini")) {
+				 config.windowMaximized, imguiIniPath)) {
         return false;
     }
 
@@ -87,10 +98,6 @@ bool init()
 
 	searchResults.reserve(1024);
 	searchStartThread();
-
-	// TODO: remove
-	bool r = fileLoad("SDL2.dll");
-	assert(r);
 
 	/*lastSearchParams.dataType = SearchDataType::ASCII_String;
 	lastSearchParams.dataSize = 3;
@@ -133,7 +140,9 @@ void cleanUp()
 
     win.cleanUp();
 
-    saveConfigFile(CONFIG_FILENAME, config);
+	static char configPath[256];
+	pathRelative(configPath, sizeof(configPath), CONFIG_FILENAME);
+	saveConfigFile(configPath, config);
 
 	searchTerminateThread();
 
@@ -388,13 +397,12 @@ void doUI()
 
 };
 
-#ifdef _WIN32
-int WINAPI wWinMain(HINSTANCE, HINSTANCE, PWSTR, int)
-#else
-int main()
-#endif
+
+int main(int argc, char** argv)
 {
     SDL_SetMainReady();
+
+	LOG(".: 0xed :.");
 
 #ifdef OXED_PROFILE
     EASY_PROFILER_ENABLE;
@@ -408,11 +416,19 @@ int main()
         return 1;
     }
 
-    Application app;
+	static Application app;
     if(!app.init()) {
         LOG("ERROR: could not init application.");
         return 1;
     }
+
+	if(argc > 1) {
+		LOG("Loading file: %s", argv[1]);
+		if(!app.fileLoad(argv[1])) {
+			return 1;
+		}
+	}
+
     i32 r = app.run();
 
     SDL_Quit();

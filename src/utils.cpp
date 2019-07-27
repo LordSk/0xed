@@ -36,6 +36,13 @@ bool openFileReadAll(const char* path, FileBuffer* out_fb)
     return true;
 }
 
+static char g_basePath[256];
+
+void pathSetBasePath(const char *pBasePath)
+{
+	strcpy_s(g_basePath, sizeof(g_basePath), pBasePath);
+}
+
 const char* pathGetFilename(const char *pPath)
 {
 	const i32 len = strlen(pPath);
@@ -48,4 +55,26 @@ const char* pathGetFilename(const char *pPath)
 	}
 
 	return pLast;
+}
+
+void pathAppend(char *pPath, i32 pathBuffSize, const char *toAppend)
+{
+	const i32 len = strlen(pPath);
+#ifdef _WIN32
+	if(pPath[len-1] != '\\') {
+		strcat_s(pPath, pathBuffSize, "\\");
+	}
+	strcat_s(pPath, pathBuffSize, toAppend);
+#else
+	if(pPath[len-1] != '/') {
+		strcat_s(pPath, pathBuffSize, "/");
+	}
+	strcat_s(pPath, pathBuffSize, toAppend);
+#endif
+}
+
+void pathRelative(char *pDest, i32 destSize, const char *pPath)
+{
+	strcpy_s(pDest, destSize, g_basePath);
+	pathAppend(pDest, destSize, pPath);
 }
