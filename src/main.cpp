@@ -242,7 +242,7 @@ void doUI()
 	ImGui::PopStyleVar(3);
 
 	ImGuiID dockspaceMain = ImGui::GetID("Dockspace_main");
-	ImGui::DockSpace(dockspaceMain, ImVec2(0.0f, 0.0f), ImGuiDockNodeFlags_None);
+	ImGui::DockSpace(dockspaceMain, ImVec2(0.0f, 0.0f), ImGuiDockNodeFlags_None|ImGuiDockNodeFlags_AutoHideTabBar);
 	const ImVec2 mainDockSize = ImGui::GetContentRegionAvail();
 
 	// menu bar
@@ -329,6 +329,7 @@ void doUI()
 
 	ImGui::End();
 
+#if 1
 	// Default layout (applies after first frame (sizes are correct afer the first frame))
 	if(!ImGui::DockBuilderGetNode(dockspaceMain)->IsSplitNode() && ImGui::GetFrameCount() > 1) {
 		ImGuiID dockspaceMainLeft, dockspaceMainRight;
@@ -346,6 +347,7 @@ void doUI()
 		ImGui::DockBuilderDockWindow("Scripts", dockspaceMainRight);
 		ImGui::DockBuilderFinish(dockspaceMain);
 	}
+#endif
 
     static i32 gotoOffset = 0;
     if(openGoto) {
