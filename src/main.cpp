@@ -194,9 +194,10 @@ static void setStyleLight()
     style.FrameBorderSize = 1.0f;
     style.PopupBorderSize = 1.0f;
     style.GrabMinSize = 20.0f;
-	style.GrabRounding = 7.5f;
+	style.GrabRounding = 0.0f;
+	style.GrabPadding = 1.0f;
     style.ScrollbarSize = 15.0f;
-	style.ScrollbarRounding = 7.5f;
+	style.ScrollbarRounding = 0.0f;
     style.Colors[ImGuiCol_ScrollbarBg] = ImVec4(0.88, 0.88, 0.9, 1.0);
     style.Colors[ImGuiCol_ScrollbarGrab] = ImVec4(0.5, 0.5, 0.5, 1.0);
     style.Colors[ImGuiCol_ScrollbarGrabHovered] = ImVec4(102/255.0, 178/255.0, 1.0, 1.0);
