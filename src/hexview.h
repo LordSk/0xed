@@ -195,6 +195,8 @@ struct HexView
 
 	template<typename T>
 	void fillColorBuffer(i32 panelID);
+
+	f32 calculatePanelWidth(i32 panelType, i32 columnCount) const;
 };
 
 struct UiStyle
@@ -241,8 +243,5 @@ void uiHexDoAsciiPanel(i32 startLine, const u8* data, i64 dataSize, i32 columnCo
 template<typename T>
 void uiHexDoFormatPanel(i32 startLine, const u8* data, i64 dataSize, i32 columnCount, const CellColorBuffer& colorBuffer, const char* format);
 
-f32 hexViewCalculatePanelWidth(i32 panelType, i32 columnCount);
-
-template<typename T>
 i64 uiHexGetDisplayedBytesCount(i64 dataSize, i32 startLine, i32 columnCount);
 

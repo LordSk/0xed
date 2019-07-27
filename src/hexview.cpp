@@ -206,7 +206,7 @@ void HexView::doUiHexViewWindow()
 
 	f32 panelRectWidth[PANEL_MAX_COUNT];
 	for(i32 p = 0; p < panelCount; ++p)
-		panelRectWidth[p] = hexViewCalculatePanelWidth(panelType[p], columnCount);
+		panelRectWidth[p] = calculatePanelWidth(panelType[p], columnCount);
 
 	const UiStyle& style = getUiStyle();
 
@@ -238,6 +238,7 @@ void HexView::doUiHexViewWindow()
 		}
 		scrollCurrentLine = window->Scroll.y / style.rowHeight;
 
+		// fill panel color buffers
 		for(i32 p = 0; p < panelCount; ++p) {
 			switch(panelType[p]) {
 				case PanelType::HEX:
@@ -638,6 +639,32 @@ void HexView::doPanelParamPopup(bool open, i32* panelId, ImVec2 popupPos)
 	ImGui::PopStyleVar(4);
 }
 
+f32 HexView::calculatePanelWidth(i32 panelType, i32 columnCount) const
+{
+	const UiStyle& style = getUiStyle();
+
+	switch(panelType) {
+		case PanelType::HEX:
+			return columnCount * style.columnWidth;
+		case PanelType::ASCII:
+			return columnCount * style.asciiCharWidth;
+		case PanelType::INT8:
+		case PanelType::UINT8:
+		case PanelType::INT16:
+		case PanelType::UINT16:
+		case PanelType::INT32:
+		case PanelType::UINT32:
+		case PanelType::INT64:
+		case PanelType::UINT64:
+		case PanelType::FLOAT32:
+		case PanelType::FLOAT64:
+			return columnCount * style.intColumnWidth;
+	}
+
+	assert(0); // should not reach here
+	return -1;
+}
+
 #if 0
 void DataPanels::doBrickPanel(const char* label, const i32 startLine)
 {
@@ -740,7 +767,7 @@ void HexView::fillColorBuffer(i32 panelID)
 	CellColorBuffer& colorBuffer = panelColorBuffer[panelID];
 	const i32 startLine = scrollCurrentLine;
 	const i64 dataSize = fileBufferSize;
-	const i64 itemCount = uiHexGetItemCount<T>(dataSize, startLine, columnCount);
+	const i64 itemCount = uiHexGetDisplayedBytesCount(dataSize, startLine, columnCount);
 	colorBuffer.reserve(itemCount * sizeof(CellColor));
 
 	const UiStyle& style = getUiStyle();
@@ -1325,9 +1352,9 @@ void uiHexDoFormatPanel(i32 startLine, const u8* data, i64 dataSize, i32 columnC
 		ImGui::PopStyleColor();
 	}
 
-#if 0
+	// draw grid
 	ImU32 lineColor = 0xff808080;
-	const i32 wholeLineCount = (itemCount/columnCount);
+	const i32 wholeLineCount = itemCount / columnCount;
 	const f32 colHeight = wholeLineCount * style.rowHeight;
 	const i32 typeColumnCount = columnCount/byteSize;
 
@@ -1348,47 +1375,42 @@ void uiHexDoFormatPanel(i32 startLine, const u8* data, i64 dataSize, i32 columnC
 			ImGui::RenderFrame(bb.Min, bb.Max, lineColor, false, 0);
 		}
 	}
-#endif
-}
 
-f32 hexViewCalculatePanelWidth(i32 panelType, i32 columnCount)
-{
-	const UiStyle& style = getUiStyle();
+	const i32 remainingCount = itemCount - wholeLineCount * columnCount;
+	if(remainingCount > 0) {
+		const i32 cellCount = remainingCount / byteSize;
 
-	switch(panelType) {
-		case PanelType::HEX:
-			return columnCount * style.columnWidth;
-		case PanelType::ASCII:
-			return columnCount * style.asciiCharWidth;
-		case PanelType::INT8:
-		case PanelType::UINT8:
-		case PanelType::INT16:
-		case PanelType::UINT16:
-		case PanelType::INT32:
-		case PanelType::UINT32:
-		case PanelType::INT64:
-		case PanelType::UINT64:
-		case PanelType::FLOAT32:
-		case PanelType::FLOAT64:
-			return columnCount * style.intColumnWidth;
+		if(wholeLineCount == 0) {
+			ImRect bb(winPos.x,
+					  winPos.y,
+					  winPos.x + cellCount * cellSize.x + 1,
+					  winPos.y + 1);
+			ImGui::RenderFrame(bb.Min, bb.Max, lineColor, false, 0);
+		}
+
+		ImRect bb(winPos.x,
+				  winPos.y + cellSize.y * (wholeLineCount + 1),
+				  winPos.x + cellCount * cellSize.x + 1,
+				  winPos.y + cellSize.y * (wholeLineCount + 1) + 1);
+		ImGui::RenderFrame(bb.Min, bb.Max, lineColor, false, 0);
+
+		for(i32 c = 0; c <= cellCount; ++c) {
+			ImRect bb(panelPos.x + cellSize.x * c,
+					  panelPos.y + cellSize.y * wholeLineCount,
+					  panelPos.x + cellSize.x * c + 1,
+					  panelPos.y + cellSize.y * (wholeLineCount + 1) + 1);
+			ImGui::RenderFrame(bb.Min, bb.Max, lineColor, false, 0);
+		}
 	}
-
-	assert(0); // should not reach here
-	return -1;
 }
 
-template<typename T>
-i64 uiHexGetItemCount(i64 dataSize, i32 startLine, i32 columnCount)
+i64 uiHexGetDisplayedBytesCount(i64 dataSize, i32 startLine, i32 columnCount)
 {
 	const UiStyle& style = getUiStyle();
 
 	ImGuiWindow* window = ImGui::GetCurrentWindow();
 	const i32 lineCount = window->Rect().GetHeight() / style.rowHeight;
 	i64 itemCount = min(dataSize - (i64)startLine * columnCount, lineCount * columnCount);
-
-	if(sizeof(T) > 1) {
-		itemCount &= ~(itemCount & (sizeof(T)-1));
-	}
 
 	return itemCount;
 }
