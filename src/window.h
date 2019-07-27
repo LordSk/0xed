@@ -32,6 +32,8 @@ struct AppWindow
     void cleanUp();
     void loop();
 
+	void setTitle(const char* pTitle);
+
     inline void exit() {
         running = false;
     }

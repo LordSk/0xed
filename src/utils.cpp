@@ -35,3 +35,17 @@ bool openFileReadAll(const char* path, FileBuffer* out_fb)
     LOG("file loaded path=%s size=%llu", path, fb.size);
     return true;
 }
+
+const char* pathGetFilename(const char *pPath)
+{
+	const i32 len = strlen(pPath);
+	const char* pLast = pPath;
+
+	for(i32 i = 0; i < len; i++) {
+		if(pPath[i] == '\\' || pPath[i] == '/') {
+			pLast = pPath + i + 1;
+		}
+	}
+
+	return pLast;
+}

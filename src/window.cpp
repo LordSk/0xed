@@ -236,7 +236,12 @@ void AppWindow::loop()
 				SDL_Delay(15 - frameTime); // TODO: do better than that?
             }
         }
-    }
+	}
+}
+
+void AppWindow::setTitle(const char *pTitle)
+{
+	SDL_SetWindowTitle(sdlWin, pTitle);
 }
 
 void AppWindow::cleanUp()

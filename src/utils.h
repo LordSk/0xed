@@ -476,3 +476,5 @@ struct GrowableBufferT
 };
 
 typedef GrowableBufferT<void> GrowableBuffer;
+
+const char *pathGetFilename(const char* pPath);

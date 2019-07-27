@@ -85,15 +85,12 @@ bool init()
 	// init style
 	setUiStyleLight(win.fontMono);
 
-	if(openFileReadAll("SDL2.dll", &curFileBuff)) {
-		hexView.setFileBuffer(curFileBuff.data, curFileBuff.size);
-		// TODO: onFileLoaded
-    }
-
 	searchResults.reserve(1024);
+	searchStartThread();
 
-    searchStartThread();
-    searchSetNewFileBuffer(curFileBuff);
+	// TODO: remove
+	bool r = fileLoad("SDL2.dll");
+	assert(r);
 
 	/*lastSearchParams.dataType = SearchDataType::ASCII_String;
 	lastSearchParams.dataSize = 3;
@@ -161,14 +158,10 @@ void update()
 
 void handleEvent(const SDL_Event& event)
 {
+	// load file on drop
     if(event.type == SDL_DROPFILE) {
         char* droppedFilepath = event.drop.file;
-
-        if(openFileReadAll(droppedFilepath, &curFileBuff)) {
-			hexView.setFileBuffer(curFileBuff.data, curFileBuff.size);
-			searchSetNewFileBuffer(curFileBuff);
-        }
-
+		fileLoad(droppedFilepath);
         SDL_free(droppedFilepath);
         return;
     }
@@ -210,6 +203,22 @@ static void setStyleLight()
     style.Colors[ImGuiCol_ScrollbarGrabActive] = ImVec4(36/255.0, 134/255.0, 1.0, 1.0);
 }
 
+bool fileLoad(const char* filename)
+{
+	if(!openFileReadAll(filename, &curFileBuff)) {
+		LOG("ERROR: failed to load '%s'", filename);
+		return false;
+	}
+
+	hexView.setFileBuffer(curFileBuff.data, curFileBuff.size);
+	searchSetNewFileBuffer(curFileBuff);
+
+	char title[256];
+	snprintf(title, sizeof(title), "%s :: 0xed", pathGetFilename(filename));
+	win.setTitle(title);
+	return true;
+}
+
 void doUI()
 {
     setStyleLight();
@@ -244,9 +253,7 @@ void doUI()
 			if(ImGui::MenuItem("Open", "CTRL+O")) {
 				const char* filepath = noc_file_dialog_open(NOC_FILE_DIALOG_OPEN, "*", "", "");
 				if(filepath) {
-					if(openFileReadAll(filepath, &curFileBuff)) {
-						hexView.setFileBuffer(curFileBuff.data, curFileBuff.size);
-					}
+					fileLoad(filepath);
 				}
 			}
 			if(ImGui::MenuItem("Search", "CTRL+F")) {
