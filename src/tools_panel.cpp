@@ -156,7 +156,7 @@ void toolsDoInspectorWindow(const u8* fileBuffer, const i64 fileBufferSize, cons
 	ImGui::NextColumn();
 	if(selection.hoverStart >=0 ) {
 		ImGui::TextBox(frameColorOdd, textColor, cellSize, align,
-					   textOffset, "0x%llX", selection.hoverStart);
+					   textOffset, "0x%llX (%lld)", selection.hoverStart, selection.hoverStart);
 		ImGui::NextColumn();
 	}
 	else {
@@ -169,13 +169,13 @@ void toolsDoInspectorWindow(const u8* fileBuffer, const i64 fileBufferSize, cons
 		ImGui::TextBox(typeFrameColor, typeTextColor, cellSize, align, textOffset, "Selection start");
 		ImGui::NextColumn();
 		ImGui::TextBox(frameColor, textColor, cellSize, align,
-					   textOffset, "0x%llX", selection.selectStart);
+					   textOffset, "0x%llX (%lld)", selection.selectStart, selection.selectStart);
 		ImGui::NextColumn();
 
 		ImGui::TextBox(typeFrameColorOdd, typeTextColor, cellSize, align, textOffset, "Selection end");
 		ImGui::NextColumn();
 		ImGui::TextBox(frameColorOdd, textColor, cellSize, align,
-					   textOffset, "0x%llX", selection.selectEnd);
+					   textOffset, "0x%llX (%lld)", selection.selectEnd, selection.selectEnd);
 		ImGui::NextColumn();
 
 		ImGui::TextBox(typeFrameColor, typeTextColor, cellSize, align, textOffset, "Selection size");
