@@ -56,6 +56,8 @@ SearchParams searchParams = {};
 SearchParams lastSearchParams = {};
 ArrayTS<SearchResult> searchResults;
 
+i32 fileOffset = 0;
+
 bool init()
 {
 	const char* basePath = SDL_GetBasePath();
@@ -89,8 +91,6 @@ bool init()
         this->handleEvent(e);
     };
 
-	hexView.fileBuffer = 0;
-	hexView.fileBufferSize = 0;
 	hexView.panelCount = clamp(config.panelCount, 1, PANEL_MAX_COUNT);
 	hexView.brickWall = &brickWall;
 
@@ -231,7 +231,7 @@ bool fileLoad(const char* filename)
 	searchResults.clear();
 
 	curFileSlice = curFileBuff.getSlice(fileOffsetMax, curFileBuff.size - fileOffsetMax);
-	hexView.setFileBuffer(curFileSlice.data, curFileSlice.size);
+	hexView.setFileBuffer(curFileSlice);
 	searchSetNewFileBuffer(curFileSlice);
 
 	char title[256];
@@ -316,7 +316,7 @@ void doUI()
 	// Tool windows
 
 	// Inspector
-	toolsDoInspectorWindow(curFileSlice.data, curFileSlice.size, hexView.selection);
+	toolsDoInspectorWindow(curFileSlice.data - fileOffset, curFileSlice.size + fileOffset, hexView.selection);
 
 	// Search
 	ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(10, 10));
@@ -347,7 +347,12 @@ void doUI()
 	ImGui::Begin("Scripts");
 	ImGui::PopStyleVar(1);
 
-		toolsDoOptions(&hexView.columnCount);
+		const i32 oldFileOffset = fileOffset;
+		toolsDoOptions(&hexView.columnCount, &fileOffset);
+		if(oldFileOffset != fileOffset) {
+			hexView.offsetFileBuffer(fileOffset);
+		}
+
 		toolsDoScript(&script, &brickWall);
 
 	ImGui::End();

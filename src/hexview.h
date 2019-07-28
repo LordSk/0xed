@@ -8,7 +8,7 @@
 
 #define PANEL_MAX_COUNT 10
 
-struct SelectionState
+struct Selection
 {
     i64 hoverStart = -1;
     i64 hoverEnd = -1;
@@ -170,20 +170,21 @@ struct HexView
 	CellColorBuffer panelColorBuffer[PANEL_MAX_COUNT];
     i32 panelCount = 3;
 
-    u8* fileBuffer;
-    i64 fileBufferSize;
+	BufferSlice fileBufferBase;
+	BufferSlice fileBufferOff; // file buffer, offset
     i64 scrollCurrentLine = 0;
     i64 goToLine = -1;
     struct BrickWall* brickWall = nullptr;
 
     i32 columnCount = 16;
-	SelectionState selection;
+	Selection selection;
 
 	const ArrayTS<SearchResult>* searchResultList = nullptr;
 
 	HexView();
 	~HexView();
-    void setFileBuffer(u8* buff, i64 buffSize);
+	void setFileBuffer(BufferSlice slice);
+	void offsetFileBuffer(i32 newOffset);
 	void setSearchResults(const ArrayTS<SearchResult>* searchResultList_);
     void addNewPanel();
     void removePanel(const i32 pid);
@@ -231,10 +232,10 @@ extern UiStyle* g_uiStyle;
 void setUiStyleLight(ImFont* asciiFont);
 inline const UiStyle& getUiStyle() { assert(g_uiStyle); return *g_uiStyle; }
 
-void uiHexRowHeader(i64 firstRow, i32 rowStep, f32 textOffsetY, const SelectionState& selection);
-void uiHexColumnHeader(i32 columnCount, const SelectionState& selection);
-bool uiHexPanelDoSelection(i32 panelID, i32 panelType, SelectionState* outSelectionState, i32 firstLine, i32 columnCount);
-void uiHexPanelTypeDoSelection(SelectionState* outSelectionState, i32 panelId, ImVec2 mousePos, ImRect rect, i32 columnWidth_, i32 rowHeight_, i32 startLine, i32 columnCount, i32 hoverLen);
+void uiHexRowHeader(i64 firstRow, i32 rowStep, f32 textOffsetY, const Selection& selection);
+void uiHexColumnHeader(i32 columnCount, const Selection& selection);
+bool uiHexPanelDoSelection(i32 panelID, i32 panelType, Selection* outSelectionState, i32 firstLine, i32 columnCount);
+void uiHexPanelTypeDoSelection(Selection* outSelectionState, i32 panelId, ImVec2 mousePos, ImRect rect, i32 columnWidth_, i32 rowHeight_, i32 startLine, i32 columnCount, i32 hoverLen);
 
 void uiHexDoHexPanel(i32 startLine, const u8* data, i64 dataSize, i32 columnCount, const CellColorBuffer &pColorBuffer);
 

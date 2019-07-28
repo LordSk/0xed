@@ -4,7 +4,7 @@
 #include "script.h"
 #include "search.h"
 
-void toolsDoInspectorWindow(const u8* fileBuffer, const i64 fileBufferSize, const SelectionState& selection)
+void toolsDoInspectorWindow(const u8* fileBuffer, const i64 fileBufferSize, const Selection& selection)
 {
 	// window begin
 	ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
@@ -217,10 +217,13 @@ void toolsDoTemplate(BrickWall* brickWall)
     //ui_brickStructList(brickWall);
 }
 
-void toolsDoOptions(i32* columnCount)
+void toolsDoOptions(i32* pOutColumnCount, i32* pOutFileOffset)
 {
-	ImGui::SliderInt("Columns", columnCount, 8, 64);
-	*columnCount = clamp(*columnCount, 8, 64);
+	ImGui::SliderInt("Columns", pOutColumnCount, 8, 64);
+	*pOutColumnCount = clamp(*pOutColumnCount, 8, 64);
+
+	ImGui::SliderInt("File offset", pOutFileOffset, 0, 32);
+	*pOutFileOffset = clamp(*pOutFileOffset, 0, 32);
 }
 
 void toolsDoScript(Script* script, BrickWall* brickWall)
