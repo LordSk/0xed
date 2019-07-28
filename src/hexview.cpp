@@ -361,6 +361,12 @@ void HexView::doUiHexViewWindow()
 			ImGui::NextColumn();
 		}
 
+		// clamp selection
+		selection.hoverStart = min(selection.hoverStart, fileBufferSize-1);
+		selection.selectStart = min(selection.selectStart, fileBufferSize-1);
+		selection.hoverEnd = min(selection.hoverEnd, fileBufferSize);
+		selection.selectEnd = min(selection.selectEnd, fileBufferSize);
+
 		// data panels
 		for(i32 p = 0; p < panelCount; ++p) {
 			ImGui::NextColumn(); // skip spacing column
