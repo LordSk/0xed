@@ -172,8 +172,8 @@ void HexView::goTo(i32 offset)
 i32 HexView::getSelectedInt()
 {
 	if(selection.selectStart > -1) {
-		i64 selMin = min(selection.selectStart, selection.selectEnd);
-		i64 selMax = max(selection.selectStart, selection.selectEnd);
+		i64 selMin = MIN(selection.selectStart, selection.selectEnd);
+		i64 selMax = MAX(selection.selectStart, selection.selectEnd);
 		if((selMax - selMin + 1) == 4) {
 			return *(i32*)(fileBuffer + selMin);
 		}
@@ -352,6 +352,8 @@ void HexView::doUiHexViewWindow()
 			ImGui::NextColumn();
 		}
 
+		// --- DO SELECTION ---
+
 		// reset hover state
 		selection.hoverStart = -1;
 		// process mouse input over panels before displaying them
@@ -362,10 +364,12 @@ void HexView::doUiHexViewWindow()
 		}
 
 		// clamp selection
-		selection.hoverStart = min(selection.hoverStart, fileBufferSize-1);
-		selection.selectStart = min(selection.selectStart, fileBufferSize-1);
-		selection.hoverEnd = min(selection.hoverEnd, fileBufferSize);
-		selection.selectEnd = min(selection.selectEnd, fileBufferSize);
+		selection.hoverStart = MIN(selection.hoverStart, fileBufferSize-1);
+		selection.selectStart = MIN(selection.selectStart, fileBufferSize-1);
+		selection.hoverEnd = MIN(selection.hoverEnd, fileBufferSize);
+		selection.selectEnd = MIN(selection.selectEnd, fileBufferSize);
+
+		// --------------------
 
 		// data panels
 		for(i32 p = 0; p < panelCount; ++p) {
@@ -478,10 +482,10 @@ void HexView::doPanelParamPopup(bool open, i32* panelId, ImVec2 popupPos)
 				imin = *(u8*)&grad.gmin;
 				imax = *(u8*)&grad.gmax;
 				if(ImGui::DragScalar("min", ImGuiDataType_U32, &imin, 1.0f, &u8Min, &u8Max)) {
-					*(u8*)&grad.gmin = min(imin, imax-1);
+					*(u8*)&grad.gmin = MIN(imin, imax-1);
 				}
 				if(ImGui::DragScalar("max", ImGuiDataType_U32, &imax, 1.0f, &u8Min, &u8Max)) {
-					*(u8*)&grad.gmax = max(imin+1, imax);
+					*(u8*)&grad.gmax = MAX(imin+1, imax);
 				}
 			} break;
 
@@ -490,10 +494,10 @@ void HexView::doPanelParamPopup(bool open, i32* panelId, ImVec2 popupPos)
 				imin = *(i8*)&grad.gmin;
 				imax = *(i8*)&grad.gmax;
 				if(ImGui::DragInt("min", &imin, 1.0f, -127, 127)) {
-					*(i8*)&grad.gmin = min(imin, imax-1);
+					*(i8*)&grad.gmin = MIN(imin, imax-1);
 				}
 				if(ImGui::DragInt("max", &imax, 1.0f, imin+1, 127)) {
-					*(i8*)&grad.gmax = max(imin+1, imax);
+					*(i8*)&grad.gmax = MAX(imin+1, imax);
 				}
 			} break;
 
@@ -502,10 +506,10 @@ void HexView::doPanelParamPopup(bool open, i32* panelId, ImVec2 popupPos)
 				imin = *(i16*)&grad.gmin;
 				imax = *(i16*)&grad.gmax;
 				if(ImGui::DragInt("min", &imin, 1.0f, SHRT_MIN, SHRT_MAX)) {
-					*(i16*)&grad.gmin = min(imin, imax-1);
+					*(i16*)&grad.gmin = MIN(imin, imax-1);
 				}
 				if(ImGui::DragInt("max", &imax, 1.0f, imin+1, SHRT_MAX)) {
-					*(i16*)&grad.gmax = max(imin+1, imax);
+					*(i16*)&grad.gmax = MAX(imin+1, imax);
 				}
 			} break;
 
@@ -517,10 +521,10 @@ void HexView::doPanelParamPopup(bool open, i32* panelId, ImVec2 popupPos)
 				imin = *(u16*)&grad.gmin;
 				imax = *(u16*)&grad.gmax;
 				if(ImGui::DragScalar("min", ImGuiDataType_U32, &imin, 1.0f, &u16Min, &u16Max)) {
-					*(u16*)&grad.gmin = min(imin, imax-1);
+					*(u16*)&grad.gmin = MIN(imin, imax-1);
 				}
 				if(ImGui::DragScalar("max", ImGuiDataType_U32, &imax, 1.0f, &u16Min, &u16Max)) {
-					*(u16*)&grad.gmax = max(imin+1, imax);
+					*(u16*)&grad.gmax = MAX(imin+1, imax);
 				}
 			} break;
 
@@ -529,10 +533,10 @@ void HexView::doPanelParamPopup(bool open, i32* panelId, ImVec2 popupPos)
 				imin = *(i32*)&grad.gmin;
 				imax = *(i32*)&grad.gmax;
 				if(ImGui::DragInt("min", &imin, 1.0f, _I32_MIN, _I32_MAX)) {
-					*(i32*)&grad.gmin = min(imin, imax-1);
+					*(i32*)&grad.gmin = MIN(imin, imax-1);
 				}
 				if(ImGui::DragInt("max", &imax, 1.0f, imin+1, _I32_MAX)) {
-					*(i32*)&grad.gmax = max(imin+1, imax);
+					*(i32*)&grad.gmax = MAX(imin+1, imax);
 				}
 			} break;
 
@@ -542,10 +546,10 @@ void HexView::doPanelParamPopup(bool open, i32* panelId, ImVec2 popupPos)
 				imin = *(u32*)&grad.gmin;
 				imax = *(u32*)&grad.gmax;
 				if(ImGui::DragScalar("min", ImGuiDataType_U32, &imin, 1.0f)) {
-					*(u32*)&grad.gmin = min(imin, imax-1);
+					*(u32*)&grad.gmin = MIN(imin, imax-1);
 				}
 				if(ImGui::DragScalar("max", ImGuiDataType_U32,  &imax, 1.0f)) {
-					*(u32*)&grad.gmax = max(imin+1, imax);
+					*(u32*)&grad.gmax = MAX(imin+1, imax);
 				}
 			} break;
 
@@ -557,10 +561,10 @@ void HexView::doPanelParamPopup(bool open, i32* panelId, ImVec2 popupPos)
 				imin = *(i64*)&grad.gmin;
 				imax = *(i64*)&grad.gmax;
 				if(ImGui::DragScalar("min", ImGuiDataType_S64, &imin, 1.0f, &i64Min, &i64Max, "%lld")) {
-					*(i64*)&grad.gmin = min(imin, imax-1);
+					*(i64*)&grad.gmin = MIN(imin, imax-1);
 				}
 				if(ImGui::DragScalar("max", ImGuiDataType_S64, &imax, 1.0f, &i64Min, &i64Max, "%lld")) {
-					*(i64*)&grad.gmax = max(imin+1, imax);
+					*(i64*)&grad.gmax = MAX(imin+1, imax);
 				}
 			} break;
 
@@ -572,10 +576,10 @@ void HexView::doPanelParamPopup(bool open, i32* panelId, ImVec2 popupPos)
 				imin = *(u64*)&grad.gmin;
 				imax = *(u64*)&grad.gmax;
 				if(ImGui::DragScalar("min", ImGuiDataType_U64, &imin, 1.0f, &u64Min, &u64Max, "%llu")) {
-					*(u64*)&grad.gmin = min(imin, imax-1);
+					*(u64*)&grad.gmin = MIN(imin, imax-1);
 				}
 				if(ImGui::DragScalar("max", ImGuiDataType_U64, &imax, 1.0f, &u64Min, &u64Max, "%llu")) {
-					*(u64*)&grad.gmax = max(imin+1, imax);
+					*(u64*)&grad.gmax = MAX(imin+1, imax);
 				}
 			} break;
 
@@ -584,10 +588,10 @@ void HexView::doPanelParamPopup(bool open, i32* panelId, ImVec2 popupPos)
 				imin = *(f32*)&grad.gmin;
 				imax = *(f32*)&grad.gmax;
 				if(ImGui::DragFloat("min", &imin, 1.0f, -FLT_MAX, FLT_MAX)) {
-					*(f32*)&grad.gmin = min(imin, imax-1);
+					*(f32*)&grad.gmin = MIN(imin, imax-1);
 				}
 				if(ImGui::DragFloat("max", &imax, 1.0f, imin+1, FLT_MAX)) {
-					*(f32*)&grad.gmax = max(imin+1, imax);
+					*(f32*)&grad.gmax = MAX(imin+1, imax);
 				}
 			} break;
 
@@ -596,10 +600,10 @@ void HexView::doPanelParamPopup(bool open, i32* panelId, ImVec2 popupPos)
 				imin = *(f64*)&grad.gmin;
 				imax = *(f64*)&grad.gmax;
 				if(ImGui::DragFloat("min", &imin, 1.0f, -FLT_MAX, FLT_MAX)) {
-					*(f64*)&grad.gmin = min(imin, imax-1);
+					*(f64*)&grad.gmin = MIN(imin, imax-1);
 				}
 				if(ImGui::DragFloat("max", &imax, 1.0f, imin+1, FLT_MAX)) {
-					*(f64*)&grad.gmax = max(imin+1, imax);
+					*(f64*)&grad.gmax = MAX(imin+1, imax);
 				}
 			} break;
 		}
@@ -679,7 +683,7 @@ void DataPanels::doBrickPanel(const char* label, const i32 startLine)
 	ImRect panelRect = window->Rect();
 
 	const i32 lineCount = (panelRect.GetHeight() - columnHeaderHeight) / rowHeight;
-	const i32 itemCount = min(fileBufferSize - (i64)startLine * columnCount, lineCount * columnCount);
+	const i32 itemCount = MIN(fileBufferSize - (i64)startLine * columnCount, lineCount * columnCount);
 
 	ImVec2 winPos = window->DC.CursorPos;
 	const ImGuiID id = window->GetID(label);
@@ -862,11 +866,13 @@ void HexView::fillColorBuffer(i32 panelID)
 		if(sr.offset > endDataOff)
 			break;
 
-		i64 start = max(sr.offset - startDataOff, 0);
-		i64 end = min(start + sr.len, itemCount);
+		i64 start = MAX(sr.offset - startDataOff, 0);
+		i64 end = MIN(start + sr.len, itemCount);
 
-		for(i64 i = start; i < end; i++)
+		for(i64 i = start; i < end; i++) {
+			assert(i >= 0 && i < colorBuffer.capacity/sizeof(CellColor));
 			colorBuffer.data[i] = cellColorFromU32(searchFrameColor, searchTextColor);
+		}
 	}
 
 	// TODO: optimize this
@@ -976,11 +982,11 @@ void uiHexRowHeader(i64 firstRow, i32 rowStep, f32 textOffsetY, const SelectionS
 	ImRect rowHeadBb(winPos, winPos + ImVec2(rowHeaderWidth, winHeight));
 	ImGui::RenderFrame(rowHeadBb.Min, rowHeadBb.Max, style.headerBgColorEven, false, 0);
 
-	const i64 hoverStart = min(selection.hoverStart, selection.hoverEnd) / rowStep;
-	const i64 hoverEnd = (max(selection.hoverStart, selection.hoverEnd)-1) / rowStep;
+	const i64 hoverStart = MIN(selection.hoverStart, selection.hoverEnd) / rowStep;
+	const i64 hoverEnd = (MAX(selection.hoverStart, selection.hoverEnd)-1) / rowStep;
 	const bool hovered = selection.hoverStart >= 0;
-	const i64 selectStart = min(selection.selectStart, selection.selectEnd) / rowStep;
-	const i64 selectEnd = max(selection.selectStart, selection.selectEnd) / rowStep;
+	const i64 selectStart = MIN(selection.selectStart, selection.selectEnd) / rowStep;
+	const i64 selectEnd = MAX(selection.selectStart, selection.selectEnd) / rowStep;
 	const bool selected = selection.selectStart >= 0;
 
 	for(i64 i = 0; i < lineCount; ++i) {
@@ -1026,16 +1032,16 @@ void uiHexColumnHeader(i32 columnCount, const SelectionState& selection)
 {
 	const UiStyle& style = getUiStyle();
 
-	i32 hoverStart = min(selection.hoverStart, selection.hoverEnd);
-	i32 hoverEnd = (max(selection.hoverStart, selection.hoverEnd)-1);
+	i32 hoverStart = MIN(selection.hoverStart, selection.hoverEnd);
+	i32 hoverEnd = (MAX(selection.hoverStart, selection.hoverEnd)-1);
 	const i32 hoverSize = hoverEnd - hoverStart;
 	hoverStart = hoverStart % columnCount;
 	hoverEnd = hoverStart + hoverSize;
 	if(hoverEnd > columnCount)
 		hoverStart = -1;
 	const bool hovered = hoverStart >= 0;
-	i32 selectStart = min(selection.selectStart, selection.selectEnd);
-	i32 selectEnd = max(selection.selectStart, selection.selectEnd);
+	i32 selectStart = MIN(selection.selectStart, selection.selectEnd);
+	i32 selectEnd = MAX(selection.selectStart, selection.selectEnd);
 	const i32 selectSize = selectEnd - selectStart;
 	selectStart = selectStart % columnCount;
 	selectEnd = selectStart + selectSize;
@@ -1208,7 +1214,7 @@ void uiHexDoHexPanel(i32 startLine, const u8* data, i64 dataSize, i32 columnCoun
 	ImRect panelRect = {winPos, winPos + panelSize};
 
 	const i32 lineCount = window->Rect().GetHeight() / style.rowHeight;
-	const i32 itemCount = min(dataSize - (i64)startLine * columnCount, lineCount * columnCount);
+	const i32 itemCount = MIN(dataSize - (i64)startLine * columnCount, lineCount * columnCount);
 
 	ImGui::ItemSize(panelRect, 0);
 	if(!ImGui::ItemAdd(panelRect, 0)) // is clipped
@@ -1258,7 +1264,7 @@ void uiHexDoAsciiPanel(i32 startLine, const u8* data, i64 dataSize, i32 columnCo
 	ImRect panelRect = {winPos, winPos + panelSize};
 
 	const i32 lineCount = window->Rect().GetHeight() / style.rowHeight;
-	const i32 itemCount = min(dataSize - (i64)startLine * columnCount, lineCount * columnCount);
+	const i32 itemCount = MIN(dataSize - (i64)startLine * columnCount, lineCount * columnCount);
 
 	ImGui::ItemSize(panelRect, 0);
 	if(!ImGui::ItemAdd(panelRect, 0)) // is clipped
@@ -1322,7 +1328,7 @@ void uiHexDoFormatPanel(i32 startLine, const u8* data, i64 dataSize, i32 columnC
 	const i32 bitSize = byteSize << 3;
 
 	const i32 lineCount = window->Rect().GetHeight() / style.rowHeight;
-	i64 itemCount = (min(dataSize - (i64)startLine * columnCount, lineCount * columnCount) / byteSize) * byteSize;
+	i64 itemCount = (MIN(dataSize - (i64)startLine * columnCount, lineCount * columnCount) / byteSize) * byteSize;
 
 	ImGui::ItemSize(panelRect, 0);
 	if(!ImGui::ItemAdd(panelRect, 0)) // is clipped
@@ -1416,7 +1422,7 @@ i64 uiHexGetDisplayedBytesCount(i64 dataSize, i32 startLine, i32 columnCount)
 
 	ImGuiWindow* window = ImGui::GetCurrentWindow();
 	const i32 lineCount = window->Rect().GetHeight() / style.rowHeight;
-	i64 itemCount = min(dataSize - (i64)startLine * columnCount, lineCount * columnCount);
+	i64 itemCount = MIN(dataSize - (i64)startLine * columnCount, lineCount * columnCount);
 
 	return itemCount;
 }

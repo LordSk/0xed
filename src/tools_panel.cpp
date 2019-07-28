@@ -13,13 +13,13 @@ void toolsDoInspectorWindow(const u8* fileBuffer, const i64 fileBufferSize, cons
 
 	ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(0, 0));
 
-    const u8* dataStart = &fileBuffer[min(selection.selectStart, selection.selectEnd)];
-    const u8* dataEnd = &fileBuffer[max(selection.selectStart, selection.selectEnd) + 1];
+	const u8* dataStart = &fileBuffer[MIN(selection.selectStart, selection.selectEnd)];
+	const u8* dataEnd = &fileBuffer[MAX(selection.selectStart, selection.selectEnd) + 1];
 
     if(selection.selectStart < 0) {
         if(selection.hoverStart >= 0) {
-            dataStart = &fileBuffer[min(selection.hoverStart, selection.hoverEnd)];
-            dataEnd = &fileBuffer[max(selection.hoverStart, selection.hoverEnd)];
+			dataStart = &fileBuffer[MIN(selection.hoverStart, selection.hoverEnd)];
+			dataEnd = &fileBuffer[MAX(selection.hoverStart, selection.hoverEnd)];
         }
         else {
             dataStart = 0;
@@ -40,7 +40,7 @@ void toolsDoInspectorWindow(const u8* fileBuffer, const i64 fileBufferSize, cons
 	ImVec2 cellSize = ImVec2(0, tableLineHeight);
 
 	char dataStr[64];
-	i32 strLen = min(sizeof(dataStr)-1, dataEnd - dataStart);
+	i32 strLen = MIN(sizeof(dataStr)-1, dataEnd - dataStart);
 	memset(dataStr, 0, sizeof(dataStr));
 	memmove(dataStr, dataStart, strLen);
 	for(i32 i = 0; i < strLen; ++i) {
@@ -58,7 +58,7 @@ void toolsDoInspectorWindow(const u8* fileBuffer, const i64 fileBufferSize, cons
 	ImGui::NextColumn();
 
 	i64 dataInt = 0;
-	memmove(&dataInt, dataStart, min(8, dataEnd - dataStart));
+	memmove(&dataInt, dataStart, MIN(8, dataEnd - dataStart));
 
 
 	// Int 8
@@ -104,7 +104,7 @@ void toolsDoInspectorWindow(const u8* fileBuffer, const i64 fileBufferSize, cons
 
 	// Float 32
 	f32 dataFloat = 0;
-	memmove(&dataFloat, dataStart, min(4, dataEnd - dataStart));
+	memmove(&dataFloat, dataStart, MIN(4, dataEnd - dataStart));
 	ImGui::TextBox(typeFrameColorOdd, typeTextColor, cellSize, align, textOffset, "Float 32");
 	ImGui::NextColumn();
 	if(isnan(dataFloat)) {
@@ -118,7 +118,7 @@ void toolsDoInspectorWindow(const u8* fileBuffer, const i64 fileBufferSize, cons
 
 	// Float 64
 	f64 dataFloat64 = 0;
-	memmove(&dataFloat64, dataStart, min(8, dataEnd - dataStart));
+	memmove(&dataFloat64, dataStart, MIN(8, dataEnd - dataStart));
 	ImGui::TextBox(typeFrameColor, typeTextColor, cellSize, align, textOffset, "Float 64");
 	ImGui::NextColumn();
 	if(isnan(dataFloat64)) {

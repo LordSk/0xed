@@ -33,12 +33,12 @@ struct SearchParams
 
 struct SearchResult
 {
-    u64 offset;
+	i64 offset;
     i32 len;
     SearchDataType::Enum type;
 };
 
 bool searchStartThread();
 void searchTerminateThread();
-void searchSetNewFileBuffer(FileBuffer nfb);
+void searchSetNewFileBuffer(BufferSlice nfb);
 void searchNewRequest(const SearchParams& params, ArrayTS<SearchResult>* results);

@@ -1319,7 +1319,7 @@ bool Script::execute(BrickWall* wall)
 u32 Script::_pushExecData(const void* data, u32 dataSize)
 {
     if(execDataCur + dataSize >= execDataSize) {
-        execDataSize = max(execDataSize * 2, execDataSize + dataSize);
+        execDataSize = MAX(execDataSize * 2, execDataSize + dataSize);
         execData = (u8*)realloc(execData, execDataSize);
     }
 

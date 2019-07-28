@@ -65,7 +65,7 @@ struct List
     }
 
     inline void _allocNewBucket() {
-        const i32 shift = max(0, buckets.count()-1);
+		const i32 shift = MAX(0, buckets.count()-1);
         Bucket buck;
         buck.capacity = BUCKET_ELT_COUNT << shift;
         buck.buffer = (T*)malloc(sizeof(T) * buck.capacity);
@@ -175,14 +175,6 @@ struct ArrayTS
 		return bufferRead[index];
 	}
 };
-
-struct FileBuffer
-{
-    u8* data = nullptr;
-    i64 size = 0;
-};
-
-bool openFileReadAll(const char* path, FileBuffer* out_fb);
 
 inline u32 colorAddAllChannels(u32 color, i32 add)
 {
@@ -302,7 +294,7 @@ inline void rgbToCmyk(u32 rbg, f32* cmyk)
     const u8 g = (rbg & 0xFF00) >> 8;
     const u8 b = (rbg & 0xFF0000) >> 16;
 
-    const f32 k = min(255 - r, min(255 - g, 255 - b));
+	const f32 k = MIN(255 - r, MIN(255 - g, 255 - b));
     const f32 c = 255 * (255 - r - k) / (255 - k);
     const f32 m = 255 * (255 - g - k) / (255 - k);
     const f32 y = 255 * (255 - b - k) / (255 - k);
@@ -435,11 +427,18 @@ inline Color3 rgbGetLighterColor(const Color3& rgbIn, const f32 lightVal)
 {
     Color3 hsv, rgbOut;
     rgbToHsv(rgbIn, &hsv);
-    hsv.s = max(0.0f, hsv.s - lightVal);
-    hsv.v = min(1.0f, hsv.v + lightVal);
+	hsv.s = MAX(0.0f, hsv.s - lightVal);
+	hsv.v = MIN(1.0f, hsv.v + lightVal);
     hsvToRgb(hsv, &rgbOut);
     return rgbOut;
 }
+
+// Not owned buffer
+struct BufferSlice
+{
+	u8* data;
+	i32 size;
+};
 
 template<typename T>
 struct GrowableBufferT
@@ -455,14 +454,15 @@ struct GrowableBufferT
 	inline void init(i32 size_) {
 		assert(data == nullptr);
 		data = (T*)malloc(size_);
+		assert_msg(data, "Failed to allocate");
 		capacity = size_;
 		size = 0;
 	}
 
-	inline void reserve(i32 size_) {
-		if(capacity < size_) {
-			i32 newCapacity = max(capacity * 2, size_);
+	inline void reserve(i32 newCapacity) {
+		if(capacity < newCapacity) {
 			data = (T*)realloc(data, newCapacity);
+			assert_msg(data, "Failed to allocate");
 			capacity = newCapacity;
 		}
 	}
@@ -471,11 +471,42 @@ struct GrowableBufferT
 		if(data) {
 			free(data);
 			data = nullptr;
+			capacity = 0;
+			size = 0;
 		}
+	}
+
+	inline void clear() {
+		size = 0;
+	}
+
+	inline T* append(void* pData, i32 size_) {
+		if(size + size_ > capacity) {
+			reserve(MAX(capacity * 2, size + size_));
+		}
+
+		if(pData) {
+			memmove((u8*)data + size, pData, size_);
+		}
+		else {
+			memset((u8*)data + size, 0x0, size_);
+		}
+
+		size += size_;
+		return (u8*)data + size - size_;
+	}
+
+	inline BufferSlice getSlice(i32 start, i32 size_) const {
+		assert(start > 0);
+		assert(start + size_ <= size);
+		return BufferSlice{ (u8*)data + start, size_ };
 	}
 };
 
 typedef GrowableBufferT<void> GrowableBuffer;
+
+// Appends whole file data
+bool openFileReadAll(const char* path, GrowableBuffer* out_fb);
 
 void pathSetBasePath(const char* pBasePath);
 const char *pathGetFilename(const char* pPath);

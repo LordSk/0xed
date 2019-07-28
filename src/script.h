@@ -75,7 +75,7 @@ struct BrickWall;
 
 struct Script
 {
-    FileBuffer file;
+	GrowableBuffer file;
 	ASTNode* pFirstNode;
     u8* execData = nullptr;
     u32 execDataCur = 0;

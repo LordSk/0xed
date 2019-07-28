@@ -11,7 +11,7 @@ struct SearchQueue
 	ArrayTS<SearchResult>* resultListRequest = nullptr;
     SearchParams paramsCurrent;
     SearchParams paramsRequest;
-    FileBuffer fileBuff = {};
+	BufferSlice fileBuff;
 };
 
 static SDL_Thread* g_searchThread;
@@ -111,7 +111,7 @@ void searchTerminateThread()
 	SDL_WaitThread(g_searchThread, &status);
 }
 
-void searchSetNewFileBuffer(FileBuffer nfb)
+void searchSetNewFileBuffer(BufferSlice nfb)
 {
     SearchQueue& sq = *g_searchQueue;
     sq.searchHashCurrent = 0;

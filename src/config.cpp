@@ -43,15 +43,15 @@ inline bool matchLine(char** src, char* toMatch)
     return r;
 }
 
-#define parseLine(cursor, expectedCount, fmt, ...) if(sscanf(cursor, fmt, __VA_ARGS__) == expectedCount) {\
-    nextLine(&cursor); } else { assert(0); return false; }
-
 bool loadConfigFile(const char* path, Config* config)
 {
-    FileBuffer fb;
+	GrowableBuffer fb;
     if(!openFileReadAll(path, &fb)) {
         return false;
     }
+
+#define parseLine(cursor, expectedCount, fmt, ...) if(sscanf(cursor, fmt, __VA_ARGS__) == expectedCount) {\
+	nextLine(&cursor); } else { assert(0); return false; }
 
     char* cursor = (char*)fb.data;
     matchLine(&cursor, "[Window]");
@@ -61,22 +61,24 @@ bool loadConfigFile(const char* path, Config* config)
     parseLine(cursor, 1, "maximized=%d", &config->windowMaximized);
     parseLine(cursor, 1, "panelCount=%d", &config->panelCount);
 
+#undef parseLine
+
     config->windowMonitor = clamp(config->windowMonitor, 0, 1);
     config->windowMaximized = clamp(config->windowMaximized, 0, 1);
     config->panelCount = clamp(config->panelCount, 1, 10);
-    config->windowWidth = max(100, config->windowWidth);
-    config->windowHeight = max(100, config->windowHeight);
+	config->windowWidth = MAX(100, config->windowWidth);
+	config->windowHeight = MAX(100, config->windowHeight);
 
     return true;
 }
-
-#define appendf(cursor, fmt, ...) cursor += sprintf(cursor, fmt, __VA_ARGS__)
 
 bool saveConfigFile(const char* path, const Config& config)
 {
     // TODO: replace this eventually
     char output[10000];
     char* cursor = output;
+
+#define appendf(cursor, fmt, ...) cursor += sprintf(cursor, fmt, __VA_ARGS__)
 
     appendf(cursor, "[Window]\n");
     appendf(cursor, "monitor=%d\n", config.windowMonitor);
@@ -86,6 +88,8 @@ bool saveConfigFile(const char* path, const Config& config)
     appendf(cursor, "panelCount=%d\n", config.panelCount);
 
     appendf(cursor, "\n", config.windowHeight);
+
+#undef appendf
 
     FILE* f = fopen(path, "wb");
     if(!f) {

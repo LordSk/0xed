@@ -1,6 +1,6 @@
 #include "utils.h"
 
-bool openFileReadAll(const char* path, FileBuffer* out_fb)
+bool openFileReadAll(const char* path, GrowableBuffer* out_fb)
 {
     FILE* file = fopen(path, "rb");
     if(!file) {
@@ -8,31 +8,20 @@ bool openFileReadAll(const char* path, FileBuffer* out_fb)
         return false;
     }
 
-    if(out_fb->data) {
-        free(out_fb->data);
-        out_fb->data = nullptr;
-        out_fb->size = 0;
-    }
-
-    FileBuffer fb;
-
     i64 start = ftell(file);
     fseek(file, 0, SEEK_END);
     i64 len = ftell(file) - start;
     fseek(file, start, SEEK_SET);
 
-    fb.data = (u8*)malloc(len + 1);
-    assert(fb.data);
-    fb.size = len;
+	char* buff = (char*)out_fb->append(nullptr, len + 1);
 
     // read
-    fread(fb.data, 1, len, file);
-    fb.data[len] = 0;
+	fread(buff, 1, len, file);
+	buff[len] = 0;
 
     fclose(file);
-    *out_fb = fb;
 
-    LOG("file loaded path=%s size=%llu", path, fb.size);
+	LOG("file loaded path=%s size=%llu", path, len);
     return true;
 }
 

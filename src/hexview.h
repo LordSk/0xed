@@ -25,8 +25,8 @@ struct SelectionState
 	inline bool isInSelectionRange(i64 dataOffset) const
 	{
 		if(selectStart < 0) return false;
-		i64 selMin = min(selectStart, selectEnd);
-		i64 selMax = max(selectStart, selectEnd);
+		i64 selMin = MIN(selectStart, selectEnd);
+		i64 selMax = MAX(selectStart, selectEnd);
 		return dataOffset >= selMin && dataOffset <= selMax;
 	}
 

@@ -41,12 +41,10 @@ __privDefer<F> __defer_func(F f) {
 #define LOG(fmt, ...) (printf(fmt"\n", __VA_ARGS__), fflush(stdout))
 #define LOG_NNL(fmt, ...) (printf(fmt, __VA_ARGS__), fflush(stdout))
 
-#ifndef min
-    #define min(a, b) ((a) < (b) ? (a) : (b))
-#endif
-#ifndef max
-    #define max(a, b) ((a) > (b) ? (a) : (b))
-#endif
+
+#define MIN(a, b) ((a) < (b) ? (a) : (b))
+#define MAX(a, b) ((a) > (b) ? (a) : (b))
+
 
 template<typename T>
 inline T clamp(T val, T valmin, T valmax)

@@ -40,7 +40,8 @@ struct Application {
 
 AppWindow win;
 Config config;
-FileBuffer curFileBuff;
+GrowableBuffer curFileBuff;
+BufferSlice curFileSlice;
 HexView hexView;
 BrickWall brickWall;
 
@@ -188,8 +189,8 @@ void handleEvent(const SDL_Event& event)
 void userTryAddBrick()
 {
 	if(hexView.selection.isEmpty()) return;
-	intptr_t selMin = min(hexView.selection.selectStart, hexView.selection.selectEnd);
-	intptr_t selMax = max(hexView.selection.selectStart, hexView.selection.selectEnd);
+	intptr_t selMin = MIN(hexView.selection.selectStart, hexView.selection.selectEnd);
+	intptr_t selMax = MAX(hexView.selection.selectStart, hexView.selection.selectEnd);
     popupBrickSelStart = selMin;
     popupBrickSelLength = selMax - selMin + 1;
     popupBrickWantOpen = true;
@@ -215,13 +216,21 @@ static void setStyleLight()
 
 bool fileLoad(const char* filename)
 {
+	const i32 fileOffsetMax = 32;
+
+	curFileBuff.clear();
+	curFileBuff.append(0, fileOffsetMax);
+
 	if(!openFileReadAll(filename, &curFileBuff)) {
 		LOG("ERROR: failed to load '%s'", filename);
 		return false;
 	}
 
-	hexView.setFileBuffer(curFileBuff.data, curFileBuff.size);
-	searchSetNewFileBuffer(curFileBuff);
+	searchResults.clear();
+
+	curFileSlice = curFileBuff.getSlice(fileOffsetMax, curFileBuff.size - fileOffsetMax);
+	hexView.setFileBuffer(curFileSlice.data, curFileSlice.size);
+	searchSetNewFileBuffer(curFileSlice);
 
 	char title[256];
 	snprintf(title, sizeof(title), "%s :: 0xed", pathGetFilename(filename));
@@ -302,7 +311,7 @@ void doUI()
 	// Tool windows
 
 	// Inspector
-	toolsDoInspectorWindow(curFileBuff.data, curFileBuff.size, hexView.selection);
+	toolsDoInspectorWindow(curFileSlice.data, curFileSlice.size, hexView.selection);
 
 	// Search
 	ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(10, 10));
@@ -326,7 +335,7 @@ void doUI()
 	ImGui::End();
 
 	// Brick wall
-	uiBrickWallWindow(&brickWall, curFileBuff.data);
+	uiBrickWallWindow(&brickWall, curFileSlice.data);
 
 	// Scripts
 	ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
