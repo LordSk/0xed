@@ -173,6 +173,9 @@ bool AppWindow::init(const char* title, i32 width, i32 height, bool maximized, c
     fontMono = imguiLoadFont("C:\\Windows\\Fonts\\consola.ttf", 15);
     ImGui::GetIO().FontDefault = fontTimes;
 
+	cursorDefault = SDL_CreateSystemCursor(SDL_SYSTEM_CURSOR_ARROW);
+	cursorWait = SDL_CreateSystemCursor(SDL_SYSTEM_CURSOR_WAIT);
+
     return true;
 }
 
@@ -244,11 +247,24 @@ void AppWindow::setTitle(const char *pTitle)
 	SDL_SetWindowTitle(sdlWin, pTitle);
 }
 
+void AppWindow::setCursorDefault()
+{
+	SDL_SetCursor(cursorDefault);
+}
+
+void AppWindow::setCursorWait()
+{
+	SDL_SetCursor(cursorWait);
+}
+
 void AppWindow::cleanUp()
 {
     ImGui_ImplOpenGL3_Shutdown();
     ImGui_ImplSDL2_Shutdown();
     ImGui::DestroyContext();
+
+	SDL_FreeCursor(cursorDefault);
+	SDL_FreeCursor(cursorWait);
     SDL_GL_DeleteContext(glContext);
     SDL_DestroyWindow(sdlWin);
 }

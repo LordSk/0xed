@@ -216,6 +216,8 @@ static void setStyleLight()
 
 bool fileLoad(const char* filename)
 {
+	win.setCursorWait();
+
 	const i32 fileOffsetMax = 32;
 
 	curFileBuff.clear();
@@ -235,6 +237,9 @@ bool fileLoad(const char* filename)
 	char title[256];
 	snprintf(title, sizeof(title), "%s :: 0xed", pathGetFilename(filename));
 	win.setTitle(title);
+
+	win.setCursorDefault();
+
 	return true;
 }
 

@@ -28,11 +28,16 @@ struct AppWindow
     std::function<void()> callbackUpdate = nullptr;
     std::function<void(const SDL_Event&)> callbackEvent = nullptr;
 
+	SDL_Cursor* cursorDefault;
+	SDL_Cursor* cursorWait;
+
     bool init(const char* title, i32 width, i32 height, bool maximized, const char* imgui_ini);
     void cleanUp();
     void loop();
 
 	void setTitle(const char* pTitle);
+	void setCursorDefault();
+	void setCursorWait();
 
     inline void exit() {
         running = false;
