@@ -13,11 +13,10 @@ bool openFileReadAll(const char* path, GrowableBuffer* out_fb)
     i64 len = ftell(file) - start;
     fseek(file, start, SEEK_SET);
 
-	char* buff = (char*)out_fb->append(nullptr, len + 1);
+	char* buff = (char*)out_fb->append(nullptr, len);
 
     // read
 	fread(buff, 1, len, file);
-	buff[len] = 0;
 
     fclose(file);
 

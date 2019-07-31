@@ -382,8 +382,8 @@ void HexView::doUiHexViewWindow()
 		// clamp selection
 		selection.hoverStart = MIN(selection.hoverStart, fileBufferOff.size-1);
 		selection.selectStart = MIN(selection.selectStart, fileBufferOff.size-1);
-		selection.hoverEnd = MIN(selection.hoverEnd, fileBufferOff.size);
-		selection.selectEnd = MIN(selection.selectEnd, fileBufferOff.size);
+		selection.hoverEnd = MIN(selection.hoverEnd, fileBufferOff.size-1);
+		selection.selectEnd = MIN(selection.selectEnd, fileBufferOff.size-1);
 
 		// --------------------
 
