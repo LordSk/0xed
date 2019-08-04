@@ -217,10 +217,13 @@ void toolsDoTemplate(BrickWall* brickWall)
     //ui_brickStructList(brickWall);
 }
 
-void toolsDoOptions(i32* columnCount)
+void toolsDoOptions(i32* pColumnCount, i32* pOutOffset)
 {
-	ImGui::SliderInt("Columns", columnCount, 8, 64);
-	*columnCount = clamp(*columnCount, 8, 64);
+	ImGui::SliderInt("Columns", pColumnCount, 8, 64);
+	*pColumnCount = clamp(*pColumnCount, 8, 64);
+
+	ImGui::SliderInt("File Offset", pOutOffset, 0, 32);
+	*pOutOffset = clamp(*pOutOffset, 0, 32);
 }
 
 void toolsDoScript(Script* script, BrickWall* brickWall)

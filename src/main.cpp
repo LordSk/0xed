@@ -347,7 +347,7 @@ void doUI()
 	ImGui::Begin("Scripts");
 	ImGui::PopStyleVar(1);
 
-		toolsDoOptions(&hexView.columnCount);
+		toolsDoOptions(&hexView.columnCount, &hexView.fileOffset);
 		toolsDoScript(&script, &brickWall);
 
 	ImGui::End();

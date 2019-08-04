@@ -19,7 +19,7 @@ struct SelectionState
 	inline bool isInHoverRange(i64 dataOffset) const
 	{
 		if(hoverStart < 0) return false;
-		return dataOffset >= hoverStart && dataOffset < hoverEnd;
+		return dataOffset >= hoverStart && dataOffset <= hoverEnd;
 	}
 
 	inline bool isInSelectionRange(i64 dataOffset) const
@@ -177,6 +177,7 @@ struct HexView
     struct BrickWall* brickWall = nullptr;
 
     i32 columnCount = 16;
+	i32 fileOffset = 0;
 	SelectionState selection;
 
 	const ArrayTS<SearchResult>* searchResultList = nullptr;
@@ -233,15 +234,15 @@ inline const UiStyle& getUiStyle() { assert(g_uiStyle); return *g_uiStyle; }
 
 void uiHexRowHeader(i64 firstRow, i32 rowStep, f32 textOffsetY, const SelectionState& selection);
 void uiHexColumnHeader(i32 columnCount, const SelectionState& selection);
-bool uiHexPanelDoSelection(i32 panelID, i32 panelType, SelectionState* outSelectionState, i32 firstLine, i32 columnCount);
-void uiHexPanelTypeDoSelection(SelectionState* outSelectionState, i32 panelId, ImVec2 mousePos, ImRect rect, i32 columnWidth_, i32 rowHeight_, i32 startLine, i32 columnCount, i32 hoverLen);
+bool uiHexPanelDoSelection(i32 panelID, i32 panelType, SelectionState* outSelectionState, i64 startOffset, i32 columnCount);
+void uiHexPanelTypeDoSelection(SelectionState* outSelectionState, i32 panelId, ImVec2 mousePos, ImRect rect, i32 columnWidth_, i32 rowHeight_, i64 startOffset, i32 columnCount, i32 hoverLen);
 
-void uiHexDoHexPanel(i32 startLine, const u8* data, i64 dataSize, i32 columnCount, const CellColorBuffer &pColorBuffer);
+void uiHexDoHexPanel(i64 startOffset, const u8* data, i64 dataSize, i32 columnCount, const CellColorBuffer &pColorBuffer);
 
-void uiHexDoAsciiPanel(i32 startLine, const u8* data, i64 dataSize, i32 columnCount, const CellColorBuffer &colorBuffer);
+void uiHexDoAsciiPanel(i64 startOffset, const u8* data, i64 dataSize, i32 columnCount, const CellColorBuffer &colorBuffer);
 
 template<typename T>
 void uiHexDoFormatPanel(i32 startLine, const u8* data, i64 dataSize, i32 columnCount, const CellColorBuffer& colorBuffer, const char* format);
 
-i64 uiHexGetDisplayedBytesCount(i64 dataSize, i32 startLine, i32 columnCount);
+i64 uiHexGetDisplayedBytesCount(i64 dataSize, i32 columnCount);
 
