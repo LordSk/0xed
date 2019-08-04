@@ -242,7 +242,7 @@ void uiHexDoHexPanel(i64 startOffset, const u8* data, i64 dataSize, i32 columnCo
 void uiHexDoAsciiPanel(i64 startOffset, const u8* data, i64 dataSize, i32 columnCount, const CellColorBuffer &colorBuffer);
 
 template<typename T>
-void uiHexDoFormatPanel(i32 startLine, const u8* data, i64 dataSize, i32 columnCount, const CellColorBuffer& colorBuffer, const char* format);
+void uiHexDoFormatPanel(i64 startOffset, const u8* data, i64 dataSize, i32 columnCount, const CellColorBuffer& colorBuffer, const char* format);
 
 i64 uiHexGetDisplayedBytesCount(i64 dataSize, i32 columnCount);
 

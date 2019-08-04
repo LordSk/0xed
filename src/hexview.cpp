@@ -384,34 +384,34 @@ void HexView::doUiHexViewWindow()
 					uiHexDoAsciiPanel(startOffset, fileBuffer, fileBufferSize, columnCount, panelColorBuffer[p]);
 					break;
 				case PanelType::INT8:
-					uiHexDoFormatPanel<i8>(scrollCurrentLine, fileBuffer, fileBufferSize, columnCount, panelColorBuffer[p], "%d");
+					uiHexDoFormatPanel<i8>(startOffset, fileBuffer, fileBufferSize, columnCount, panelColorBuffer[p], "%d");
 					break;
 				case PanelType::UINT8:
-					uiHexDoFormatPanel<u8>(scrollCurrentLine, fileBuffer, fileBufferSize, columnCount, panelColorBuffer[p], "%u");
+					uiHexDoFormatPanel<u8>(startOffset, fileBuffer, fileBufferSize, columnCount, panelColorBuffer[p], "%u");
 					break;
 				case PanelType::INT16:
-					uiHexDoFormatPanel<i16>(scrollCurrentLine, fileBuffer, fileBufferSize, columnCount, panelColorBuffer[p], "%d");
+					uiHexDoFormatPanel<i16>(startOffset, fileBuffer, fileBufferSize, columnCount, panelColorBuffer[p], "%d");
 					break;
 				case PanelType::UINT16:
-					uiHexDoFormatPanel<u16>(scrollCurrentLine, fileBuffer, fileBufferSize, columnCount, panelColorBuffer[p], "%u");
+					uiHexDoFormatPanel<u16>(startOffset, fileBuffer, fileBufferSize, columnCount, panelColorBuffer[p], "%u");
 					break;
 				case PanelType::INT32:
-					uiHexDoFormatPanel<i32>(scrollCurrentLine, fileBuffer, fileBufferSize, columnCount, panelColorBuffer[p], "%d");
+					uiHexDoFormatPanel<i32>(startOffset, fileBuffer, fileBufferSize, columnCount, panelColorBuffer[p], "%d");
 					break;
 				case PanelType::UINT32:
-					uiHexDoFormatPanel<u32>(scrollCurrentLine, fileBuffer, fileBufferSize, columnCount, panelColorBuffer[p], "%u");
+					uiHexDoFormatPanel<u32>(startOffset, fileBuffer, fileBufferSize, columnCount, panelColorBuffer[p], "%u");
 					break;
 				case PanelType::INT64:
-					uiHexDoFormatPanel<i64>(scrollCurrentLine, fileBuffer, fileBufferSize, columnCount, panelColorBuffer[p], "%lld");
+					uiHexDoFormatPanel<i64>(startOffset, fileBuffer, fileBufferSize, columnCount, panelColorBuffer[p], "%lld");
 					break;
 				case PanelType::UINT64:
-					uiHexDoFormatPanel<u64>(scrollCurrentLine, fileBuffer, fileBufferSize, columnCount, panelColorBuffer[p], "%llu");
+					uiHexDoFormatPanel<u64>(startOffset, fileBuffer, fileBufferSize, columnCount, panelColorBuffer[p], "%llu");
 					break;
 				case PanelType::FLOAT32:
-					uiHexDoFormatPanel<f32>(scrollCurrentLine, fileBuffer, fileBufferSize, columnCount, panelColorBuffer[p], "%g");
+					uiHexDoFormatPanel<f32>(startOffset, fileBuffer, fileBufferSize, columnCount, panelColorBuffer[p], "%g");
 					break;
 				case PanelType::FLOAT64:
-					uiHexDoFormatPanel<f64>(scrollCurrentLine, fileBuffer, fileBufferSize, columnCount, panelColorBuffer[p], "%g");
+					uiHexDoFormatPanel<f64>(startOffset, fileBuffer, fileBufferSize, columnCount, panelColorBuffer[p], "%g");
 					break;
 				default:
 					assert(0);
@@ -794,7 +794,6 @@ void HexView::fillColorBuffer(i32 panelID)
 		i64 i = 0;
 
 		if(startOffset < 0) {
-			CellColor c;
 			u32 frameColor = 0xffffffff;
 			u32 textColor = 0xff000000;
 
@@ -823,7 +822,6 @@ void HexView::fillColorBuffer(i32 panelID)
 			const i64 dataOffset = i + startOffset;
 			const T val = *(T*)&(fileBuffer[dataOffset]);
 
-			CellColor c;
 			u32 frameColor = 0xffffffff;
 			u32 textColor = 0xff000000;
 			const f32 ga = grad.getLerpVal(val);
@@ -849,15 +847,8 @@ void HexView::fillColorBuffer(i32 panelID)
 	}
 	// plain
 	else if(colorDisplay == ColorDisplay::PLAIN) {
-		for(i32 i = 0; i < itemCount; i++)
-		{
-			const i64 dataOffset = i + startOffset;
-			const T val = *(T*)&(fileBuffer[dataOffset]);
-
-			CellColor c;
-			u32 frameColor = 0xffffffff;
-			u32 textColor = 0xff000000;
-			colorBuffer.data[i] = cellColorFromU32(frameColor, textColor);
+		for(i64 i = 0; i < itemCount; i++) {
+			colorBuffer.data[i] = cellColorFromU32(0xffffffff, 0xff000000);
 		}
 	}
 
@@ -1382,7 +1373,7 @@ void uiHexDoAsciiPanel(i64 startOffset, const u8* data, i64 dataSize, i32 column
 }
 
 template<typename T>
-void uiHexDoFormatPanel(i32 startLine, const u8* data, i64 dataSize, i32 columnCount, const CellColorBuffer& colorBuffer, const char* format)
+void uiHexDoFormatPanel(i64 startOffset, const u8* data, i64 dataSize, i32 columnCount, const CellColorBuffer& colorBuffer, const char* format)
 {
 	// TODO: there are a LOT of arguments here
 	// Remove selection & gradient depedency? Replace with a color buffer?
@@ -1400,23 +1391,40 @@ void uiHexDoFormatPanel(i32 startLine, const u8* data, i64 dataSize, i32 columnC
 	const ImVec2 panelSize = {panelWidth, 10}; // height doesnt really matter here
 	const ImRect panelRect = {winPos, winPos + panelSize};
 
-	const i32 byteSize = sizeof(T);
-	const i32 bitSize = byteSize << 3;
-
-	const i32 lineCount = window->Rect().GetHeight() / style.rowHeight;
-	i64 itemCount = (MIN(dataSize - (i64)startLine * columnCount, lineCount * columnCount) / byteSize) * byteSize;
-
 	ImGui::ItemSize(panelRect, 0);
 	if(!ImGui::ItemAdd(panelRect, 0)) // is clipped
 		return;
 
+
+	const i32 byteSize = sizeof(T);
+	const i32 bitSize = byteSize << 3;
+
+	const i32 lineCount = window->Rect().GetHeight() / style.rowHeight;
+	i64 itemCount = (MIN(dataSize - startOffset, lineCount * columnCount) / byteSize) * byteSize;
+
 	const ImVec2 cellSize(style.intColumnWidth * byteSize, style.rowHeight);
 
-	const i64 startLineOff = (i64)startLine * columnCount;
 	for(i64 i = 0; i < itemCount; i += byteSize) {
-		const i64 dataOff = i + startLineOff;
+		const i64 dataOff = i + startOffset;
+		T val;
+
+		// fill bytes with 0 when startOffset < 0
+		// TODO: get out of that loop
+		if(dataOff < 0) {
+			u8 val8[sizeof(T)];
+			for(i64 j = 0; j < byteSize; j++) {
+				if(dataOff + j < 0) val8[j] = 0;
+				else val8[j] = *(u8*)&data[dataOff + j];
+			}
+
+			val = *(T*)val8;
+		}
+		else {
+			val = *(T*)&data[dataOff];
+		}
+
 		char integerStr[32];
-		sprintf(integerStr, format, *(T*)&data[dataOff]);
+		sprintf(integerStr, format, val);
 
 		const ImVec2 labelSize = ImGui::CalcTextSize(integerStr, NULL, true);
 		ImVec2 size = ImGui::CalcItemSize(cellSize, labelSize.x, labelSize.y);
