@@ -885,15 +885,17 @@ void HexView::fillColorBuffer(i32 panelID)
 	for(i32 s = approxFirst; s < approxLast2; s++)
 	{
 		const SearchResult& sr = searchList[s];
-		if(sr.offset+sr.len < startOffset)
+		if(sr.offset+sr.len <= startOffset)
 			continue;
 		if(sr.offset > endDataOff)
 			break;
 
-		i64 start = MAX(sr.offset - startOffset, 0);
-		i64 end = MIN(start + sr.len, itemCount);
+		i64 start = sr.offset - startOffset;
+		i64 end = start + sr.len;
 
 		for(i64 i = start; i < end; i++) {
+			if(i < 0) continue;
+			if(i >= itemCount) break; // TODO: crop out of the loop
 			assert(i >= 0 && i < colorBuffer.capacity/sizeof(CellColor));
 			colorBuffer.data[i] = cellColorFromU32(searchFrameColor, searchTextColor);
 		}
