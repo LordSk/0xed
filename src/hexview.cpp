@@ -229,12 +229,18 @@ void HexView::doUiHexViewWindow()
 
 	ImGui::SetNextWindowContentSize(ImVec2(windowWidth, totalLineCount * style.rowHeight));
 	ImGui::BeginChild("#child_panel", ImVec2(0, 0), false,
-					  ImGuiWindowFlags_HorizontalScrollbar);
+					  ImGuiWindowFlags_HorizontalScrollbar|ImGuiWindowFlags_NoScrollWithMouse);
 
 		ImGuiWindow* window = ImGui::GetCurrentWindow();
 		if(goToLine != -1) {
 			ImGui::SetScrollY(goToLine * style.rowHeight);
 			goToLine = -1;
+		}
+		// manual scrolling
+		if(io.MouseWheel != 0) {
+			window->Scroll.y -= io.MouseWheel * style.rowHeight;
+			window->Scroll.y = MAX(window->Scroll.y, 0);
+			window->Scroll.y = MIN(window->Scroll.y, window->ScrollMax.y);
 		}
 		scrollCurrentLine = window->Scroll.y / style.rowHeight;
 
