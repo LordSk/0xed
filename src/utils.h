@@ -437,15 +437,15 @@ inline Color3 rgbGetLighterColor(const Color3& rgbIn, const f32 lightVal)
 struct BufferSlice
 {
 	u8* data;
-	i32 size;
+	i64 size;
 };
 
 template<typename T>
 struct GrowableBufferT
 {
 	T* data = nullptr;
-	i32 capacity = 0;
-	i32 size = 0;
+	i64 capacity = 0;
+	i64 size = 0;
 
 	~GrowableBufferT() {
 		release();
@@ -496,14 +496,14 @@ struct GrowableBufferT
 		return (u8*)data + size - size_;
 	}
 
-	inline BufferSlice getSlice(i32 start, i32 size_) const {
-		assert(start > 0);
+	inline BufferSlice getSlice(i64 start, i64 size_) const {
+		assert(start >= 0);
 		assert(start + size_ <= size);
 		return BufferSlice{ (u8*)data + start, size_ };
 	}
 };
 
-typedef GrowableBufferT<void> GrowableBuffer;
+typedef GrowableBufferT<u8> GrowableBuffer;
 
 // Appends whole file data
 bool openFileReadAll(const char* path, GrowableBuffer* out_fb);

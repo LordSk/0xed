@@ -41,7 +41,6 @@ struct Application {
 AppWindow win;
 Config config;
 GrowableBuffer curFileBuff;
-BufferSlice curFileSlice;
 HexView hexView;
 BrickWall brickWall;
 
@@ -221,18 +220,17 @@ bool fileLoad(const char* filename)
 	const i32 fileOffsetMax = 32;
 
 	curFileBuff.clear();
-	curFileBuff.append(0, fileOffsetMax);
-
 	if(!openFileReadAll(filename, &curFileBuff)) {
 		LOG("ERROR: failed to load '%s'", filename);
 		return false;
 	}
 
+	curFileBuff.size--; // hacky, make size == fileSize
+
 	searchResults.clear();
 
-	curFileSlice = curFileBuff.getSlice(fileOffsetMax, curFileBuff.size - fileOffsetMax);
-	hexView.setFileBuffer(curFileSlice.data, curFileSlice.size);
-	searchSetNewFileBuffer(curFileSlice);
+	hexView.setFileBuffer((u8*)curFileBuff.data, curFileBuff.size);
+	searchSetNewFileBuffer(curFileBuff.getSlice(0, curFileBuff.size));
 
 	char title[256];
 	snprintf(title, sizeof(title), "%s :: 0xed", pathGetFilename(filename));
@@ -316,7 +314,7 @@ void doUI()
 	// Tool windows
 
 	// Inspector
-	toolsDoInspectorWindow(curFileSlice.data, curFileSlice.size, hexView.selection);
+	toolsDoInspectorWindow(curFileBuff.data, curFileBuff.size, hexView.selection);
 
 	// Search
 	ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(10, 10));
@@ -340,7 +338,7 @@ void doUI()
 	ImGui::End();
 
 	// Brick wall
-	uiBrickWallWindow(&brickWall, curFileSlice.data);
+	uiBrickWallWindow(&brickWall, curFileBuff.data);
 
 	// Scripts
 	ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));

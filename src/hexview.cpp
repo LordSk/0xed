@@ -217,8 +217,8 @@ void HexView::doUiHexViewWindow()
 
 	ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(0, 0));
 
-	uiHexRowHeader(scrollCurrentLine, columnCount, style.columnHeaderHeight + panelHeaderHeight,
-				   selection);
+	// TODO: take fileoffset into account
+	uiHexRowHeader(scrollCurrentLine - fileOffset / columnCount, columnCount, style.columnHeaderHeight + panelHeaderHeight, selection);
 
 	ImGui::SameLine();
 
@@ -229,20 +229,28 @@ void HexView::doUiHexViewWindow()
 
 	ImGui::SetNextWindowContentSize(ImVec2(windowWidth, totalLineCount * style.rowHeight));
 	ImGui::BeginChild("#child_panel", ImVec2(0, 0), false,
-					  ImGuiWindowFlags_HorizontalScrollbar|ImGuiWindowFlags_NoScrollWithMouse);
+					  ImGuiWindowFlags_HorizontalScrollbar);
 
+		// scrolling
 		ImGuiWindow* window = ImGui::GetCurrentWindow();
 		if(goToLine != -1) {
 			ImGui::SetScrollY(goToLine * style.rowHeight);
 			goToLine = -1;
 		}
-		// manual scrolling
-		if(io.MouseWheel != 0) {
-			window->Scroll.y -= io.MouseWheel * style.rowHeight;
-			window->Scroll.y = MAX(window->Scroll.y, 0);
-			window->Scroll.y = MIN(window->Scroll.y, window->ScrollMax.y);
-		}
+
+		// TODO: change behaviour of keyboard scrolling.
+		// Count one key press the first 1 second, then count as key down (smooth scrolling)
+		if(ImGui::IsKeyDown(ImGui::GetIO().KeyMap[ImGuiKey_DownArrow]))
+			ImGui::SetScrollY(window->Scroll.y + style.rowHeight);
+		else if(ImGui::IsKeyDown(ImGui::GetIO().KeyMap[ImGuiKey_UpArrow]))
+			ImGui::SetScrollY(window->Scroll.y - style.rowHeight);
+		else if(ImGui::IsKeyDown(ImGui::GetIO().KeyMap[ImGuiKey_PageDown]))
+			ImGui::SetScrollY(window->Scroll.y + 10 * style.rowHeight);
+		else if(ImGui::IsKeyDown(ImGui::GetIO().KeyMap[ImGuiKey_PageUp]))
+			ImGui::SetScrollY(window->Scroll.y - 10 * style.rowHeight);
+
 		scrollCurrentLine = window->Scroll.y / style.rowHeight;
+
 
 		// fill panel color buffers
 		for(i32 p = 0; p < panelCount; ++p) {
