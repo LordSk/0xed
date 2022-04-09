@@ -1,7 +1,7 @@
 #pragma once
 #include "base.h"
-#include <SDL2/SDL_video.h>
-#include <SDL2/SDL_events.h>
+#include <SDL_video.h>
+#include <SDL_events.h>
 #include <functional>
 
 struct AppWindow

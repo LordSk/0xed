@@ -1,10 +1,11 @@
 --
-dofile("config.lua");
-
-BUILD_DIR = path.getabsolute("./build")
+local BUILD_DIR = path.getabsolute("./build")
+local SDL2_include = path.getabsolute("./external/SDL2-2.0.20/include")
+local SDL2_libdir = path.getabsolute("./external/SDL2-2.0.20/lib/x64")
 
 solution "0xed solution"
 	location(BUILD_DIR)
+	targetdir(BUILD_DIR)
 	
 	configurations {
 		"Debug",
@@ -18,7 +19,7 @@ solution "0xed solution"
 	language "C++"
 	
 	configuration {"Debug"}
-		targetsuffix "_debug"
+		targetsuffix "_dbg"
 		flags {
 			"Symbols"
 		}
@@ -28,7 +29,6 @@ solution "0xed solution"
 		}
 	
 	configuration {"Release"}
-		targetsuffix "_release"
 		flags {
 			"Optimize"
 		}
@@ -37,9 +37,10 @@ solution "0xed solution"
 			"CONF_RELEASE"
 		}
 	
+	configuration { "qbs" }
+		targetdir("../build")
+
 	configuration {}
-	
-	targetdir("../build")
 	
 	includedirs {
 		"src",
@@ -78,18 +79,6 @@ solution "0xed solution"
 	}
 	
 	defines {
-		--"NK_INCLUDE_FIXED_TYPES",
-		--"NK_INCLUDE_STANDARD_IO",
-		--"NK_INCLUDE_STANDARD_VARARGS",
-		--"NK_INCLUDE_DEFAULT_ALLOCATOR",
-		--"NK_INCLUDE_VERTEX_BUFFER_OUTPUT",
-		--"NK_INCLUDE_FONT_BAKING",
-		--"NK_INCLUDE_DEFAULT_FONT"
-		--"EASY_PROFILER_VERSION_MAJOR=1",
-		--"EASY_PROFILER_VERSION_MINOR=3",
-		--"EASY_PROFILER_VERSION_PATCH=0",
-		--"EASY_DEFAULT_PORT=28077",
-		--"BUILD_WITH_EASY_PROFILER=1"
 	}
 	
 	-- disable exception related warnings

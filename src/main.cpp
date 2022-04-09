@@ -1,5 +1,5 @@
 #define SDL_MAIN_HANDLED
-#include <SDL2/SDL.h>
+#include <SDL.h>
 #ifdef _WIN32
     #include <windows.h>
 #endif
